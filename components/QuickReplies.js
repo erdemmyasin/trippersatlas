@@ -5,23 +5,13 @@ export default function QuickReplies({ replies = [], onSelect }) {
 
   return (
     <div style={s.wrap}>
-      {replies.map((reply, i) => (
+      {replies.map((r, i) => (
         <button
           key={i}
-          style={s.btn}
-          onClick={() => onSelect?.(reply)}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'var(--gold-soft)';
-            e.currentTarget.style.borderColor = 'var(--gold)';
-            e.currentTarget.style.color = 'var(--gold)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'var(--surface)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.color = 'var(--text2)';
-          }}
+          style={s.reply}
+          onClick={() => onSelect?.(r)}
         >
-          {reply}
+          {r}
         </button>
       ))}
     </div>
@@ -31,23 +21,22 @@ export default function QuickReplies({ replies = [], onSelect }) {
 const s = {
   wrap: {
     display: 'flex',
-    gap: '8px',
-    overflowX: 'auto',
-    padding: '4px 0 8px',
-    scrollbarWidth: 'none',
+    gap: '10px',
+    flexWrap: 'wrap',
+    paddingLeft: '46px',
+    marginTop: '4px',
   },
-  btn: {
-    flexShrink: 0,
-    padding: '7px 14px',
-    borderRadius: 'var(--r-sm)',
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    color: 'var(--text2)',
-    fontFamily: 'var(--font-sans)',
+  reply: {
+    border: '1px solid rgba(0,0,0,.06)',
+    background: 'rgba(255,255,255,.78)',
+    borderRadius: '999px',
+    padding: '9px 14px',
     fontSize: '13px',
-    fontWeight: 500,
     cursor: 'pointer',
-    transition: 'all 150ms ease',
-    whiteSpace: 'nowrap',
+    color: '#40372d',
+    fontWeight: 600,
+    fontFamily: 'var(--font-sans)',
+    transition: 'background .15s, box-shadow .15s',
+    boxShadow: '0 4px 10px rgba(0,0,0,.04)',
   },
 };

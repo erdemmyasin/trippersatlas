@@ -6,151 +6,176 @@ const MODULES = [
   {
     id: 'purpose',
     label: 'Amaç / Plan türü',
-    status: 'active',   /* active | open | passive | locked */
-    badges: ['active'],
-    desc: 'Fikir kılıcına başlamak için amaç ve seyahat türünü belirleyin.',
-    options: ['Şehir keşfi', 'Yürüyüş planı', 'Kültür turu'],
-    subAdd: false,
+    desc: 'Kısa kültürel kaçamak olarak netleşti.',
+    defaultActive: true,
+    defaultLocked: true,
+    tags: ['Şehir keşfi', 'Yürünebilir plan'],
+    hasAdd: false,
   },
   {
     id: 'lodging',
     label: 'Konaklama',
-    status: 'open',
-    badges: ['open', 'locked'],
-    desc: 'Butik otel ve özel konut seçeneklerini ön plana çıkarabilirsiniz.',
-    options: ['Butik otel', 'Merkez de', 'Villa'],
-    subAdd: true,
+    desc: 'Butik otel ve nehir kıyısı seçenekleri öne çıktı.',
+    defaultActive: true,
+    defaultLocked: false,
+    tags: ['Butik otel', 'Merkezde'],
+    hasAdd: true,
   },
   {
     id: 'transfer',
     label: 'Transfer',
-    status: 'open',
-    badges: ['open', 'locked'],
-    desc: 'Havalimanı karşılama ve dönüş transferini değerlendiriyoruz.',
-    options: ['Karşılama', 'Özel araç', 'Havalimanı VIP'],
-    subAdd: true,
+    desc: 'Havalimanı karşılama ve dönüş transferi değerlendiriliyor.',
+    defaultActive: true,
+    defaultLocked: false,
+    tags: ['Karşılama', 'Özel araç'],
+    hasAdd: true,
   },
   {
     id: 'transport',
     label: 'Ulaşım',
-    status: 'passive',
-    badges: ['passive', 'locked'],
-    desc: 'Henüz kullanıcı tarafından talep edilmediğinden sonra aktifleşecek.',
-    options: ['Uçuş', 'Tren', 'Otobüs'],
-    subAdd: false,
+    desc: 'Henüz kullanıcı tarafından istenmedi. Gerekirse sonradan eklenebilir.',
+    defaultActive: false,
+    defaultLocked: false,
+    tags: ['Uçuş', 'Tren', 'Araç kiralama'],
+    hasAdd: false,
   },
   {
     id: 'activities',
     label: 'Aktiviteler',
-    status: 'passive',
-    badges: ['passive', 'locked'],
-    desc: 'Destinasyona göre deneyim ve tur seçenekleri eklenebilir.',
-    options: ['Müze turu', 'Tekne', 'Yemek deneyimi'],
-    subAdd: true,
+    desc: 'Müze, kale ve yerel yemek durağı içeren rota oluşturuldu.',
+    defaultActive: true,
+    defaultLocked: false,
+    tags: ['Müze', 'Kale', 'Yerel lezzet'],
+    hasAdd: false,
+  },
+  {
+    id: 'extras',
+    label: 'Ekstra servisler',
+    desc: 'İstenirse cruise, restoran rezervasyonu veya özel deneyim eklenebilir.',
+    defaultActive: false,
+    defaultLocked: false,
+    tags: ['Cruise', 'Restoran', 'Sigorta'],
+    hasAdd: true,
   },
 ];
 
-const BADGE_MAP = {
-  active:  { label: 'Aktif',   bg: 'rgba(16,185,129,0.13)',  color: '#059669' },
-  open:    { label: 'Açık',    bg: 'rgba(16,185,129,0.13)',  color: '#059669' },
-  passive: { label: 'Pasif',   bg: 'rgba(107,114,128,0.12)', color: '#6B7280' },
-  locked:  { label: 'Kilitli', bg: 'rgba(245,158,11,0.13)',  color: '#D97706' },
-};
+const ADD_MODULES = ['+ Ulaşım', '+ Transfer', '+ Cruise', '+ Restoran', '+ Sigorta'];
 
 export default function LeftPanel({ completedModules = new Set() }) {
+  const [savedOpen, setSavedOpen] = useState(true);
+
   return (
     <div style={s.panel}>
-      {/* Başlık satırı */}
-      <div style={s.topBar}>
-        <span style={s.topTitle}>SEYAHAT MODÜLLERİ</span>
-        <span style={s.planTag}>ESNEK PLAN</span>
+      {/* ── Modüller ── */}
+      <div style={s.section}>
+        <div style={s.sectionTitle}>
+          <span>Seyahat modülleri</span>
+          <span style={s.planTag}>Esnek plan</span>
+        </div>
+        <div style={s.moduleList}>
+          {MODULES.map(mod => (
+            <ModuleBlock key={mod.id} mod={mod} isDone={completedModules.has(mod.id)} />
+          ))}
+        </div>
       </div>
 
-      {/* Modüller */}
-      <div style={s.moduleList}>
-        {MODULES.map(mod => (
-          <ModuleBlock key={mod.id} mod={mod} isDone={completedModules.has(mod.id)} />
-        ))}
+      {/* ── Kaydedilenler ── */}
+      <div style={s.section}>
+        <div style={s.sectionTitle}><span>Kaydedilenler</span></div>
+        <div style={{ ...s.accordion, ...(savedOpen ? s.accordionOpen : {}) }}>
+          <button style={s.accordionToggle} onClick={() => setSavedOpen(o => !o)}>
+            <div>
+              <strong style={s.accTitle}>Kaydedilen lokasyon, otel ve servisler</strong>
+              <span style={s.accSub}>
+                Beğendiğin öğeleri burada tut, istersen sonradan tura ekle veya yeni tur başlat.
+              </span>
+            </div>
+            <span style={{
+              ...s.accIcon,
+              transform: savedOpen ? 'rotate(180deg)' : 'rotate(0)',
+            }}>⌄</span>
+          </button>
+
+          {savedOpen && (
+            <div style={s.accordionBody}>
+              <p style={s.emptyNote}>
+                Henüz kaydedilen öğe yok. Kart üzerindeki 🔖 ikonuna tıklayarak otel ve servisleri buraya ekleyebilirsin.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Yeni bileşen ── */}
+      <div style={s.section}>
+        <div style={s.sectionTitle}><span>Yeni bileşen ekle</span></div>
+        <div style={s.tagsRow}>
+          {ADD_MODULES.map(label => (
+            <span key={label} style={s.tagAdd}>{label}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Akıllı öneri ── */}
+      <div style={s.section}>
+        <div style={s.sectionTitle}><span>Akıllı öneri</span></div>
+        <div style={s.adviceCard}>
+          <p style={s.adviceText}>
+            Konaklama ve aktiviteler netleşmeye yaklaştı. İstersen bir sonraki adımda yalnızca transfer kısmını tamamlayıp planı sabitleyebiliriz.
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
 function ModuleBlock({ mod, isDone }) {
-  const [open, setOpen] = useState(mod.status === 'active' || mod.status === 'open');
+  const [active, setActive]   = useState(mod.defaultActive);
+  const [locked, setLocked]   = useState(mod.defaultLocked || isDone);
 
-  const isActive  = mod.status === 'active';
-  const isPassive = mod.status === 'passive' && !isDone;
-
-  /* Tamamlandıysa yeşil, aktifse altın, açıksa yeşil, diğer şeffaf */
-  const leftBorderColor = isDone
-    ? '#059669'
-    : isActive
-      ? 'var(--gold)'
-      : mod.status === 'open'
-        ? '#059669'
-        : 'transparent';
+  const isEffectivelyDone = isDone || locked;
 
   return (
     <div style={{
-      ...s.block,
-      opacity: isPassive ? 0.72 : 1,
-      borderLeft: `3px solid ${leftBorderColor}`,
-      background: isDone ? 'rgba(5,150,105,0.04)' : 'var(--surface)',
+      ...s.module,
+      ...(active ? s.moduleActive : {}),
+      ...(isEffectivelyDone ? s.moduleLocked : {}),
     }}>
-      {/* Module header */}
-      <button style={s.modHead} onClick={() => setOpen(o => !o)}>
-        <span style={{
-          ...s.modLabel,
-          color: isDone ? '#059669' : isActive ? 'var(--gold)' : 'var(--text1)',
-        }}>
-          {mod.label}
-        </span>
-        <div style={s.badgeRow}>
-          {isDone ? (
-            /* Tamamlandı badge'i — diğer badge'lerin yerine */
-            <span style={{ ...s.badge, background: 'rgba(5,150,105,0.13)', color: '#059669' }}>
-              ✓ Tamamlandı
-            </span>
-          ) : (
-            mod.badges.map(b => (
-              <span key={b} style={{ ...s.badge, background: BADGE_MAP[b].bg, color: BADGE_MAP[b].color }}>
-                {BADGE_MAP[b].label}
-              </span>
-            ))
-          )}
-          <ChevronIcon open={open} />
-        </div>
-      </button>
-
-      {/* Expanded content */}
-      {open && (
-        <div style={s.modBody}>
-          <p style={s.desc}>{mod.desc}</p>
-          <div style={s.optionRow}>
-            {mod.options.map(opt => (
-              <span key={opt} style={s.optPill}>{opt}</span>
-            ))}
+      <div style={s.moduleRow}>
+        <div style={s.moduleMain}>
+          <div style={{
+            ...s.moduleName,
+            color: isDone ? 'var(--green)' : active ? 'var(--text1)' : 'var(--muted)',
+          }}>
+            {isDone ? '✓ ' : ''}{mod.label}
           </div>
-          {mod.subAdd && (
-            <button style={s.subAdd}>＋ alt başlık ekle</button>
-          )}
+          <div style={s.moduleDesc}>{mod.desc}</div>
         </div>
-      )}
-    </div>
-  );
-}
 
-function ChevronIcon({ open }) {
-  return (
-    <svg
-      width="12" height="12" viewBox="0 0 24 24" fill="none"
-      stroke="var(--text3)" strokeWidth="2.5"
-      strokeLinecap="round" strokeLinejoin="round"
-      style={{ transform: open ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s', flexShrink: 0 }}
-    >
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
+        <div style={s.moduleActions}>
+          {/* Toggle Açık/Pasif */}
+          <button
+            style={s.tinyBtn}
+            onClick={() => setActive(a => !a)}
+          >
+            {active ? 'Açık' : 'Pasif'}
+          </button>
+
+          {/* Lock/Unlock */}
+          <button
+            style={{ ...s.tinyBtn, ...(locked ? s.tinyBtnGold : {}) }}
+            onClick={() => setLocked(l => !l)}
+          >
+            {locked ? 'Kilitli' : 'Kilitle'}
+          </button>
+        </div>
+      </div>
+
+      <div style={s.tagsRow}>
+        {mod.tags.map(t => <span key={t} style={s.tag}>{t}</span>)}
+        {mod.hasAdd && <span style={s.tagAdd}>+ alt başlık ekle</span>}
+      </div>
+    </div>
   );
 }
 
@@ -158,128 +183,197 @@ const s = {
   panel: {
     display: 'flex',
     flexDirection: 'column',
-    width: '100%',
     gap: '0',
   },
 
-  /* Top bar */
-  topBar: {
+  section: { marginTop: '18px' },
+
+  sectionTitle: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: '12px',
-  },
-  topTitle: {
-    fontFamily: 'var(--font-sans)',
-    fontWeight: 700,
-    fontSize: '10px',
-    letterSpacing: '0.1em',
-    color: 'var(--text3)',
+    fontSize: '12px',
+    color: 'var(--muted)',
     textTransform: 'uppercase',
+    letterSpacing: '.08em',
+    fontWeight: 700,
+    fontFamily: 'var(--font-sans)',
   },
   planTag: {
-    fontFamily: 'var(--font-sans)',
-    fontWeight: 600,
-    fontSize: '9px',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: 'var(--gold)',
+    fontSize: '11px',
+    fontWeight: 700,
+    color: 'var(--gold-deep)',
     background: 'var(--gold-soft)',
-    border: '1px solid var(--gold)',
-    borderRadius: '99px',
-    padding: '2px 8px',
+    border: '1px solid rgba(199,154,70,.24)',
+    borderRadius: '999px',
+    padding: '2px 9px',
+    textTransform: 'none',
+    letterSpacing: 0,
   },
 
-  /* Module blocks */
+  /* Module list */
   moduleList: {
+    display: 'grid',
+    gap: '10px',
+  },
+  module: {
+    border: '1px solid var(--line)',
+    background: 'rgba(255,255,255,.64)',
+    borderRadius: '18px',
+    padding: '12px',
+    transition: '.2s ease',
+  },
+  moduleActive: {
+    border: '1px solid rgba(199,154,70,.4)',
+    background: 'linear-gradient(180deg,rgba(255,255,255,.95),rgba(248,241,228,.92))',
+  },
+  moduleLocked: {
+    boxShadow: 'inset 0 0 0 1px rgba(47,143,107,.25)',
+  },
+  moduleRow: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
+    gap: '10px',
+    alignItems: 'flex-start',
   },
-  block: {
-    borderRadius: '8px',
+  moduleMain: { flex: 1, minWidth: 0 },
+  moduleName: {
+    fontWeight: 700,
+    fontSize: '14px',
+    fontFamily: 'var(--font-sans)',
+    lineHeight: 1.3,
+    marginBottom: '3px',
+  },
+  moduleDesc: {
+    fontSize: '12px',
+    color: 'var(--muted)',
+    lineHeight: 1.45,
+    fontFamily: 'var(--font-sans)',
+  },
+  moduleActions: {
+    display: 'flex',
+    gap: '5px',
+    flexShrink: 0,
+  },
+  tinyBtn: {
+    border: '1px solid var(--line)',
+    background: 'white',
+    borderRadius: '10px',
+    padding: '5px 8px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    color: '#433a30',
+    fontFamily: 'var(--font-sans)',
+    fontWeight: 500,
+    whiteSpace: 'nowrap',
+  },
+  tinyBtnGold: {
+    background: 'rgba(199,154,70,.12)',
+    border: '1px solid rgba(199,154,70,.24)',
+    color: 'var(--gold-deep)',
+    fontWeight: 700,
+  },
+
+  /* Tags */
+  tagsRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '7px',
+    marginTop: '10px',
+  },
+  tag: {
+    padding: '5px 9px',
+    borderRadius: '999px',
+    fontSize: '12px',
+    background: 'rgba(20,20,20,.04)',
+    border: '1px solid rgba(0,0,0,.05)',
+    color: '#4a4137',
+    fontFamily: 'var(--font-sans)',
+  },
+  tagAdd: {
+    padding: '5px 9px',
+    borderRadius: '999px',
+    fontSize: '12px',
+    background: 'rgba(47,143,107,.08)',
+    border: '1px solid rgba(47,143,107,.16)',
+    color: 'var(--green)',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontFamily: 'var(--font-sans)',
+  },
+
+  /* Accordion */
+  accordion: {
+    border: '1px solid var(--line)',
+    background: 'rgba(255,255,255,.68)',
+    borderRadius: '18px',
     overflow: 'hidden',
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    transition: 'opacity 0.2s',
   },
-  modHead: {
+  accordionOpen: {},
+  accordionToggle: {
     width: '100%',
+    border: 0,
+    background: 'transparent',
+    padding: '14px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '9px 10px',
-    background: 'none',
-    border: 'none',
+    gap: '12px',
     cursor: 'pointer',
-    gap: '6px',
-  },
-  modLabel: {
-    fontFamily: 'var(--font-sans)',
-    fontWeight: 600,
-    fontSize: '12px',
-    color: 'var(--text1)',
     textAlign: 'left',
-    flex: 1,
-    lineHeight: 1.2,
   },
-  badgeRow: {
+  accTitle: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: '13px',
+    fontWeight: 700,
+    display: 'block',
+    color: 'var(--text1)',
+  },
+  accSub: {
+    display: 'block',
+    fontSize: '11px',
+    color: 'var(--muted)',
+    marginTop: '3px',
+    lineHeight: 1.45,
+    fontFamily: 'var(--font-sans)',
+  },
+  accIcon: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '999px',
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
+    justifyContent: 'center',
+    border: '1px solid rgba(0,0,0,.06)',
+    background: 'rgba(20,20,20,.04)',
+    color: '#564c42',
+    transition: 'transform .2s ease',
     flexShrink: 0,
+    fontSize: '16px',
   },
-  badge: {
-    fontSize: '9px',
-    fontWeight: 600,
+  accordionBody: {
+    padding: '0 14px 14px',
+    borderTop: '1px solid rgba(0,0,0,.05)',
+  },
+  emptyNote: {
     fontFamily: 'var(--font-sans)',
-    padding: '2px 7px',
-    borderRadius: '99px',
-    letterSpacing: '0.02em',
-    whiteSpace: 'nowrap',
+    fontSize: '12px',
+    color: 'var(--muted)',
+    lineHeight: 1.5,
+    paddingTop: '12px',
   },
 
-  /* Module body */
-  modBody: {
-    padding: '2px 10px 10px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    borderTop: '1px solid var(--border)',
+  /* Advice */
+  adviceCard: {
+    border: '1px solid var(--line)',
+    background: 'rgba(255,255,255,.68)',
+    borderRadius: '18px',
+    padding: '14px',
   },
-  desc: {
+  adviceText: {
     fontFamily: 'var(--font-sans)',
-    fontSize: '11px',
-    color: 'var(--text3)',
+    fontSize: '13px',
+    color: '#51493f',
     lineHeight: 1.5,
-    paddingTop: '6px',
-  },
-  optionRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '5px',
-  },
-  optPill: {
-    fontFamily: 'var(--font-sans)',
-    fontSize: '11px',
-    fontWeight: 500,
-    color: 'var(--text2)',
-    background: 'var(--surface2)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
-    padding: '3px 9px',
-    cursor: 'default',
-    whiteSpace: 'nowrap',
-  },
-  subAdd: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontFamily: 'var(--font-sans)',
-    fontSize: '11px',
-    color: 'var(--gold)',
-    fontWeight: 500,
-    padding: 0,
-    textAlign: 'left',
   },
 };

@@ -4,7 +4,6 @@ import { useState } from 'react';
 
 export default function ChatInput({ onSend, disabled }) {
   const [value, setValue] = useState('');
-  const [focused, setFocused] = useState(false);
 
   function handleSend() {
     const text = value.trim();
@@ -21,61 +20,75 @@ export default function ChatInput({ onSend, disabled }) {
   }
 
   return (
-    <div style={s.wrap}>
-      <div style={{ ...s.box, borderColor: focused ? 'var(--gold)' : 'var(--border)' }}>
+    <div style={s.inputWrap}>
+      <div style={s.inputShell}>
+        {/* Mikrofon ikonu */}
+        <button style={s.iconBtn} tabIndex={-1} type="button" aria-label="Ses">
+          🎙
+        </button>
+
         <textarea
           value={value}
           onChange={e => setValue(e.target.value)}
           onKeyDown={handleKey}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           placeholder="Seyahatinizi anlatın..."
           disabled={disabled}
           rows={1}
           style={{ ...s.input, opacity: disabled ? 0.5 : 1 }}
         />
+
         <button
           onClick={handleSend}
           disabled={!value.trim() || disabled}
           style={{
-            ...s.send,
-            opacity: !value.trim() || disabled ? 0.4 : 1,
+            ...s.sendBtn,
+            opacity: !value.trim() || disabled ? 0.45 : 1,
             cursor: !value.trim() || disabled ? 'default' : 'pointer',
           }}
-          aria-label="Gönder"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          Gönder
         </button>
       </div>
 
-      {/* Hint */}
       <p style={s.hint}>
-        Doğal dille yazabilirsin. Sadece otel, sadece transfer veya tam paket planlarla da mümkün.
+        Doğal dille yazabilirsin. Sadece otel, sadece transfer veya tam paket planlama da mümkün.
       </p>
     </div>
   );
 }
 
 const s = {
-  wrap: {
-    padding: '10px 16px 14px',
-    background: 'var(--surface2)',
-    borderTop: '1px solid var(--border)',
+  inputWrap: {
+    background: 'rgba(255,255,255,.78)',
+    border: '1px solid rgba(255,255,255,.55)',
+    borderRadius: '28px',
+    boxShadow: '0 18px 40px rgba(35,28,18,0.08)',
+    padding: '12px',
     flexShrink: 0,
   },
-  box: {
+  inputShell: {
     display: 'flex',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: '10px',
-    background: 'var(--surface)',
-    border: '1.5px solid var(--border)',
-    borderRadius: 'var(--r-lg)',
-    padding: '10px 10px 10px 16px',
-    boxShadow: 'var(--shadow-sm)',
-    transition: 'border-color 150ms ease',
+    minHeight: '54px',
+    border: '1px solid rgba(0,0,0,.06)',
+    borderRadius: '22px',
+    background: 'white',
+    padding: '10px 12px',
+  },
+  iconBtn: {
+    width: '42px',
+    height: '42px',
+    borderRadius: '14px',
+    border: '1px solid var(--line)',
+    background: 'rgba(20,20,20,.03)',
+    fontSize: '18px',
+    cursor: 'pointer',
+    color: '#4f473d',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
@@ -84,31 +97,32 @@ const s = {
     resize: 'none',
     background: 'transparent',
     fontFamily: 'var(--font-sans)',
-    fontSize: '14px',
+    fontSize: '15px',
     color: 'var(--text1)',
     lineHeight: '1.5',
     maxHeight: '120px',
     overflow: 'auto',
   },
-  send: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '50%',
-    background: 'var(--gold)',
-    border: 'none',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+  sendBtn: {
+    height: '42px',
+    borderRadius: '12px',
+    background: 'linear-gradient(180deg,#d3ab5f,#c08d36)',
+    color: 'white',
+    border: '1px solid rgba(167,125,50,.28)',
+    boxShadow: '0 8px 16px rgba(199,154,70,.24)',
+    padding: '0 18px',
+    fontWeight: 700,
+    fontSize: '14px',
+    fontFamily: 'var(--font-sans)',
     flexShrink: 0,
-    transition: 'opacity 150ms ease',
+    transition: 'opacity 0.15s',
+    whiteSpace: 'nowrap',
   },
   hint: {
+    padding: '8px 6px 2px 6px',
+    color: 'var(--muted)',
     fontFamily: 'var(--font-sans)',
-    fontSize: '11px',
-    color: 'var(--text3)',
-    marginTop: '7px',
-    textAlign: 'center',
+    fontSize: '12px',
     lineHeight: 1.4,
   },
 };

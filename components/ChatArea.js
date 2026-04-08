@@ -70,25 +70,29 @@ export default function ChatArea({ onListingSelect, selectedListings = {} }) {
 
   return (
     <div style={s.shell}>
-      <div style={s.feed}>
-        {messages.map((msg, i) => (
-          <MessageBubble
-            key={i}
-            msg={msg}
-            onListingSelect={onListingSelect}
-            selectedListings={selectedListings}
-          />
-        ))}
-        {typing && <TypingIndicator />}
-        <div ref={bottomRef} />
+      {/* Chat panel */}
+      <div className="ta-panel" style={s.chatPanel}>
+        <div style={s.feed}>
+          {messages.map((msg, i) => (
+            <MessageBubble
+              key={i}
+              msg={msg}
+              onListingSelect={onListingSelect}
+              selectedListings={selectedListings}
+            />
+          ))}
+          {typing && <TypingIndicator />}
+
+          {/* Quick replies — mesajların içinde, en altta */}
+          {quickReplies.length > 0 && (
+            <QuickReplies replies={quickReplies} onSelect={handleSend} />
+          )}
+
+          <div ref={bottomRef} />
+        </div>
       </div>
 
-      {quickReplies.length > 0 && (
-        <div style={s.quickWrap}>
-          <QuickReplies replies={quickReplies} onSelect={handleSend} />
-        </div>
-      )}
-
+      {/* Input — panel dışında */}
       <ChatInput onSend={handleSend} disabled={typing} />
     </div>
   );
@@ -102,53 +106,44 @@ function MessageBubble({ msg, onListingSelect, selectedListings }) {
   return (
     <div style={s.msgGroup}>
       {/* Baloncuk */}
-      <div style={{ ...s.row, justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
-        {!isUser && <div style={s.avatarAI}>A</div>}
+      <div style={{
+        ...s.row,
+        justifyContent: isUser ? 'flex-end' : 'flex-start',
+        flexDirection: isUser ? 'row-reverse' : 'row',
+      }}>
+        <div style={{ ...(isUser ? s.avatarUser : s.avatarAI) }}>
+          {isUser ? 'S' : 'A'}
+        </div>
 
         <div style={{
           ...s.bubble,
-          background:   isUser ? 'var(--gold)'    : 'var(--surface)',
-          color:        isUser ? '#fff'            : 'var(--text1)',
-          borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-          border:       isUser ? 'none'            : '1px solid var(--border)',
-          marginLeft:   isUser ? '40px'            : '0',
-          marginRight:  isUser ? '0'               : '40px',
+          ...(isUser ? s.bubbleUser : s.bubbleAI),
         }}>
           {msg.content}
         </div>
-
-        {isUser && <div style={s.avatarUser}>S</div>}
       </div>
 
-      {/* Hotel kartları — 3'lü yatay grid */}
+      {/* Hotel kartları */}
       {!isUser && listings.length > 0 && (
-        <div style={s.cardsOuter}>
-          <div style={{
-            ...s.cardsGrid,
-            flexWrap: listings.length === 1 ? 'wrap' : 'nowrap',
-          }}>
-            {listings.map((listing, idx) => (
-              <ListingCard
-                key={idx}
-                listing={listing}
-                index={idx}
-                compact={false}
-                onPlanSelect={onListingSelect}
-                isSelected={!!selectedListings[listing.name]}
-              />
-            ))}
-          </div>
+        <div style={s.cardsRow}>
+          {listings.map((listing, idx) => (
+            <ListingCard
+              key={idx}
+              listing={listing}
+              index={idx}
+              onPlanSelect={onListingSelect}
+              isSelected={!!selectedListings[listing.name]}
+            />
+          ))}
         </div>
       )}
 
-      {/* Yerel içgörü kartları */}
+      {/* İçgörüler */}
       {!isUser && insights.length > 0 && (
-        <div style={s.insightsOuter}>
-          <div style={s.insightsRow}>
-            {insights.map((insight, idx) => (
-              <InsightCard key={idx} insight={insight} />
-            ))}
-          </div>
+        <div style={s.insightsGrid}>
+          {insights.map((insight, idx) => (
+            <InsightCard key={idx} insight={insight} />
+          ))}
         </div>
       )}
     </div>
@@ -157,67 +152,107 @@ function MessageBubble({ msg, onListingSelect, selectedListings }) {
 
 const s = {
   shell: {
-    flex: 1,
+    display: 'grid',
+    gridTemplateRows: '1fr auto',
+    gap: '14px',
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+
+  /* Scrollable chat panel */
+  chatPanel: {
+    minHeight: 0,
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    background: 'var(--surface2)',
-    overflow: 'hidden',
-    minWidth: 0,
   },
   feed: {
     flex: 1,
     overflowY: 'auto',
-    padding: '20px 16px 8px',
-    display: 'flex',
-    flexDirection: 'column',
+    padding: '14px 10px 10px',
+    display: 'grid',
     gap: '14px',
+    alignContent: 'start',
   },
+
   msgGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
+    display: 'grid',
+    gap: '12px',
   },
   row: {
     display: 'flex',
-    alignItems: 'flex-end',
-    gap: '8px',
-  },
-  bubble: {
-    maxWidth: '75%',
-    padding: '11px 15px',
-    fontFamily: 'var(--font-sans)',
-    fontSize: '14px',
-    lineHeight: '1.55',
-    boxShadow: 'var(--shadow-sm)',
-    wordBreak: 'break-word',
-  },
-  cardsOuter: {
-    paddingLeft: '36px',
-    overflowX: 'auto',
-    scrollbarWidth: 'none',
-  },
-  cardsGrid: {
-    display: 'flex',
     gap: '10px',
-    paddingBottom: '4px',
-    width: 'fit-content',
-    maxWidth: '100%',
+    alignItems: 'flex-start',
+    maxWidth: '92%',
   },
-  insightsOuter: { paddingLeft: '36px' },
-  insightsRow: { display: 'flex', gap: '10px' },
+
+  /* Avatar styles */
   avatarAI: {
-    width: '28px', height: '28px', borderRadius: '50%',
-    background: 'var(--gold-soft)', border: '1.5px solid var(--gold)',
-    color: 'var(--gold)', fontSize: '11px', fontWeight: 700,
-    fontFamily: 'var(--font-serif)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    width: '36px',
+    height: '36px',
+    borderRadius: '12px',
+    flexShrink: 0,
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: '13px',
+    fontWeight: 800,
+    border: '1px solid rgba(0,0,0,.06)',
+    background: 'linear-gradient(135deg,#1b1714,#4a3824 55%,#c79a46)',
+    color: 'white',
+    fontFamily: 'var(--font-sans)',
   },
   avatarUser: {
-    width: '28px', height: '28px', borderRadius: '50%',
-    background: 'var(--surface)', border: '1.5px solid var(--border)',
-    color: 'var(--text2)', fontSize: '11px', fontWeight: 600,
+    width: '36px',
+    height: '36px',
+    borderRadius: '12px',
+    flexShrink: 0,
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: '13px',
+    fontWeight: 800,
+    border: '1px solid rgba(0,0,0,.06)',
+    background: 'linear-gradient(135deg,#f0d3a1,#c79a46)',
+    color: 'white',
     fontFamily: 'var(--font-sans)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  quickWrap: { padding: '0 16px' },
+
+  /* Bubble styles */
+  bubble: {
+    borderRadius: '22px',
+    padding: '14px 16px',
+    lineHeight: 1.7,
+    border: '1px solid rgba(0,0,0,.05)',
+    boxShadow: '0 12px 24px rgba(0,0,0,.04)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '14px',
+    wordBreak: 'break-word',
+  },
+  bubbleAI: {
+    background: 'rgba(255,255,255,.92)',
+    color: 'var(--text1)',
+  },
+  bubbleUser: {
+    background: 'linear-gradient(180deg,#f1d59c,#e4c17b)',
+    color: '#3b301f',
+  },
+
+  /* Hotel cards row */
+  cardsRow: {
+    display: 'grid',
+    gridAutoFlow: 'column',
+    gridAutoColumns: '248px',
+    gap: '14px',
+    overflowX: 'auto',
+    paddingLeft: '46px',
+    paddingBottom: '4px',
+    scrollbarWidth: 'none',
+  },
+
+  /* Insights grid */
+  insightsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
+    gap: '12px',
+    paddingLeft: '46px',
+  },
 };
