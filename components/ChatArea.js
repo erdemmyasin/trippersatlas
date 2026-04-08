@@ -5,6 +5,7 @@ import ChatInput from './ChatInput';
 import TypingIndicator from './TypingIndicator';
 import QuickReplies from './QuickReplies';
 import ListingCard from './ListingCard';
+import InsightCard from './InsightCard';
 import { callClaude } from '@/services/claude';
 
 const WELCOME = {
@@ -20,18 +21,18 @@ function buildMessage(role, content, data = {}) {
   return {
     role,
     content,
-    listings: data.listings ?? [],
-    quickReplies: data.quickReplies ?? [],
-    proactive: data.proactive ?? [],
+    listings:      data.listings      ?? [],
+    quickReplies:  data.quickReplies  ?? [],
+    proactive:     data.proactive     ?? [],
     localInsights: data.localInsights ?? [],
   };
 }
 
-export default function ChatArea() {
+export default function ChatArea({ onListingSelect, selectedListings = {} }) {
   const [messages, setMessages] = useState([WELCOME]);
-  const [typing, setTyping] = useState(false);
-  const [planContext] = useState({});
-  const bottomRef = useRef(null);
+  const [typing, setTyping]     = useState(false);
+  const [planContext]           = useState({});
+  const bottomRef               = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,11 +50,7 @@ export default function ChatArea() {
         .map(m => ({ role: m.role, content: m.content }));
 
       const data = await callClaude(apiMessages, planContext);
-
-      setMessages(prev => [
-        ...prev,
-        buildMessage('assistant', data.message ?? '', data),
-      ]);
+      setMessages(prev => [...prev, buildMessage('assistant', data.message ?? '', data)]);
     } catch {
       setMessages(prev => [
         ...prev,
@@ -66,11 +63,7 @@ export default function ChatArea() {
     }
   }
 
-  function handleQuickReply(reply) {
-    handleSend(reply);
-  }
-
-  const lastMsg = messages[messages.length - 1];
+  const lastMsg      = messages[messages.length - 1];
   const quickReplies = !typing && lastMsg?.role === 'assistant'
     ? (lastMsg.quickReplies ?? [])
     : [];
@@ -79,7 +72,12 @@ export default function ChatArea() {
     <div style={s.shell}>
       <div style={s.feed}>
         {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} />
+          <MessageBubble
+            key={i}
+            msg={msg}
+            onListingSelect={onListingSelect}
+            selectedListings={selectedListings}
+          />
         ))}
         {typing && <TypingIndicator />}
         <div ref={bottomRef} />
@@ -87,7 +85,7 @@ export default function ChatArea() {
 
       {quickReplies.length > 0 && (
         <div style={s.quickWrap}>
-          <QuickReplies replies={quickReplies} onSelect={handleQuickReply} />
+          <QuickReplies replies={quickReplies} onSelect={handleSend} />
         </div>
       )}
 
@@ -96,38 +94,61 @@ export default function ChatArea() {
   );
 }
 
-function MessageBubble({ msg }) {
-  const isUser = msg.role === 'user';
-  const listings = msg.listings ?? [];
+function MessageBubble({ msg, onListingSelect, selectedListings }) {
+  const isUser   = msg.role === 'user';
+  const listings = msg.listings      ?? [];
+  const insights = msg.localInsights ?? [];
 
   return (
     <div style={s.msgGroup}>
+      {/* Baloncuk */}
       <div style={{ ...s.row, justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
         {!isUser && <div style={s.avatarAI}>A</div>}
 
-        <div
-          style={{
-            ...s.bubble,
-            background: isUser ? 'var(--gold)' : 'var(--surface)',
-            color: isUser ? '#fff' : 'var(--text1)',
-            borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-            border: isUser ? 'none' : '1px solid var(--border)',
-            marginLeft: isUser ? '40px' : '0',
-            marginRight: isUser ? '0' : '40px',
-          }}
-        >
+        <div style={{
+          ...s.bubble,
+          background:   isUser ? 'var(--gold)'    : 'var(--surface)',
+          color:        isUser ? '#fff'            : 'var(--text1)',
+          borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+          border:       isUser ? 'none'            : '1px solid var(--border)',
+          marginLeft:   isUser ? '40px'            : '0',
+          marginRight:  isUser ? '0'               : '40px',
+        }}>
           {msg.content}
         </div>
 
         {isUser && <div style={s.avatarUser}>S</div>}
       </div>
 
-      {/* Listing kartları — sadece assistant mesajında, avatar hizasında */}
+      {/* Hotel kartları — 3'lü yatay grid */}
       {!isUser && listings.length > 0 && (
-        <div style={s.listingsWrap}>
-          {listings.map((listing, idx) => (
-            <ListingCard key={idx} listing={listing} />
-          ))}
+        <div style={s.cardsOuter}>
+          <div style={{
+            ...s.cardsGrid,
+            flexWrap: listings.length === 1 ? 'wrap' : 'nowrap',
+          }}>
+            {listings.map((listing, idx) => (
+              <ListingCard
+                key={idx}
+                listing={listing}
+                index={idx}
+                compact={false}
+                onPlanSelect={onListingSelect}
+                isSelected={!!selectedListings[listing.name]}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Yerel içgörü kartları */}
+      {!isUser && insights.length > 0 && (
+        <div style={s.insightsOuter}>
+          <div style={s.insightsRow}>
+            {insights.map((insight, idx) => (
+              <InsightCard key={idx} insight={insight} />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -141,6 +162,7 @@ const s = {
     flexDirection: 'column',
     background: 'var(--surface2)',
     overflow: 'hidden',
+    minWidth: 0,
   },
   feed: {
     flex: 1,
@@ -148,12 +170,12 @@ const s = {
     padding: '20px 16px 8px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '14px',
   },
   msgGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '10px',
   },
   row: {
     display: 'flex',
@@ -161,7 +183,7 @@ const s = {
     gap: '8px',
   },
   bubble: {
-    maxWidth: '72%',
+    maxWidth: '75%',
     padding: '11px 15px',
     fontFamily: 'var(--font-sans)',
     fontSize: '14px',
@@ -169,43 +191,33 @@ const s = {
     boxShadow: 'var(--shadow-sm)',
     wordBreak: 'break-word',
   },
-  listingsWrap: {
-    /* avatar genişliği (28px) + gap (8px) = 36px offset */
+  cardsOuter: {
     paddingLeft: '36px',
-    display: 'flex',
-    flexDirection: 'column',
+    overflowX: 'auto',
+    scrollbarWidth: 'none',
   },
-  avatarAI: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '50%',
-    background: 'var(--gold-soft)',
-    border: '1.5px solid var(--gold)',
-    color: 'var(--gold)',
-    fontSize: '11px',
-    fontWeight: 700,
-    fontFamily: 'var(--font-serif)',
+  cardsGrid: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    gap: '10px',
+    paddingBottom: '4px',
+    width: 'fit-content',
+    maxWidth: '100%',
+  },
+  insightsOuter: { paddingLeft: '36px' },
+  insightsRow: { display: 'flex', gap: '10px' },
+  avatarAI: {
+    width: '28px', height: '28px', borderRadius: '50%',
+    background: 'var(--gold-soft)', border: '1.5px solid var(--gold)',
+    color: 'var(--gold)', fontSize: '11px', fontWeight: 700,
+    fontFamily: 'var(--font-serif)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   avatarUser: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '50%',
-    background: 'var(--surface)',
-    border: '1.5px solid var(--border)',
-    color: 'var(--text2)',
-    fontSize: '11px',
-    fontWeight: 600,
+    width: '28px', height: '28px', borderRadius: '50%',
+    background: 'var(--surface)', border: '1.5px solid var(--border)',
+    color: 'var(--text2)', fontSize: '11px', fontWeight: 600,
     fontFamily: 'var(--font-sans)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  quickWrap: {
-    padding: '0 16px',
-  },
+  quickWrap: { padding: '0 16px' },
 };

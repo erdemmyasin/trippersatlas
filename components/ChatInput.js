@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 export default function ChatInput({ onSend, disabled }) {
   const [value, setValue] = useState('');
+  const [focused, setFocused] = useState(false);
 
   function handleSend() {
     const text = value.trim();
@@ -21,18 +22,17 @@ export default function ChatInput({ onSend, disabled }) {
 
   return (
     <div style={s.wrap}>
-      <div style={s.box}>
+      <div style={{ ...s.box, borderColor: focused ? 'var(--gold)' : 'var(--border)' }}>
         <textarea
           value={value}
           onChange={e => setValue(e.target.value)}
           onKeyDown={handleKey}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder="Seyahatinizi anlatın..."
           disabled={disabled}
           rows={1}
-          style={{
-            ...s.input,
-            opacity: disabled ? 0.5 : 1,
-          }}
+          style={{ ...s.input, opacity: disabled ? 0.5 : 1 }}
         />
         <button
           onClick={handleSend}
@@ -50,13 +50,18 @@ export default function ChatInput({ onSend, disabled }) {
           </svg>
         </button>
       </div>
+
+      {/* Hint */}
+      <p style={s.hint}>
+        Doğal dille yazabilirsin. Sadece otel, sadece transfer veya tam paket planlarla da mümkün.
+      </p>
     </div>
   );
 }
 
 const s = {
   wrap: {
-    padding: '12px 16px 16px',
+    padding: '10px 16px 14px',
     background: 'var(--surface2)',
     borderTop: '1px solid var(--border)',
     flexShrink: 0,
@@ -96,6 +101,14 @@ const s = {
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    transition: 'opacity 150ms ease, transform 100ms ease',
+    transition: 'opacity 150ms ease',
+  },
+  hint: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: '11px',
+    color: 'var(--text3)',
+    marginTop: '7px',
+    textAlign: 'center',
+    lineHeight: 1.4,
   },
 };

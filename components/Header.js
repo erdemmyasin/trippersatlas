@@ -2,13 +2,19 @@
 
 import { useState } from 'react';
 
-export default function Header() {
-  const [lang, setLang] = useState('TR');
-  const [loginHovered, setLoginHovered] = useState(false);
+/* Örnek plan pilleri — ileride planContext'ten beslenebilir */
+const DEFAULT_PILLS = [
+  { id: 'dest',    icon: '📍', label: 'Destinasyon seçin' },
+  { id: 'dates',   icon: '📅', label: 'Tarih seçin' },
+  { id: 'pax',     icon: '👤', label: 'Kişi sayısı' },
+  { id: 'budget',  icon: '💰', label: 'Bütçe seviyesi' },
+];
 
-  function toggleLang() {
-    setLang(prev => (prev === 'TR' ? 'EN' : 'TR'));
-  }
+export default function Header({ planPills }) {
+  const [lang, setLang] = useState('TR');
+  const [loginHov, setLoginHov] = useState(false);
+
+  const pills = planPills ?? DEFAULT_PILLS;
 
   return (
     <header style={s.header}>
@@ -20,23 +26,30 @@ export default function Header() {
         </span>
       </div>
 
-      {/* Orta: Durum */}
-      <div style={s.center}>
-        <span style={s.status}>Seyahat planınız oluşturuluyor…</span>
+      {/* Orta: Plan pilleri */}
+      <div style={s.pillsRow}>
+        {pills.map((p, i) => (
+          <span key={p.id ?? i} style={s.pill}>
+            <span style={s.pillIcon}>{p.icon}</span>
+            {p.label}
+          </span>
+        ))}
       </div>
 
-      {/* Sağ: Dil + Giriş */}
+      {/* Sağ */}
       <div style={s.actions}>
-        <button style={s.langBtn} onClick={toggleLang} title="Dil seç">
+        <button style={s.langBtn} onClick={() => setLang(l => l === 'TR' ? 'EN' : 'TR')}>
           <span style={s.langActive}>{lang}</span>
-          <span style={s.langSep}>/</span>
-          <span style={s.langOther}>{lang === 'TR' ? 'EN' : 'TR'}</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+            stroke="var(--text3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
         </button>
 
         <button
-          style={{ ...s.loginBtn, ...(loginHovered ? s.loginBtnHover : {}) }}
-          onMouseEnter={() => setLoginHovered(true)}
-          onMouseLeave={() => setLoginHovered(false)}
+          style={{ ...s.loginBtn, ...(loginHov ? s.loginHov : {}) }}
+          onMouseEnter={() => setLoginHov(true)}
+          onMouseLeave={() => setLoginHov(false)}
         >
           Giriş Yap
         </button>
@@ -52,6 +65,7 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: '12px',
     padding: '0 24px',
     background: 'rgba(250,250,248,0.97)',
     backdropFilter: 'blur(12px)',
@@ -67,13 +81,10 @@ const s = {
   logoGroup: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '7px',
     flexShrink: 0,
   },
-  logoIcon: {
-    fontSize: '20px',
-    lineHeight: 1,
-  },
+  logoIcon: { fontSize: '20px', lineHeight: 1 },
   logoText: {
     fontFamily: 'var(--font-serif)',
     fontWeight: 700,
@@ -81,63 +92,59 @@ const s = {
     color: 'var(--text1)',
     lineHeight: 1,
     letterSpacing: '-0.01em',
-  },
-  logoGold: {
-    color: 'var(--gold)',
-  },
-
-  /* Orta */
-  center: {
-    flex: 1,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '0 16px',
-    overflow: 'hidden',
-  },
-  status: {
-    fontFamily: 'var(--font-sans)',
-    fontStyle: 'italic',
-    fontSize: '12px',
-    color: 'var(--text3)',
     whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
   },
+  logoGold: { color: 'var(--gold)' },
+
+  /* Plan pilleri */
+  pillsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    flex: 1,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    flexWrap: 'nowrap',
+  },
+  pill: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    borderRadius: '99px',
+    padding: '4px 11px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '12px',
+    fontWeight: 500,
+    color: 'var(--text2)',
+    whiteSpace: 'nowrap',
+    cursor: 'default',
+  },
+  pillIcon: { fontSize: '12px' },
 
   /* Sağ */
   actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '10px',
     flexShrink: 0,
   },
   langBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: '3px',
+    gap: '4px',
     background: 'none',
-    border: 'none',
+    border: '1px solid var(--border)',
+    borderRadius: '7px',
+    padding: '5px 9px',
     cursor: 'pointer',
-    padding: '4px 6px',
-    borderRadius: '6px',
   },
   langActive: {
     fontFamily: 'var(--font-sans)',
     fontWeight: 600,
     fontSize: '12px',
     color: 'var(--text1)',
-  },
-  langSep: {
-    fontFamily: 'var(--font-sans)',
-    fontSize: '11px',
-    color: 'var(--text3)',
-  },
-  langOther: {
-    fontFamily: 'var(--font-sans)',
-    fontWeight: 400,
-    fontSize: '12px',
-    color: 'var(--text3)',
   },
   loginBtn: {
     border: '1.5px solid var(--gold)',
@@ -152,7 +159,7 @@ const s = {
     transition: 'background 0.18s, color 0.18s',
     whiteSpace: 'nowrap',
   },
-  loginBtnHover: {
+  loginHov: {
     background: 'var(--gold)',
     color: '#fff',
   },
