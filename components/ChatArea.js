@@ -10,7 +10,7 @@ import { callClaude } from '@/services/claude';
 
 const WELCOME = {
   role: 'assistant',
-  content: 'Merhaba! Ben TripperAtlas, seyahat concierge\'iniz. Nereye, ne zaman ve nasıl bir seyahat planladığınızı anlatın.',
+  content: 'Merhaba! Ben TripperAtlas, seyahat asistanınız. Nereye, ne zaman ve nasıl bir seyahat planladığınızı anlatın.',
   listings: [],
   quickReplies: ['İstanbul tatili', 'Bodrum yaz', 'Kapadokya turu', 'Bütçe belirle'],
   proactive: [],
@@ -28,14 +28,49 @@ function buildMessage(role, content, data = {}) {
   };
 }
 
-export default function ChatArea({ onListingSelect, selectedListings = {} }) {
-  const [messages, setMessages] = useState([WELCOME]);
+export default function ChatArea({
+  onListingSelect,
+  onListingDeselect,
+  selectedListings = {},
+  chatId,
+  initialMessages,
+  onMessagesChange,
+  onAssistantResponse,
+}) {
+  const [messages, setMessages] = useState(() =>
+    initialMessages?.length ? initialMessages : [WELCOME]
+  );
   const [typing, setTyping]     = useState(false);
   const [planContext]           = useState({});
+  const feedRef                 = useRef(null);
   const bottomRef               = useRef(null);
+  const prevChatId              = useRef(chatId);
+
+  /* Reset messages when chatId changes */
+  useEffect(() => {
+    if (chatId !== prevChatId.current) {
+      prevChatId.current = chatId;
+      setMessages(initialMessages?.length ? initialMessages : [WELCOME]);
+    }
+  }, [chatId, initialMessages]);
+
+  const onChangeRef = useRef(onMessagesChange);
+  onChangeRef.current = onMessagesChange;
+
+  const prevMsgLen = useRef(messages.length);
+  useEffect(() => {
+    if (messages.length !== prevMsgLen.current) {
+      prevMsgLen.current = messages.length;
+      onChangeRef.current?.(messages);
+    }
+  }, [messages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const feed = feedRef.current;
+    if (!feed) return;
+    requestAnimationFrame(() => {
+      feed.scrollTop = feed.scrollHeight;
+    });
   }, [messages, typing]);
 
   async function handleSend(text) {
@@ -50,6 +85,7 @@ export default function ChatArea({ onListingSelect, selectedListings = {} }) {
         .map(m => ({ role: m.role, content: m.content }));
 
       const data = await callClaude(apiMessages, planContext);
+      onAssistantResponse?.(data);
       setMessages(prev => [...prev, buildMessage('assistant', data.message ?? '', data)]);
     } catch {
       setMessages(prev => [
@@ -72,23 +108,23 @@ export default function ChatArea({ onListingSelect, selectedListings = {} }) {
     <div style={s.shell}>
       {/* Chat panel */}
       <div className="ta-panel" style={s.chatPanel}>
-        <div style={s.feed}>
+        <div ref={feedRef} style={s.feed}>
           {messages.map((msg, i) => (
             <MessageBubble
               key={i}
               msg={msg}
               onListingSelect={onListingSelect}
+              onListingDeselect={onListingDeselect}
               selectedListings={selectedListings}
             />
           ))}
           {typing && <TypingIndicator />}
 
-          {/* Quick replies — mesajların içinde, en altta */}
           {quickReplies.length > 0 && (
             <QuickReplies replies={quickReplies} onSelect={handleSend} />
           )}
 
-          <div ref={bottomRef} />
+          <div ref={bottomRef} style={{ height: 1 }} />
         </div>
       </div>
 
@@ -98,7 +134,7 @@ export default function ChatArea({ onListingSelect, selectedListings = {} }) {
   );
 }
 
-function MessageBubble({ msg, onListingSelect, selectedListings }) {
+function MessageBubble({ msg, onListingSelect, onListingDeselect, selectedListings }) {
   const isUser   = msg.role === 'user';
   const listings = msg.listings      ?? [];
   const insights = msg.localInsights ?? [];
@@ -106,22 +142,29 @@ function MessageBubble({ msg, onListingSelect, selectedListings }) {
   return (
     <div style={s.msgGroup}>
       {/* Baloncuk */}
-      <div style={{
-        ...s.row,
-        justifyContent: isUser ? 'flex-end' : 'flex-start',
-        flexDirection: isUser ? 'row-reverse' : 'row',
-      }}>
-        <div style={{ ...(isUser ? s.avatarUser : s.avatarAI) }}>
-          {isUser ? 'S' : 'A'}
+      {isUser ? (
+        /* Kullanıcı: avatar sağda, balon sola doğru büyüyemez */
+        <div style={s.rowUser}>
+          <div style={{
+            ...s.bubble,
+            ...s.bubbleUser,
+          }}>
+            {msg.content}
+          </div>
+          <div style={s.avatarUser}>S</div>
         </div>
-
-        <div style={{
-          ...s.bubble,
-          ...(isUser ? s.bubbleUser : s.bubbleAI),
-        }}>
-          {msg.content}
+      ) : (
+        /* AI: avatar solda */
+        <div style={s.rowAI}>
+          <div style={s.avatarAI}>A</div>
+          <div style={{
+            ...s.bubble,
+            ...s.bubbleAI,
+          }}>
+            {msg.content}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Hotel kartları */}
       {!isUser && listings.length > 0 && (
@@ -132,7 +175,8 @@ function MessageBubble({ msg, onListingSelect, selectedListings }) {
               listing={listing}
               index={idx}
               onPlanSelect={onListingSelect}
-              isSelected={!!selectedListings[listing.name]}
+              onPlanRemove={onListingDeselect}
+              isSelected={listing.name in selectedListings}
             />
           ))}
         </div>
@@ -155,6 +199,7 @@ const s = {
     display: 'grid',
     gridTemplateRows: '1fr auto',
     gap: '14px',
+    height: '100%',
     minHeight: 0,
     overflow: 'hidden',
   },
@@ -179,11 +224,23 @@ const s = {
     display: 'grid',
     gap: '12px',
   },
-  row: {
+
+  /* AI row: avatar-left + bubble */
+  rowAI: {
     display: 'flex',
     gap: '10px',
     alignItems: 'flex-start',
-    maxWidth: '92%',
+    maxWidth: '88%',
+    alignSelf: 'flex-start',
+  },
+  /* User row: bubble + avatar-right, right-aligned */
+  rowUser: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'flex-end',
+    maxWidth: '72%',
+    alignSelf: 'flex-end',
+    marginLeft: 'auto',
   },
 
   /* Avatar styles */
@@ -202,13 +259,13 @@ const s = {
     fontFamily: 'var(--font-sans)',
   },
   avatarUser: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '12px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '10px',
     flexShrink: 0,
     display: 'grid',
     placeItems: 'center',
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: 800,
     border: '1px solid rgba(0,0,0,.06)',
     background: 'linear-gradient(135deg,#f0d3a1,#c79a46)',
@@ -218,22 +275,27 @@ const s = {
 
   /* Bubble styles */
   bubble: {
-    borderRadius: '22px',
-    padding: '14px 16px',
-    lineHeight: 1.7,
+    borderRadius: '18px',
+    padding: '11px 15px',
+    lineHeight: 1.65,
     border: '1px solid rgba(0,0,0,.05)',
-    boxShadow: '0 12px 24px rgba(0,0,0,.04)',
+    boxShadow: '0 6px 18px rgba(0,0,0,.04)',
     fontFamily: 'var(--font-sans)',
     fontSize: '14px',
     wordBreak: 'break-word',
+    minWidth: 0,
   },
   bubbleAI: {
     background: 'rgba(255,255,255,.92)',
     color: 'var(--text1)',
+    borderRadius: '4px 18px 18px 18px',
   },
   bubbleUser: {
-    background: 'linear-gradient(180deg,#f1d59c,#e4c17b)',
-    color: '#3b301f',
+    background: 'linear-gradient(160deg,#f1d59c,#e2b96a)',
+    color: '#3b2a10',
+    border: '1px solid rgba(199,154,70,.22)',
+    borderRadius: '18px 4px 18px 18px',
+    boxShadow: '0 6px 18px rgba(199,154,70,.15)',
   },
 
   /* Hotel cards row */

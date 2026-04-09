@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 
 export default function ChatInput({ onSend, disabled }) {
   const [value, setValue] = useState('');
@@ -9,6 +10,7 @@ export default function ChatInput({ onSend, disabled }) {
     const text = value.trim();
     if (!text || disabled) return;
     onSend?.(text);
+    trackEvent('chat.send', { length: text.length });
     setValue('');
   }
 

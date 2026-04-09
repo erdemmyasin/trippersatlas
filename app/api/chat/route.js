@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
+import { fetchRealHotels } from '@/services/hotels';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -40,9 +41,59 @@ export async function POST(req) {
       return Response.json({ success: false, data: FALLBACK }, { status: 200 });
     }
 
-    return Response.json({ success: true, data: parsed });
+    const enriched = await enrichListingsWithRealHotelPrices(parsed, planContext, req);
+    return Response.json({ success: true, data: enriched });
   } catch (err) {
     console.error('Chat API hatası:', err);
     return Response.json({ success: false, data: FALLBACK }, { status: 200 });
   }
+}
+
+async function enrichListingsWithRealHotelPrices(parsed, planContext, req) {
+  if (!parsed || !Array.isArray(parsed.listings) || parsed.listings.length === 0) {
+    return parsed;
+  }
+
+  const accommodationIndexes = [];
+  parsed.listings.forEach((listing, idx) => {
+    const t = String(listing?.type || '').toLowerCase();
+    if (t === 'hotel' || t === 'villa' || t === 'accommodation') {
+      accommodationIndexes.push(idx);
+    }
+  });
+
+  if (accommodationIndexes.length === 0) return parsed;
+
+  const destination =
+    planContext?.destination ||
+    parsed.listings[accommodationIndexes[0]]?.location ||
+    'istanbul';
+
+  const checkIn = planContext?.checkIn;
+  const checkOut = planContext?.checkOut;
+  const baseUrl = req.nextUrl.origin;
+
+  const realHotels = await fetchRealHotels(destination, checkIn, checkOut, { baseUrl });
+  if (!realHotels || realHotels.length === 0) return parsed;
+
+  const nextListings = [...parsed.listings];
+  accommodationIndexes.forEach((idx, localIdx) => {
+    const real = realHotels[localIdx];
+    if (!real) return;
+    const current = nextListings[idx];
+    nextListings[idx] = {
+      ...current,
+      // Claude ismini koru
+      name: current.name,
+      location: current.location || real.location,
+      price: Number(real.price) || current.price,
+      priceUnit: current.priceUnit || real.priceUnit || 'gece',
+      bookingUrl: real.bookingUrl || current.bookingUrl,
+      imageUrl: current.imageUrl || real.imageUrl || null,
+      priceIsReal: Number(real.price) > 0,
+      affiliatePlatform: current.affiliatePlatform || real.affiliatePlatform || 'booking',
+    };
+  });
+
+  return { ...parsed, listings: nextListings };
 }

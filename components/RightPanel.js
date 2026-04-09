@@ -1,39 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-
-const BUDGET_CATS = [
-  { key: 'accommodation', label: 'Konaklama' },
-  { key: 'transport',     label: 'Transfer' },
-  { key: 'activities',    label: 'Aktiviteler' },
-  { key: 'extras',        label: 'Diğer' },
-];
-
-const CHECKLIST = [
-  { id: 'dest',        label: 'Şehir ve tarih aralığı netleşti' },
-  { id: 'lodging',     label: 'Konaklama tipi daraltıldı' },
-  { id: 'transfer',    label: 'Transfer talebi opsiyonel tutuluyor' },
-  { id: 'activities',  label: 'Aktivite rotası hazır' },
-  { id: 'reservation', label: 'Plan istenirse rezervasyona çevrilebilir' },
-];
-
 const MARKERS = [
-  { top: '43%', left: '58%', label: 'Riverside Heritage', active: true },
-  { top: '38%', left: '63%', label: 'Stone Court',        active: false },
+  { top: '43%', left: '58%', label: 'Nehir Kenarı Konak', active: true },
+  { top: '38%', left: '63%', label: 'Taş Avlu',           active: false },
   { top: '56%', left: '47%', label: 'Arkeoloji Müzesi',   active: false },
   { top: '34%', left: '52%', label: 'Amasya Kalesi',      active: false },
   { top: '49%', left: '68%', label: 'Akşam yemeği',       active: false },
 ];
 
-export default function RightPanel({ budget = {}, completedModules = new Set() }) {
-  const [checked, setChecked] = useState({});
-
-  function toggle(id) { setChecked(prev => ({ ...prev, [id]: !prev[id] })); }
-  function isItemDone(item) { return !!checked[item.id] || completedModules.has(item.id); }
-
-  const values    = BUDGET_CATS.map(c => budget[c.key] ?? 0);
-  const total     = values.reduce((a, b) => a + b, 0);
-  const doneCount = CHECKLIST.filter(isItemDone).length;
+export default function RightPanel({ completedModules = new Set() }) {
+  /* completedModules arka plan takibi için korunur */
+  void completedModules;
 
   return (
     <>
@@ -59,67 +36,6 @@ export default function RightPanel({ budget = {}, completedModules = new Set() }
         ))}
       </div>
 
-      {/* ── Bütçe Kartı ── */}
-      <div style={s.budgetCard}>
-        <div style={s.budgetTop}>
-          <div>
-            <div style={s.budgetMuted}>Tahmini toplam</div>
-            <div style={s.budgetTotal}>
-              ₺{total > 0 ? total.toLocaleString('tr-TR') : '0'}
-            </div>
-          </div>
-          <div style={s.budgetMuted}>Esnek plan</div>
-        </div>
-
-        <div style={s.breakdown}>
-          {BUDGET_CATS.map((cat, i) => {
-            const val = values[i];
-            const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-            return (
-              <div key={cat.key} style={s.lineItem}>
-                <span style={s.lineLabel}>{cat.label}</span>
-                <strong style={s.lineAmt}>₺{val.toLocaleString('tr-TR')}</strong>
-                <div style={s.bar}>
-                  <div style={{ ...s.fill, width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Plan Kontrol Listesi ── */}
-      <div style={s.checkCard}>
-        <div style={{ ...s.sectionTitle, marginBottom: '10px' }}>
-          <span>Plan kontrol listesi</span>
-          <span style={s.checkCount}>{doneCount}/{CHECKLIST.length}</span>
-        </div>
-
-        {/* micro progress */}
-        <div style={s.microTrack}>
-          <div style={{ ...s.microFill, width: `${Math.round((doneCount / CHECKLIST.length) * 100)}%` }} />
-        </div>
-
-        <div style={s.checkList}>
-          {CHECKLIST.map(item => {
-            const done = isItemDone(item);
-            return (
-              <div key={item.id} style={s.checkItem} onClick={() => toggle(item.id)}>
-                <div style={{ ...s.checkBullet, ...(done ? s.checkBulletDone : {}) }}>
-                  {done ? '✓' : '·'}
-                </div>
-                <span style={{
-                  ...s.checkLabel,
-                  color: done ? 'var(--muted)' : '#453d34',
-                  textDecoration: done ? 'line-through' : 'none',
-                }}>
-                  {item.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </>
   );
 }
@@ -137,7 +53,9 @@ const s = {
       linear-gradient(135deg,#e2ebdf 0%,#d7e3d2 38%,#d5dfd1 39%,#d8d9e6 39.5%,#d2d6ec 100%)
     `,
     boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.28)',
-    minHeight: '200px',
+    /* flex: 1 ile page.js'deki 1fr grid row'unu tam dolduracak */
+    minHeight: 0,
+    flex: 1,
   },
   route: {
     position: 'absolute',

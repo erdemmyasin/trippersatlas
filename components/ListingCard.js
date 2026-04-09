@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { buildAffiliateUrl } from '@/services/affiliate';
+import { trackEvent } from '@/lib/analytics';
 
 /* ── Tip + lokasyon → Unsplash query ── */
 const TYPE_KEYWORDS = {
@@ -34,14 +35,29 @@ const FALLBACKS = {
 };
 
 function buildQuery(listing) {
-  const { type, location = '' } = listing;
+  const { name = '', type, location = '' } = listing;
   const typeKw = TYPE_KEYWORDS[type] ?? 'hotel,travel,luxury';
+
+  /* Lokasyon keyword */
   const locLower = location.toLowerCase();
   let locKw = 'turkey,travel';
   for (const [key, kw] of Object.entries(LOCATION_KEYWORDS)) {
     if (locLower.includes(key)) { locKw = kw; break; }
   }
-  return `${typeKw},${locKw}`;
+
+  /* Otel adından anlamlı kelimeler (3+ harf, max 2) */
+  const stopWords = new Set(['the','bir','ve','de','da','otel','hotel','inn','suite','suites']);
+  const nameWords = name
+    .toLowerCase()
+    .replace(/[^a-zğüşıöç\s]/gi, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 3 && !stopWords.has(w))
+    .slice(0, 2)
+    .join(',');
+
+  return nameWords
+    ? `${typeKw},${locKw},${nameWords}`
+    : `${typeKw},${locKw}`;
 }
 
 /* ── Fallback gradients (indekse göre) ── */
@@ -58,6 +74,7 @@ export default function ListingCard({
   index = 0,
   compact = false,
   onPlanSelect,   /* page-level handler: listing → budget + module update */
+  onPlanRemove,   /* page-level handler: remove from plan */
   isSelected = false,
 }) {
   const [imgSrc, setImgSrc]     = useState(null);
@@ -78,6 +95,8 @@ export default function ListingCard({
     type,
     trustSignal,
     affiliatePlatform,
+    bookingUrl,
+    priceIsReal,
   } = listing;
 
   const fallback = FALLBACKS[type] ?? FALLBACKS.default;
@@ -87,13 +106,21 @@ export default function ListingCard({
   useEffect(() => {
     let cancelled = false;
     const query = buildQuery(listing);
-    fetch(`/api/image?query=${encodeURIComponent(query)}&type=${encodeURIComponent(type || 'hotel')}`)
+    fetch(
+      `/api/image?query=${encodeURIComponent(query)}&name=${encodeURIComponent(name || '')}&location=${encodeURIComponent(location || '')}&type=${encodeURIComponent(type || 'hotel')}&website=${encodeURIComponent(listing?.website || '')}`
+    )
       .then(r => r.json())
       .then(data => { if (!cancelled) setImgSrc(data.url || fallback); })
       .catch(() => { if (!cancelled) setImgSrc(fallback); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, type, location]);
+
+  function handleRemove(e) {
+    e.stopPropagation();
+    trackEvent('listing.remove_click', { name, type });
+    onPlanRemove?.(listing);
+  }
 
   async function handleSelect() {
     if (loading) return;
@@ -102,7 +129,7 @@ export default function ListingCard({
     onPlanSelect?.(listing);
 
     /* 2 — Affiliate kaydı + yeni sekme */
-    const url = buildAffiliateUrl(listing);
+    const url = bookingUrl || buildAffiliateUrl(listing);
     setLoading(true);
     try {
       await fetch('/api/affiliate/click', {
@@ -110,6 +137,7 @@ export default function ListingCard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listingName: name, platform: affiliatePlatform || 'booking', url }),
       });
+      trackEvent('affiliate.click', { listingName: name, platform: affiliatePlatform || 'booking', url });
     } catch { /* devam et */ }
     finally {
       setLoading(false);
@@ -202,7 +230,11 @@ export default function ListingCard({
         {/* Kaydet butonu */}
         <button
           style={sg.saveBtn}
-          onClick={() => setSaved(v => !v)}
+          onClick={() => {
+            const next = !saved;
+            setSaved(next);
+            trackEvent(next ? 'listing.save' : 'listing.unsave', { name, type });
+          }}
           title={saved ? 'Kaydedildi' : 'Kaydet'}
         >
           <BookmarkIcon filled={saved} />
@@ -223,28 +255,41 @@ export default function ListingCard({
           <p style={sg.rating}><StarIcon />{' '}{trustSignal}</p>
         ) : null}
 
-        {/* Fiyat + Seç */}
+        {/* Fiyat + Seç / Kaldır+Seçildi */}
         <div style={sg.foot}>
           {price != null && (
             <div style={sg.priceGroup}>
               <span style={sg.price}>₺{Number(price).toLocaleString('tr-TR')}</span>
               <span style={sg.unit}>/{priceUnit}</span>
+              {priceIsReal && <span style={sg.realPriceTag}>Gerçek fiyat</span>}
             </div>
           )}
-          <button
-            style={{
-              ...sg.selBtn,
-              ...(isSelected ? sg.selDone : {}),
-              ...(selHov && !loading && !isSelected ? sg.selHov : {}),
-              ...(loading ? sg.selLoading : {}),
-            }}
-            onMouseEnter={() => setSelHov(true)}
-            onMouseLeave={() => setSelHov(false)}
-            onClick={handleSelect}
-            disabled={loading}
-          >
-            {loading ? '…' : isSelected ? '✓ Seçildi' : 'Seç'}
-          </button>
+
+          {isSelected ? (
+            /* Seçildi durumu: Kaldır + Seçildi */
+            <div style={sg.selectedBtnGroup}>
+              <button style={sg.removeBtn} onClick={handleRemove} title="Plandan kaldır">
+                Kaldır
+              </button>
+              <button style={sg.selDoneBtn} disabled>
+                ✓ Seçildi
+              </button>
+            </div>
+          ) : (
+            <button
+              style={{
+                ...sg.selBtn,
+                ...(selHov && !loading ? sg.selHov : {}),
+                ...(loading ? sg.selLoading : {}),
+              }}
+              onMouseEnter={() => setSelHov(true)}
+              onMouseLeave={() => setSelHov(false)}
+              onClick={handleSelect}
+              disabled={loading}
+            >
+              {loading ? '…' : 'Seç'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -406,6 +451,19 @@ const sg = {
     color: 'var(--muted)',
     marginLeft: '2px',
   },
+  realPriceTag: {
+    marginLeft: '8px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '10px',
+    fontWeight: 700,
+    color: 'var(--green)',
+    background: 'rgba(47,143,107,.10)',
+    border: '1px solid rgba(47,143,107,.22)',
+    borderRadius: '999px',
+    padding: '2px 7px',
+    whiteSpace: 'nowrap',
+    alignSelf: 'center',
+  },
   selBtn: {
     border: 0,
     background: 'linear-gradient(180deg,#d3ab5f,#c08d36)',
@@ -421,9 +479,38 @@ const sg = {
   },
   selHov:    { opacity: 0.88 },
   selLoading:{ opacity: 0.5, cursor: 'default' },
-  selDone: {
+
+  /* Seçildi durumu butonları */
+  selectedBtnGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    flexShrink: 0,
+  },
+  removeBtn: {
+    border: '1px solid rgba(0,0,0,.14)',
+    background: 'white',
+    color: 'var(--muted)',
+    fontWeight: 600,
+    padding: '8px 10px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '11px',
+    transition: 'background .12s, color .12s',
+    whiteSpace: 'nowrap',
+  },
+  selDoneBtn: {
+    border: 0,
     background: 'linear-gradient(180deg,#3ea87a,#2f8f6b)',
+    color: 'white',
+    fontWeight: 800,
+    padding: '8px 12px',
+    borderRadius: '10px',
     cursor: 'default',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
   },
 
   /* Seçildi overlay */
