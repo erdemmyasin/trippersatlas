@@ -1,16 +1,84 @@
 'use client';
 
-const MARKERS = [
+import QuickPlanMap from '@/components/QuickPlanMap';
+
+export const DEFAULT_MAP_MARKERS = [
   { top: '43%', left: '58%', label: 'Nehir Kenarı Konak', active: true },
-  { top: '38%', left: '63%', label: 'Taş Avlu',           active: false },
-  { top: '56%', left: '47%', label: 'Arkeoloji Müzesi',   active: false },
-  { top: '34%', left: '52%', label: 'Amasya Kalesi',      active: false },
-  { top: '49%', left: '68%', label: 'Akşam yemeği',       active: false },
+  { top: '38%', left: '63%', label: 'Taş Avlu', active: false },
+  { top: '56%', left: '47%', label: 'Arkeoloji Müzesi', active: false },
+  { top: '34%', left: '52%', label: 'Amasya Kalesi', active: false },
+  { top: '49%', left: '68%', label: 'Akşam yemeği', active: false },
 ];
 
-export default function RightPanel({ completedModules = new Set() }) {
+export default function RightPanel({
+  completedModules = new Set(),
+  markers = DEFAULT_MAP_MARKERS,
+  googleMap = null,
+  mapHeadline = 'Harita görünümü',
+  mapSubline = '',
+  /** Gezi detay sağ panel: üstteki “Harita · …” rozetlerini kaldır, harita kutuyu doldursun */
+  hideMapOverlay = false,
+}) {
   /* completedModules arka plan takibi için korunur */
   void completedModules;
+  const list = Array.isArray(markers) && markers.length > 0 ? markers : DEFAULT_MAP_MARKERS;
+
+  const mapsKey = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY : '';
+  const gm = googleMap && mapsKey && googleMap.center && Number.isFinite(googleMap.center.lat) && Number.isFinite(googleMap.center.lng);
+
+  if (gm) {
+    const gMarkers = Array.isArray(googleMap.markers) ? googleMap.markers : [];
+    return (
+      <>
+        <div
+          style={{
+            ...s.map,
+            padding: 0,
+            background: '#e8ebe5',
+            ...(hideMapOverlay
+              ? {
+                  flex: '1 1 0',
+                  minHeight: 200,
+                  minWidth: 0,
+                }
+              : {}),
+          }}
+        >
+          {!hideMapOverlay ? (
+            <div style={{ ...s.mapHeader, zIndex: 5 }}>
+              <span style={s.mapPill}>{mapHeadline}</span>
+              {mapSubline ? <span style={s.mapPill}>{mapSubline}</span> : null}
+            </div>
+          ) : null}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              top: hideMapOverlay ? 0 : 48,
+              borderRadius: 'inherit',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+            }}
+          >
+            <QuickPlanMap
+              showChrome={false}
+              fillHeight={hideMapOverlay}
+              center={googleMap.center}
+              markers={gMarkers}
+              zoom={googleMap.zoom ?? 12}
+              minHeight={hideMapOverlay ? 0 : 260}
+              onMarkerClick={googleMap.onMarkerClick}
+              focusRequest={googleMap.focusRequest}
+            />
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -28,7 +96,7 @@ export default function RightPanel({ completedModules = new Set() }) {
         </div>
 
         {/* Markers */}
-        {MARKERS.map((m, i) => (
+        {list.map((m, i) => (
           <div key={i} style={{ ...s.markerWrap, top: m.top, left: m.left }}>
             <div style={{ ...s.marker, ...(m.active ? s.markerActive : {}) }} />
             <span style={s.markerLabel}>{m.label}</span>
@@ -111,7 +179,7 @@ const s = {
     flexShrink: 0,
   },
   markerActive: {
-    background: 'linear-gradient(180deg,#d3ab5f,#c08d36)',
+    background: 'linear-gradient(180deg,#5f7a94,#3d5266)',
     width: '22px', height: '22px',
   },
   markerLabel: {
@@ -179,7 +247,7 @@ const s = {
   },
   fill: {
     height: '100%',
-    background: 'linear-gradient(90deg,#d3ab5f,#c08d36)',
+    background: 'linear-gradient(90deg,#5f7a94,#3d5266)',
     borderRadius: '999px',
     transition: 'width 0.4s ease',
   },
@@ -205,7 +273,7 @@ const s = {
   checkCount: {
     fontFamily: 'var(--font-mono)',
     fontSize: '11px',
-    color: 'var(--gold-deep)',
+    color: 'var(--ta-accent-deep)',
     fontWeight: 500,
     textTransform: 'none',
     letterSpacing: 0,

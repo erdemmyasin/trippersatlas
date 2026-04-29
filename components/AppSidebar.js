@@ -2,27 +2,115 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
-  MessageCircle, Briefcase, Search, Heart, Bell,
-  Compass, Plus, ChevronRight, ChevronLeft, PenLine, Map,
-  MoreHorizontal, Pencil, Unlink, Trash2, Image, X,
+  MessageCircle, Briefcase, Bookmark, ThumbsUp,
+  Compass, Sparkles, Search, ChevronRight, ChevronLeft, PenLine, Map,
+  MoreHorizontal, Pencil, Trash2, X, Building2, Plane, CarFront, Bus, Zap, Luggage,
 } from 'lucide-react';
-import { getChats, saveChat, deleteChat as deleteStoredChat } from '@/lib/chatStore';
+import AtlasLogo from '@/components/AtlasLogo';
+import SidebarAccount from '@/components/SidebarAccount';
+import { useNewTrip } from '@/components/NewTripProvider';
+import { ta } from '@/lib/brandStyles';
+import { listChatMetas, saveChat, deleteChat as deleteStoredChat } from '@/lib/chatStore';
+
+function listActiveChatMetas() {
+  return listChatMetas().filter((c) => !c.archived);
+}
 import { getTrips, saveTrip, deleteTrip as deleteStoredTrip } from '@/lib/tripStore';
+import { TRIPS_HEADER_KEY, loadMergedTrips } from '@/lib/tripMerge';
+import { deleteTripWorkspace } from '@/lib/tripWorkspaceStore';
+const TA_ACTIVE_TRIP_ID = 'ta_active_trip_id';
+
+function updateTripInBothStorages(tripId, updates) {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(TRIPS_HEADER_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        const idx = arr.findIndex((t) => String(t.id) === String(tripId));
+        if (idx >= 0) {
+          arr[idx] = { ...arr[idx], ...updates };
+          localStorage.setItem(TRIPS_HEADER_KEY, JSON.stringify(arr));
+        }
+      }
+    }
+  } catch {
+    throw new Error('trip_rename_header');
+  }
+  const trips = getTrips();
+  const storeIdx = trips.findIndex((t) => String(t.id) === String(tripId));
+  if (storeIdx >= 0) {
+    saveTrip({ ...trips[storeIdx], ...updates });
+    return;
+  }
+  try {
+    const raw2 = localStorage.getItem(TRIPS_HEADER_KEY);
+    if (!raw2) return;
+    const arr2 = JSON.parse(raw2);
+    if (!Array.isArray(arr2)) return;
+    const t = arr2.find((x) => String(x.id) === String(tripId));
+    if (t) saveTrip({ ...t });
+  } catch {
+    throw new Error('trip_rename_mirror');
+  }
+}
+
+function deleteTripFromBothStorages(tripId) {
+  if (typeof window === 'undefined') return;
+  deleteStoredTrip(tripId);
+  try {
+    deleteTripWorkspace(tripId);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const raw = localStorage.getItem(TRIPS_HEADER_KEY);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return;
+    const next = arr.filter((t) => String(t.id) !== String(tripId));
+    localStorage.setItem(TRIPS_HEADER_KEY, JSON.stringify(next));
+  } catch {
+    throw new Error('trip_delete_header');
+  }
+}
+
+function QuickPlanNavIcon({ size = 20, color = ta.inkMuted, strokeWidth = 2 }) {
+  return (
+    <Zap
+      size={size}
+      strokeWidth={strokeWidth}
+      color={color}
+      aria-hidden
+      style={{ flexShrink: 0 }}
+    />
+  );
+}
 
 const NAV_ITEMS = [
-  { id: 'chats',   Icon: MessageCircle, label: 'Sohbetler',    href: '/chat',    hasPanel: true },
-  { id: 'trips',   Icon: Briefcase,     label: 'Geziler',      href: '/trips',   hasPanel: false },
-  { id: 'explore', Icon: Search,        label: 'Keşfet',       href: '/explore', hasPanel: false },
-  { id: 'saved',   Icon: Heart,         label: 'Kaydedilenler', href: '#',        hasPanel: false },
-  { id: 'updates', Icon: Bell,          label: 'Güncellemeler', href: '#',        hasPanel: false },
-  { id: 'inspire', Icon: Compass,       label: 'İlham',        href: '/',        hasPanel: false },
-  { id: 'create',  Icon: Plus,          label: 'Oluştur',      href: '/chat',    hasPanel: false },
+  { id: 'chats',   Icon: MessageCircle, label: 'Sohbetler',     href: '/chat',    hasPanel: true },
+  { id: 'trips',   Icon: Briefcase,     label: 'Geziler',       href: '/trips',   hasPanel: false },
+  { id: 'quickPlan', Icon: QuickPlanNavIcon, label: 'Hızlı Plan', href: '/chat', hasPanel: true },
+  { id: 'saved',   Icon: Bookmark,      label: 'Kaydedilenler', href: '/saved',   hasPanel: false },
+  { id: 'likes',   Icon: ThumbsUp,      label: 'Beğeniler',     href: '/likes',   hasPanel: false },
+  { id: 'explore', Icon: Compass,       label: 'Keşfet',        href: '/explore', hasPanel: false },
+  { id: 'inspire', Icon: Sparkles,      label: 'İlham Ol',      href: '/inspire', hasPanel: false },
 ];
 
 const EXP_KEY = 'ta_sidebar_expanded';
 
-export default function AppSidebar({ activeId = 'chats' }) {
+export default function AppSidebar({
+  activeId = 'chats',
+  uiMode = 'chat',
+  highlightChatId = null,
+  highlightTripId = null,
+}) {
+  const pathname = usePathname();
+  const { openNewTrip } = useNewTrip();
+  /** /chat: ana içerik (header + sohbet) üstte kalmaması için panel + dim yükseltilir */
+  const isChatPath = pathname === '/chat';
   const [expanded, setExpanded] = useState(false);
   const [panel, setPanel]       = useState(null);
   const [chatCount, setChatCount] = useState(0);
@@ -32,54 +120,44 @@ export default function AppSidebar({ activeId = 'chats' }) {
   const [logoHover, setLogoHover] = useState(false);
   const [search, setSearch]     = useState('');
   const [ctxMenu, setCtxMenu]   = useState(null);
-  const [editId, setEditId]     = useState(null);
+  const [inlineEdit, setInlineEdit] = useState(null);
   const [editVal, setEditVal]   = useState('');
+  const [tripDeleteModal, setTripDeleteModal] = useState(null);
+  const [toastMsg, setToastMsg] = useState(null);
+  const [exitingTripIds, setExitingTripIds] = useState(() => new Set());
   const editRef = useRef(null);
+  const commitLockRef = useRef(false);
+
+  const panelStackBoost = isChatPath && Boolean(panel);
+  const zPanelDim = panelStackBoost ? 250 : 28;
+  /** Flyout her zaman ctx scrim’den üstte olmalı; aksi halde /chat’te Sil menüsü tıklanmıyor */
+  const zPanelFlyout = panelStackBoost ? (ctxMenu ? 270 : 260) : ctxMenu ? 44 : 30;
+  const zCtxScrim = ctxMenu ? (panelStackBoost ? 265 : 38) : 0;
 
   useEffect(() => {
     try { if (localStorage.getItem(EXP_KEY) === 'true') setExpanded(true); } catch {}
-    setChatCount(getChats().length);
+    setChatCount(listActiveChatMetas().length);
   }, []);
 
-  function loadMergedTrips() {
-    let fromHeader = [];
-    try {
-      const r = localStorage.getItem('trips');
-      if (r) fromHeader = JSON.parse(r);
-      if (!Array.isArray(fromHeader)) fromHeader = [];
-    } catch {
-      fromHeader = [];
-    }
-    const fromStore = getTrips();
-    const seen = new Set();
-    const out = [];
-    for (const t of fromHeader) {
-      if (t?.id != null && !seen.has(String(t.id))) {
-        seen.add(String(t.id));
-        out.push(t);
-      }
-    }
-    for (const t of fromStore) {
-      if (t?.id != null && !seen.has(String(t.id))) {
-        seen.add(String(t.id));
-        out.push(t);
-      }
-    }
-    return out;
-  }
-
   function refreshData() {
-    setChats(getChats());
+    setChats(listActiveChatMetas());
     setTrips(loadMergedTrips());
-    setChatCount(getChats().length);
+    setChatCount(listActiveChatMetas().length);
   }
 
   useEffect(() => {
     function onTripsUpdated() {
       refreshData();
     }
+    function onChatsUpdated() {
+      refreshData();
+    }
     window.addEventListener('tripsUpdated', onTripsUpdated);
-    return () => window.removeEventListener('tripsUpdated', onTripsUpdated);
+    window.addEventListener('chatsUpdated', onChatsUpdated);
+    return () => {
+      window.removeEventListener('tripsUpdated', onTripsUpdated);
+      window.removeEventListener('chatsUpdated', onChatsUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -87,14 +165,46 @@ export default function AppSidebar({ activeId = 'chats' }) {
   }, [panel]);
 
   useEffect(() => {
-    if (editId && editRef.current) editRef.current.focus();
-  }, [editId]);
+    if (inlineEdit && editRef.current) {
+      editRef.current.focus();
+      requestAnimationFrame(() => {
+        try {
+          editRef.current?.select?.();
+        } catch {
+          /* ignore */
+        }
+      });
+    }
+  }, [inlineEdit]);
 
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') { setCtxMenu(null); setEditId(null); } }
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(null), 3500);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== 'Escape') return;
+      if (tripDeleteModal) {
+        setTripDeleteModal(null);
+        return;
+      }
+      if (panel) {
+        setPanel(null);
+        setCtxMenu(null);
+        return;
+      }
+      if (inlineEdit) {
+        setInlineEdit(null);
+        setEditVal('');
+        return;
+      }
+      setCtxMenu(null);
+    }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [tripDeleteModal, inlineEdit, panel]);
 
   function toggleExpand() {
     setExpanded(v => {
@@ -105,26 +215,73 @@ export default function AppSidebar({ activeId = 'chats' }) {
   }
 
   function handleNavClick(item, e) {
-    if (item.hasPanel) { e.preventDefault(); setPanel(p => p === item.id ? null : item.id); return; }
+    if (item.hasPanel) {
+      e.preventDefault();
+      setCtxMenu(null);
+      setPanel((p) => (p === item.id ? null : item.id));
+      return;
+    }
     setPanel(null);
+    setCtxMenu(null);
+  }
+
+  function openQuickPlanCategory(cat) {
+    setCtxMenu(null);
+    setPanel(null);
+    if (cat === 'flight') {
+      window.location.href = '/flights';
+      return;
+    }
+    if (cat === 'stay') {
+      window.location.href = '/stay';
+      return;
+    }
+    if (cat === 'car') {
+      window.location.href = '/cars';
+      return;
+    }
+    if (cat === 'bus') {
+      window.location.href = '/bus';
+      return;
+    }
+    if (pathname !== '/chat') {
+      window.location.href = `/chat?quickPlan=${cat}`;
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('taQuickPlan', { detail: { category: cat } }));
+  }
+
+  function showToast(msg) {
+    setToastMsg(msg);
   }
 
   /* ── Chat actions ── */
   function startRenameChat(chat) {
     setCtxMenu(null);
-    setEditId(chat.id);
+    setInlineEdit({ type: 'chat', id: chat.id, original: chat.title || '' });
     setEditVal(chat.title || '');
   }
   function commitRenameChat(chat) {
-    const trimmed = editVal.trim() || 'Başlıksız';
-    saveChat({ ...chat, title: trimmed });
-    setEditId(null);
-    refreshData();
+    if (commitLockRef.current) return;
+    commitLockRef.current = true;
+    try {
+      const trimmed = editVal.trim() || 'Başlıksız';
+      try {
+        saveChat({ ...chat, title: trimmed });
+      } catch {
+        showToast('Kaydedilemedi');
+        return;
+      }
+      setInlineEdit(null);
+      setEditVal('');
+      refreshData();
+    } finally {
+      commitLockRef.current = false;
+    }
   }
-  function removeChatFromTrip(chat) {
-    setCtxMenu(null);
-    saveChat({ ...chat, tripName: null });
-    refreshData();
+  function cancelRenameChat() {
+    setInlineEdit(null);
+    setEditVal('');
   }
   function handleDeleteChat(id) {
     setCtxMenu(null);
@@ -136,23 +293,91 @@ export default function AppSidebar({ activeId = 'chats' }) {
   /* ── Trip actions ── */
   function startRenameTrip(trip) {
     setCtxMenu(null);
-    setEditId(trip.id);
+    setInlineEdit({ type: 'trip', id: trip.id, original: trip.name || '' });
     setEditVal(trip.name || '');
   }
   function commitRenameTrip(trip) {
-    const trimmed = editVal.trim() || 'Yeni Gezi';
-    saveTrip({ ...trip, name: trimmed });
-    setEditId(null);
-    refreshData();
+    if (commitLockRef.current) return;
+    commitLockRef.current = true;
+    try {
+      const fromState =
+        inlineEdit?.type === 'trip' && String(inlineEdit.id) === String(trip.id)
+          ? inlineEdit.original
+          : trip.name || '';
+      const prevName = fromState || trip.name || '';
+      const trimmed = editVal.trim();
+      const nextName = trimmed || prevName;
+      try {
+        updateTripInBothStorages(trip.id, { name: nextName });
+      } catch {
+        showToast('Kaydedilemedi');
+        return;
+      }
+      setCtxMenu(null);
+      setInlineEdit(null);
+      setEditVal('');
+      refreshData();
+      try {
+        window.dispatchEvent(new Event('tripsUpdated'));
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      commitLockRef.current = false;
+    }
   }
-  function handleDeleteTrip(id) {
+  function cancelRenameTrip() {
+    setInlineEdit(null);
+    setEditVal('');
+  }
+  function openDeleteTripModal(trip) {
     setCtxMenu(null);
-    if (!confirm('Bu geziyi silmek istediğinize emin misiniz?')) return;
-    deleteStoredTrip(id);
-    refreshData();
+    setTripDeleteModal({ id: trip.id, name: trip.name || 'Gezi' });
+  }
+  function confirmDeleteTrip() {
+    if (!tripDeleteModal) return;
+    const { id } = tripDeleteModal;
+    setTripDeleteModal(null);
+    setCtxMenu(null);
+    const sid = String(id);
+    setExitingTripIds((s) => new Set(s).add(sid));
+    window.setTimeout(() => {
+      try {
+        deleteTripFromBothStorages(id);
+        refreshData();
+        try {
+          window.dispatchEvent(new Event('tripsUpdated'));
+        } catch {
+          /* ignore */
+        }
+        let active = null;
+        try {
+          active = localStorage.getItem(TA_ACTIVE_TRIP_ID);
+        } catch {
+          /* ignore */
+        }
+        if (active != null && String(id) === String(active)) {
+          try {
+            localStorage.removeItem(TA_ACTIVE_TRIP_ID);
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        showToast('Silinemedi');
+      } finally {
+        setExitingTripIds((s) => {
+          const n = new Set(s);
+          n.delete(sid);
+          return n;
+        });
+      }
+    }, 300);
   }
 
-  const sideW = expanded ? 220 : 56;
+  /** Dar şerit genişliği — flex düzeninde yalnızca bu kadar yer ayrılır; geniş sidebar ve paneller fixed overlay. */
+  const RAIL_W = 56;
+  const sidebarW = expanded ? 220 : RAIL_W;
   const filteredChats = search.trim()
     ? chats.filter(c => (c.title || '').toLowerCase().includes(search.toLowerCase()))
     : chats;
@@ -160,20 +385,48 @@ export default function AppSidebar({ activeId = 'chats' }) {
     ? trips.filter(t => (t.name || '').toLowerCase().includes(search.toLowerCase()))
     : trips;
 
+  const panelFlyoutLeft = sidebarW;
+  const panelDimLeft = panel ? sidebarW + 280 : 0;
+
   return (
     <>
-      <div style={{ display: 'flex', flexShrink: 0, height: '100%', position: 'relative', zIndex: 20 }}>
-        {/* ═══ SIDEBAR ═══ */}
-        <aside style={{ ...st.sidebar, width: sideW, minWidth: sideW }}>
+      {/* Ana flex satırında yalnızca dar ray genişliği — sayfa içeriği genişlemez / kaymaz */}
+      <div
+        style={{
+          width: RAIL_W,
+          flexShrink: 0,
+          height: '100%',
+          minHeight: 0,
+          alignSelf: 'stretch',
+        }}
+        aria-hidden
+      />
+
+      {/* Sabit sol sidebar: genişletilince içeriğin üzerine bindirir */}
+      <aside
+        style={{
+          ...st.sidebar,
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: sidebarW,
+          minWidth: sidebarW,
+          /* ctx tam ekran scrim (z38) altında kalmamalı — tıklanabilir kalsın */
+          zIndex: ctxMenu && panel === 'chats' ? 42 : 34,
+          transition: 'width .25s ease, min-width .25s ease',
+          boxShadow: expanded ? '4px 0 24px rgba(35,28,18,.08)' : 'none',
+        }}
+      >
           {/* Logo + expand/collapse */}
           {expanded ? (
             <div style={st.topExp}>
-              <div style={st.topExpLeft} onClick={() => window.location.reload()}>
-                <span style={st.logoGold}>◈</span>
+              <Link href="/" style={{ ...st.topExpLeft, textDecoration: 'none', color: 'inherit' }}>
+                <AtlasLogo height={38} style={{ flexShrink: 0 }} />
                 <span style={st.logoLabel}>Atlas</span>
-              </div>
+              </Link>
               <button style={st.arrowBtn} onClick={toggleExpand}>
-                <ChevronLeft size={16} strokeWidth={2} color="#6B6760" />
+                <ChevronLeft size={16} strokeWidth={2} color={ta.inkMuted} />
               </button>
             </div>
           ) : (
@@ -193,9 +446,9 @@ export default function AppSidebar({ activeId = 'chats' }) {
                 }}
               >
                 {logoHover ? (
-                  <ChevronRight size={18} color="#A8A59E" />
+                  <ChevronRight size={18} color={ta.inkSubtle} />
                 ) : (
-                  <span style={{ fontSize: 22, color: '#B8934A' }}>◈</span>
+                  <AtlasLogo height={30} />
                 )}
               </div>
             </div>
@@ -203,7 +456,26 @@ export default function AppSidebar({ activeId = 'chats' }) {
 
           <nav style={st.nav}>
             {NAV_ITEMS.map(item => {
-              const isAct = item.id === activeId;
+              const hrefMatch =
+                item.href !== '#' &&
+                item.href &&
+                (pathname === item.href ||
+                  (item.id === 'trips' && pathname.startsWith('/trips')));
+              const onChatPath = pathname === '/chat';
+              const onFlightsPath = pathname === '/flights';
+              let isAct = hrefMatch || item.id === activeId;
+              if (onChatPath) {
+                if (item.id === 'chats') {
+                  isAct = panel === 'chats' || panel == null;
+                } else if (item.id === 'quickPlan') {
+                  isAct = panel === 'quickPlan';
+                }
+              } else if (
+                (onFlightsPath || pathname === '/stay' || pathname === '/cars') &&
+                item.id === 'quickPlan'
+              ) {
+                isAct = true;
+              }
               const isOpen = panel === item.id;
               return (
                 <Link key={item.id} href={item.href}
@@ -219,9 +491,9 @@ export default function AppSidebar({ activeId = 'chats' }) {
                   onMouseLeave={() => setHovered(null)}
                   title={!expanded ? item.label : undefined}>
                   <item.Icon size={20} strokeWidth={isAct || isOpen ? 2.2 : 1.8}
-                    color={isAct || isOpen ? '#1A1916' : '#6B6760'} />
+                    color={isAct || isOpen ? ta.ink : ta.inkMuted} />
                   {expanded && (
-                    <span style={{ ...st.navLabel, fontWeight: isAct ? 600 : 500, color: isAct || isOpen ? '#1A1916' : '#6B6760' }}>
+                    <span style={{ ...st.navLabel, fontWeight: isAct ? 600 : 500, color: isAct || isOpen ? ta.ink : ta.inkMuted }}>
                       {item.label}
                     </span>
                   )}
@@ -233,15 +505,47 @@ export default function AppSidebar({ activeId = 'chats' }) {
             })}
           </nav>
 
-          <div style={st.footer}>
-            <Link href="/chat" style={{ ...st.newBtn, padding: expanded ? '0 14px' : '0' }} title="Yeni Sohbet">
-              {expanded ? <span style={st.newBtnTxt}>Yeni Sohbet</span> : <MessageCircle size={18} strokeWidth={1.8} color="#6B6760" />}
-            </Link>
+          <div style={st.footerCol}>
+            <SidebarAccount expanded={expanded} />
           </div>
         </aside>
 
-        {/* ═══ PANEL ═══ */}
-        <div style={{ ...st.panel, width: panel ? 280 : 0, opacity: panel ? 1 : 0, borderRight: panel ? '1px solid rgba(0,0,0,.06)' : 'none' }}>
+      {/* Sohbetler / Hızlı Plan: içeriğin üzerine kayar panel */}
+      {panel ? (
+        <>
+          <div
+            role="presentation"
+            style={{
+              position: 'fixed',
+              left: panelDimLeft,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: zPanelDim,
+              background: 'rgba(15, 12, 8, 0.2)',
+            }}
+            onClick={() => {
+              setPanel(null);
+              setCtxMenu(null);
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              left: panelFlyoutLeft,
+              top: 0,
+              bottom: 0,
+              width: 280,
+              /* ctx scrim; /chat’te ana layout’un altında kalmaması için yüksek z-index */
+              zIndex: zPanelFlyout,
+              background: ta.surface,
+              borderRight: '1px solid rgba(0,0,0,.08)',
+              boxShadow: '8px 0 32px rgba(35,28,18,.12)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
           {panel === 'chats' && (
             <div style={st.panelInner}>
               <div
@@ -258,12 +562,12 @@ export default function AppSidebar({ activeId = 'chats' }) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    background: '#F4F3EF',
+                    background: ta.mutedBg,
                     borderRadius: 20,
                     padding: '7px 12px',
                   }}
                 >
-                  <Search size={14} color="#A8A59E" />
+                  <Search size={14} color={ta.inkSubtle} />
                   <input
                     placeholder="Ara..."
                     value={search}
@@ -273,9 +577,9 @@ export default function AppSidebar({ activeId = 'chats' }) {
                       background: 'transparent',
                       outline: 'none',
                       fontSize: 13,
-                      color: '#1A1916',
+                      color: ta.ink,
                       width: '100%',
-                      fontFamily: '"Inter", var(--font-sans)',
+                      fontFamily: 'var(--font-sans)',
                     }}
                   />
                 </div>
@@ -288,17 +592,27 @@ export default function AppSidebar({ activeId = 'chats' }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 20,
-                    background: '#F4F3EF',
+                    background: ta.mutedBg,
                     cursor: 'pointer',
                     flexShrink: 0,
                   }}
                 >
-                  <X size={16} color="#6B6860" />
+                  <X size={16} color={ta.inkMuted} />
                 </div>
               </div>
 
-              <Link href="/chat" style={st.pAction}><PenLine size={16} strokeWidth={2} color="#1A1916" /><span style={st.pActLabel}>Yeni Sohbet</span></Link>
-              <Link href="/trips" style={st.pAction} onClick={() => setPanel(null)}><Map size={16} strokeWidth={2} color="#1A1916" /><span style={st.pActLabel}>Yeni Gezi</span></Link>
+              <Link href="/chat?newChat=1" style={st.pAction} onClick={() => setPanel(null)}><PenLine size={16} strokeWidth={2} color={ta.ink} /><span style={st.pActLabel}>Yeni Sohbet</span></Link>
+              <button
+                type="button"
+                style={{ ...st.pAction, font: 'inherit', textAlign: 'left' }}
+                onClick={() => {
+                  setPanel(null);
+                  openNewTrip();
+                }}
+              >
+                <Map size={16} strokeWidth={2} color={ta.ink} />
+                <span style={st.pActLabel}>Yeni Gezi</span>
+              </button>
 
               {/* Trips */}
               {filteredTrips.length > 0 && (
@@ -306,13 +620,17 @@ export default function AppSidebar({ activeId = 'chats' }) {
                   <div style={st.pSection}>Geziler</div>
                   {filteredTrips.map(trip => (
                     <PanelRow key={trip.id} type="trip" item={trip}
-                      isEditing={editId === trip.id} editVal={editVal} editRef={editRef}
+                      isActive={uiMode === 'trip' && highlightTripId != null && String(highlightTripId) === String(trip.id)}
+                      isEditing={inlineEdit?.type === 'trip' && String(inlineEdit.id) === String(trip.id)}
+                      editVal={editVal} editRef={editRef}
                       onEditChange={setEditVal}
                       onEditCommit={() => commitRenameTrip(trip)}
+                      onEditCancel={cancelRenameTrip}
+                      exiting={exitingTripIds.has(String(trip.id))}
                       ctxOpen={ctxMenu === trip.id}
                       onCtxToggle={() => setCtxMenu(ctxMenu === trip.id ? null : trip.id)}
                       onRename={() => startRenameTrip(trip)}
-                      onDelete={() => handleDeleteTrip(trip.id)}
+                      onDelete={() => openDeleteTripModal(trip)}
                       onClosePanel={() => setPanel(null)} />
                   ))}
                 </>
@@ -325,32 +643,181 @@ export default function AppSidebar({ activeId = 'chats' }) {
               ) : (
                 filteredChats.map(chat => (
                   <PanelRow key={chat.id} type="chat" item={chat}
-                    isEditing={editId === chat.id} editVal={editVal} editRef={editRef}
+                    isActive={uiMode === 'chat' && highlightChatId != null && String(highlightChatId) === String(chat.id)}
+                    isEditing={inlineEdit?.type === 'chat' && String(inlineEdit.id) === String(chat.id)}
+                    editVal={editVal} editRef={editRef}
                     onEditChange={setEditVal}
                     onEditCommit={() => commitRenameChat(chat)}
+                    onEditCancel={cancelRenameChat}
                     ctxOpen={ctxMenu === chat.id}
                     onCtxToggle={() => setCtxMenu(ctxMenu === chat.id ? null : chat.id)}
                     onRename={() => startRenameChat(chat)}
-                    onRemoveTrip={() => removeChatFromTrip(chat)}
                     onDelete={() => handleDeleteChat(chat.id)}
                     onClosePanel={() => setPanel(null)} />
                 ))
               )}
             </div>
           )}
+
+          {panel === 'quickPlan' && (
+            <div style={st.panelInner}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 12px 8px',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontWeight: 700,
+                    fontSize: 15,
+                    color: ta.ink,
+                  }}
+                >
+                  Hızlı Plan
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPanel(null)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 20,
+                    background: ta.mutedBg,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    border: 'none',
+                    padding: 0,
+                  }}
+                  aria-label="Kapat"
+                >
+                  <X size={16} color={ta.inkMuted} />
+                </button>
+              </div>
+
+              <QuickPlanPanelRow
+                icon={Building2}
+                title="Konaklama"
+                subtitle="Otel ve apart ara"
+                onClick={() => openQuickPlanCategory('stay')}
+              />
+              <QuickPlanPanelRow
+                icon={Plane}
+                title="Uçuş"
+                subtitle="Uçak bileti bul"
+                onClick={() => openQuickPlanCategory('flight')}
+              />
+              <QuickPlanPanelRow
+                icon={CarFront}
+                title="Araç Kiralama"
+                subtitle="Araç kirala"
+                onClick={() => openQuickPlanCategory('car')}
+              />
+              <QuickPlanPanelRow
+                icon={Bus}
+                title="Otobüs"
+                subtitle="Şehirler arası sefer ara"
+                onClick={() => openQuickPlanCategory('bus')}
+              />
+            </div>
+          )}
+          </div>
+        </>
+      ) : null}
+
+      {ctxMenu ? (
+        <div
+          role="presentation"
+          style={{ position: 'fixed', inset: 0, zIndex: zCtxScrim }}
+          onClick={() => setCtxMenu(null)}
+        />
+      ) : null}
+
+      {tripDeleteModal && (
+        <div
+          style={st.modalOverlay}
+          role="presentation"
+          onClick={() => setTripDeleteModal(null)}
+        >
+          <div
+            style={st.modalBox}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trip-del-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p id="trip-del-title" style={st.modalText}>
+              Bu geziyi silmek istediğinize emin misiniz?
+            </p>
+            <div style={st.modalActions}>
+              <button type="button" style={st.modalBtnCancel} onClick={() => setTripDeleteModal(null)}>
+                İptal
+              </button>
+              <button type="button" style={st.modalBtnDanger} onClick={confirmDeleteTrip}>
+                Sil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toastMsg && (
+        <div style={st.toast} role="status">
+          {toastMsg}
+        </div>
+      )}
+    </>
+  );
+}
+
+function QuickPlanPanelRow({ icon: Icon, title, subtitle, onClick }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        ...st.pRow,
+        width: '100%',
+        border: 'none',
+        background: hov ? 'rgba(0,0,0,.04)' : 'transparent',
+        cursor: 'pointer',
+        textAlign: 'left',
+        padding: 0,
+        borderRadius: 8,
+        transition: 'background .12s',
+      }}
+    >
+      <div style={{ ...st.pRowLink, width: '100%', boxSizing: 'border-box' }}>
+        <div style={st.pThumb}>
+          <Icon
+            size={18}
+            strokeWidth={hov ? 2.2 : 2}
+            color={hov ? ta.ink : ta.inkMuted}
+          />
+        </div>
+        <div style={st.pMeta}>
+          <span style={st.pName}>{title}</span>
+          <span style={st.pSub}>{subtitle}</span>
         </div>
       </div>
-
-      {panel && <div style={st.panelOverlay} onClick={() => { setPanel(null); setCtxMenu(null); }} />}
-      {ctxMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 25 }} onClick={() => setCtxMenu(null)} />}
-    </>
+    </button>
   );
 }
 
 /* ── Panel Row with context menu ── */
 function PanelRow({
-  type, item, isEditing, editVal, editRef, onEditChange, onEditCommit,
-  ctxOpen, onCtxToggle, onRename, onRemoveTrip, onDelete, onClosePanel,
+  type, item, isActive = false, isEditing, editVal, editRef, onEditChange, onEditCommit, onEditCancel,
+  ctxOpen, onCtxToggle, onRename, onDelete, onClosePanel,
+  exiting = false,
 }) {
   const [rowHov, setRowHov] = useState(false);
   const isChat = type === 'chat';
@@ -358,19 +825,54 @@ function PanelRow({
   if (isEditing) {
     return (
       <div style={st.pRow}>
-        <input ref={editRef} style={st.editInput} value={editVal}
-          onChange={e => onEditChange(e.target.value)}
-          onBlur={onEditCommit}
-          onKeyDown={e => { if (e.key === 'Enter') onEditCommit(); if (e.key === 'Escape') onEditCommit(); }} />
+        <input
+          ref={editRef}
+          style={st.editInput}
+          value={editVal}
+          onChange={(e) => onEditChange(e.target.value)}
+          onBlur={() => onEditCommit()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onEditCommit();
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              onEditCancel?.();
+            }
+          }}
+        />
       </div>
     );
   }
 
   return (
-    <div style={{ ...st.pRow, ...(rowHov ? st.pRowHov : {}) }}
-      onMouseEnter={() => setRowHov(true)} onMouseLeave={() => setRowHov(false)}>
-      <Link href={isChat ? '/chat' : '/trips'} style={st.pRowLink} onClick={onClosePanel}>
-        {!isChat && <div style={st.pThumb}>🧳</div>}
+    <div
+      style={{
+        ...st.pRow,
+        ...(isActive ? st.pRowActive : {}),
+        ...(rowHov ? st.pRowHov : {}),
+        opacity: exiting ? 0 : 1,
+        transition: 'opacity 0.28s ease',
+        pointerEvents: exiting ? 'none' : undefined,
+      }}
+      onMouseEnter={() => setRowHov(true)}
+      onMouseLeave={() => setRowHov(false)}
+    >
+      <Link
+        href={
+          isChat
+            ? `/chat?chat=${encodeURIComponent(String(item.id))}`
+            : `/trips/${encodeURIComponent(String(item.id))}`
+        }
+        style={st.pRowLink}
+        onClick={onClosePanel}
+      >
+        {!isChat && (
+          <div style={st.pThumb}>
+            <Luggage size={16} strokeWidth={2} color={ta.inkMuted} aria-hidden />
+          </div>
+        )}
         <div style={st.pMeta}>
           <span style={st.pName}>{isChat ? (item.title || 'Başlıksız') : item.name}</span>
           {isChat && item.tripName && <span style={st.pSub}>{item.tripName}</span>}
@@ -378,33 +880,41 @@ function PanelRow({
       </Link>
 
       {/* ··· button — visible on hover */}
-      <button style={{ ...st.ctxBtn, opacity: rowHov || ctxOpen ? 1 : 0 }}
-        onClick={e => { e.stopPropagation(); onCtxToggle(); }}>
-        <MoreHorizontal size={15} strokeWidth={2} color="#6B6760" />
+      <button
+        type="button"
+        style={{ ...st.ctxBtn, opacity: rowHov || ctxOpen ? 1 : 0 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onCtxToggle();
+        }}
+      >
+        <MoreHorizontal size={15} strokeWidth={2} color={ta.inkMuted} />
       </button>
 
       {/* Dropdown */}
       {ctxOpen && (
         <div style={st.ctxMenu}>
-          <button style={st.ctxItem} onClick={onRename}>
-            <Pencil size={14} strokeWidth={2} color="#1A1916" />
+          <button
+            type="button"
+            style={st.ctxItem}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename();
+            }}
+          >
+            <Pencil size={14} strokeWidth={2} color={ta.ink} />
             <span>{isChat ? 'Sohbeti Yeniden Adlandır' : 'Geziyi Yeniden Adlandır'}</span>
           </button>
-          {isChat && item.tripName && (
-            <button style={st.ctxItem} onClick={onRemoveTrip}>
-              <Unlink size={14} strokeWidth={2} color="#1A1916" />
-              <span>Geziden Çıkar</span>
-            </button>
-          )}
-          {!isChat && (
-            <button style={st.ctxItem} onClick={() => {}}>
-              <Image size={14} strokeWidth={2} color="#1A1916" />
-              <span>Fotoğrafı Değiştir</span>
-            </button>
-          )}
           <div style={st.ctxDivider} />
-          <button style={{ ...st.ctxItem, ...st.ctxDanger }} onClick={onDelete}>
-            <Trash2 size={14} strokeWidth={2} color="#A84A4A" />
+          <button
+            type="button"
+            style={{ ...st.ctxItem, ...st.ctxDanger }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            <Trash2 size={14} strokeWidth={2} color={ta.danger} />
             <span>{isChat ? 'Sohbeti Sil' : 'Geziyi Sil'}</span>
           </button>
         </div>
@@ -416,23 +926,25 @@ function PanelRow({
 /* ═══ Styles ═══ */
 const st = {
   sidebar: {
-    display: 'flex', flexDirection: 'column', background: '#FFFFFF',
+    display: 'flex', flexDirection: 'column', background: ta.surface,
     borderRight: '1px solid rgba(0,0,0,.06)',
     transition: 'width .25s ease, min-width .25s ease',
     overflow: 'hidden', flexShrink: 0, height: '100%', zIndex: 2,
   },
-  /* Expanded top: ◈ Atlas ... < */
+  /* Expanded top: logo + Atlas ... < */
   topExp: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '14px 10px 8px', flexShrink: 0,
   },
   topExpLeft: {
-    display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+    minWidth: 0,
   },
-  logoGold: { fontSize: 22, color: '#c79a46', lineHeight: 1 },
+  /* Wordmark logodan kısa; yükseklik logo ile flex alignItems:center ile ortalanır */
   logoLabel: {
-    fontFamily: '"Inter", var(--font-sans)', fontWeight: 800, fontSize: 17,
-    letterSpacing: '-0.02em', color: '#1A1916', whiteSpace: 'nowrap',
+    fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16,
+    lineHeight: 1,
+    letterSpacing: '-0.02em', color: ta.ink, whiteSpace: 'nowrap',
   },
   arrowBtn: {
     width: 28, height: 28, borderRadius: 8,
@@ -451,39 +963,53 @@ const st = {
   navItem: { display: 'flex', alignItems: 'center', gap: 12, height: 42, borderRadius: 10, textDecoration: 'none', transition: 'background .12s', position: 'relative', flexShrink: 0 },
   navAct: { background: 'rgba(0,0,0,.06)' },
   navHov: { background: 'rgba(0,0,0,.03)' },
-  navLabel: { fontFamily: '"Inter", var(--font-sans)', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden' },
-  badge: { marginLeft: 'auto', background: '#1A1916', color: 'white', fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 999, fontFamily: '"Inter", var(--font-sans)', lineHeight: '18px' },
+  navLabel: { fontFamily: 'var(--font-sans)', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden' },
+  badge: { marginLeft: 'auto', background: ta.ink, color: 'white', fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 999, fontFamily: 'var(--font-sans)', lineHeight: '18px' },
   badgeMini: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, padding: 0, borderRadius: 999, fontSize: 0 },
 
   footer: { padding: '8px 8px 14px', flexShrink: 0 },
-  newBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 40, borderRadius: 999, background: 'rgba(0,0,0,.05)', textDecoration: 'none', transition: 'background .12s' },
-  newBtnTxt: { fontFamily: '"Inter", var(--font-sans)', fontSize: 14, fontWeight: 500, color: '#1A1916' },
+  footerCol: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    padding: '8px 8px 12px',
+    flexShrink: 0,
+    borderTop: '1px solid rgba(0,0,0,.05)',
+  },
 
-  /* Panel */
-  panel: { background: '#FFFFFF', overflow: 'hidden', transition: 'width .25s ease, opacity .25s ease', flexShrink: 0, height: '100%', zIndex: 1 },
-  panelInner: { width: 280, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 0, height: '100%', overflowY: 'auto' },
-  panelOverlay: { position: 'fixed', inset: 0, zIndex: 15, background: 'transparent' },
+  panelInner: {
+    width: 280,
+    padding: '12px 10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 0,
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    boxSizing: 'border-box',
+  },
 
   pAction: { display: 'flex', alignItems: 'center', gap: 12, height: 40, padding: '0 12px', borderRadius: 8, textDecoration: 'none', transition: 'background .12s', flexShrink: 0 },
-  pActLabel: { fontFamily: '"Inter", var(--font-sans)', fontSize: 14, fontWeight: 500, color: '#1A1916' },
-  pSection: { fontFamily: '"Inter", var(--font-sans)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#A8A59E', padding: '16px 12px 6px', flexShrink: 0 },
+  pActLabel: { fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: ta.ink },
+  pSection: { fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: ta.inkSubtle, padding: '16px 12px 6px', flexShrink: 0 },
 
   /* Panel rows */
   pRow: { position: 'relative', display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'background .12s', flexShrink: 0 },
+  pRowActive: { background: 'rgba(74,98,120,.12)' },
   pRowHov: { background: 'rgba(0,0,0,.03)' },
   pRowLink: { flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', textDecoration: 'none', minWidth: 0 },
   pThumb: { width: 32, height: 32, borderRadius: 8, background: 'rgba(0,0,0,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 },
   pMeta: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 },
-  pName: { fontFamily: '"Inter", var(--font-sans)', fontSize: 14, fontWeight: 500, color: '#1A1916', lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  pSub: { fontFamily: '"Inter", var(--font-sans)', fontSize: 12, color: '#A8A59E', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  pEmpty: { fontFamily: '"Inter", var(--font-sans)', fontSize: 13, color: '#A8A59E', padding: '8px 12px', margin: 0 },
+  pName: { fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: ta.ink, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  pSub: { fontFamily: 'var(--font-sans)', fontSize: 12, color: ta.inkSubtle, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  pEmpty: { fontFamily: 'var(--font-sans)', fontSize: 13, color: ta.inkSubtle, padding: '8px 12px', margin: 0 },
 
   /* Inline edit */
   editInput: {
     width: '100%', height: 36, padding: '0 12px', margin: '2px 0',
-    border: '1px solid rgba(199,154,70,.4)', borderRadius: 8,
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 14, color: '#1A1916',
-    outline: 'none', background: 'rgba(199,154,70,.06)',
+    border: '1px solid rgba(74,98,120,.4)', borderRadius: 8,
+    fontFamily: 'var(--font-sans)', fontSize: 14, color: ta.ink,
+    outline: 'none', background: 'rgba(74,98,120,.06)',
   },
 
   /* Context menu trigger */
@@ -497,8 +1023,8 @@ const st = {
 
   /* Dropdown */
   ctxMenu: {
-    position: 'absolute', top: '100%', right: 8, zIndex: 30,
-    minWidth: 180, background: '#FFFFFF',
+    position: 'absolute', top: '100%', right: 8, zIndex: 45,
+    minWidth: 180, background: ta.surface,
     borderRadius: 12, padding: 4,
     boxShadow: '0 4px 16px rgba(0,0,0,.12)',
     border: '1px solid rgba(0,0,0,.06)',
@@ -507,9 +1033,81 @@ const st = {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
     height: 36, padding: '0 12px', borderRadius: 8,
     border: 'none', background: 'transparent', cursor: 'pointer',
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 13, fontWeight: 500,
-    color: '#1A1916', textAlign: 'left', transition: 'background .12s',
+    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+    color: ta.ink, textAlign: 'left', transition: 'background .12s',
   },
-  ctxDanger: { color: '#A84A4A' },
+  ctxDanger: { color: ta.danger },
   ctxDivider: { height: 1, background: 'rgba(0,0,0,.06)', margin: '2px 4px' },
+
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 400,
+    background: 'rgba(0,0,0,.35)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalBox: {
+    width: '100%',
+    maxWidth: 360,
+    background: ta.surface,
+    borderRadius: 14,
+    padding: '20px 20px 16px',
+    boxShadow: '0 8px 32px rgba(0,0,0,.15)',
+    border: '1px solid rgba(0,0,0,.06)',
+  },
+  modalText: {
+    margin: 0,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 15,
+    fontWeight: 500,
+    color: ta.ink,
+    lineHeight: 1.45,
+  },
+  modalActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 18,
+  },
+  modalBtnCancel: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 14,
+    fontWeight: 500,
+    padding: '8px 16px',
+    borderRadius: 10,
+    border: '1px solid rgba(0,0,0,.1)',
+    background: ta.surface,
+    color: ta.ink,
+    cursor: 'pointer',
+  },
+  modalBtnDanger: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 14,
+    fontWeight: 600,
+    padding: '8px 16px',
+    borderRadius: 10,
+    border: 'none',
+    background: ta.danger,
+    color: 'white',
+    cursor: 'pointer',
+  },
+  toast: {
+    position: 'fixed',
+    bottom: 24,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 420,
+    maxWidth: 'min(90vw, 360px)',
+    padding: '12px 18px',
+    borderRadius: 12,
+    background: ta.ink,
+    color: 'white',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 13,
+    fontWeight: 500,
+    boxShadow: '0 4px 20px rgba(0,0,0,.2)',
+  },
 };

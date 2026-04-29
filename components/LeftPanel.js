@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Check, MapPin, Pencil, Sparkles, X } from 'lucide-react';
+import { BudgetCategoryGlyph, ListingTypeGlyph } from '@/components/AtlasGlyph';
 
 const MODULES = [
   {
@@ -13,6 +15,15 @@ const MODULES = [
     hasAdd: true,
   },
   {
+    id: 'transport',
+    label: 'Ulaşım',
+    desc: 'Henüz kullanıcı tarafından istenmedi. Gerekirse sonradan eklenebilir.',
+    defaultActive: false,
+    defaultLocked: false,
+    tags: ['Uçuş', 'Tren', 'Araç kiralama'],
+    hasAdd: true,
+  },
+  {
     id: 'transfer',
     label: 'Transfer',
     desc: 'Havalimanı karşılama ve dönüş transferi değerlendiriliyor.',
@@ -22,22 +33,13 @@ const MODULES = [
     hasAdd: true,
   },
   {
-    id: 'transport',
-    label: 'Ulaşım',
-    desc: 'Henüz kullanıcı tarafından istenmedi. Gerekirse sonradan eklenebilir.',
-    defaultActive: false,
-    defaultLocked: false,
-    tags: ['Uçuş', 'Tren', 'Araç kiralama'],
-    hasAdd: false,
-  },
-  {
     id: 'activities',
     label: 'Aktiviteler',
     desc: 'Müze, kale ve yerel yemek durağı içeren rota oluşturuldu.',
     defaultActive: true,
     defaultLocked: false,
     tags: ['Müze', 'Kale', 'Yerel lezzet'],
-    hasAdd: false,
+    hasAdd: true,
   },
   {
     id: 'extras',
@@ -51,10 +53,10 @@ const MODULES = [
 ];
 
 const BUDGET_CATS = [
-  { key: 'accommodation', label: 'Konaklama', icon: '🏨' },
-  { key: 'transport',     label: 'Transfer',  icon: '🚗' },
-  { key: 'activities',    label: 'Aktivite',  icon: '🎡' },
-  { key: 'extras',        label: 'Diğer',     icon: '✨' },
+  { key: 'accommodation', label: 'Konaklama' },
+  { key: 'transport', label: 'Transfer' },
+  { key: 'activities', label: 'Aktivite' },
+  { key: 'extras', label: 'Diğer' },
 ];
 
 export default function LeftPanel({
@@ -64,6 +66,16 @@ export default function LeftPanel({
   budget = {},
   selectedListings = {},
   onDeselect,
+  /** Header pill ile tekrar etmesin; isim üstteki menüden düzenlenir */
+  hidePlanTitle = false,
+  /** Header açılır menü içi: dış sarmalayıcı scroll kullanır */
+  embedded = false,
+  /** Gezi planı: "Esnek plan" vb.; null / boş: rozet gösterilmez (/chat dropdown) */
+  planBadgeLabel = 'Esnek plan',
+  /** /chat header dropdown: akıllı öneri harita altında; burada gösterme */
+  hideSmartSuggestion = false,
+  /** Seyahat modülleri bölümünün altına özel CTA (ör. Sohbete Başla) */
+  bottomSlot = null,
 }) {
   const [activeModule,  setActiveModule]  = useState(null);
   const [editingName,   setEditingName]   = useState(false);
@@ -84,8 +96,8 @@ export default function LeftPanel({
   return (
     <div
       style={{
-        height: '100%',
-        overflow: 'hidden',
+        height: embedded ? 'auto' : '100%',
+        overflow: embedded ? 'visible' : 'hidden',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -93,17 +105,17 @@ export default function LeftPanel({
       <div
         className="left-panel"
         style={{
-          flex: 1,
-          overflowY: 'auto',
-          scrollbarWidth: 'none',
-          minHeight: 0,
+          flex: embedded ? 'none' : 1,
+          overflowY: embedded ? 'visible' : 'auto',
+          scrollbarWidth: embedded ? undefined : 'none',
+          minHeight: embedded ? 0 : 0,
           display: 'flex',
           flexDirection: 'column',
           gap: 0,
         }}
       >
 
-      {/* ── Plan adı (düzenlenebilir) ── */}
+      {!hidePlanTitle ? (
       <div style={s.planNameRow}>
         {editingName ? (
           <input
@@ -117,18 +129,25 @@ export default function LeftPanel({
           />
         ) : (
           <button style={s.nameDisplay} onClick={() => setEditingName(true)} title="Planı yeniden adlandır">
-            <span style={s.nameStar}>✦</span>
+            <span style={s.nameStar} aria-hidden>
+              <Sparkles size={12} strokeWidth={2} color="var(--ta-accent)" />
+            </span>
             <span style={s.nameText}>{planName}</span>
-            <span style={s.namePencil}>✎</span>
+            <span style={s.namePencil} aria-hidden>
+              <Pencil size={12} strokeWidth={2} color="var(--ta-ink-muted)" />
+            </span>
           </button>
         )}
       </div>
+      ) : null}
 
       {/* ── Modül Tab Grid ── */}
       <div style={s.modSection}>
         <div style={s.sectionTitle}>
           <span>Seyahat modülleri</span>
-          <span style={s.planTag}>Esnek plan</span>
+          {planBadgeLabel != null && String(planBadgeLabel).trim() !== '' ? (
+            <span style={s.planTag}>{planBadgeLabel}</span>
+          ) : null}
         </div>
 
         {/* Text-only module tabs */}
@@ -143,12 +162,15 @@ export default function LeftPanel({
                     ...s.tabItem,
                     ...(isActive  ? s.tabItemActive  : {}),
                     ...(isDone    ? s.tabItemDone    : {}),
-                    ...(!mod.defaultActive && !isDone ? s.tabItemPassive : {}),
                   }}
                   onClick={() => setActiveModule(id => id === mod.id ? null : mod.id)}
                 >
                   <span style={s.tabLabel}>{mod.label.split(' /')[0]}</span>
-                  {isDone && <span style={s.tabTick}>✓</span>}
+                  {isDone && (
+                    <span style={s.tabTick} aria-hidden>
+                      <Check size={12} strokeWidth={2.5} color="var(--ta-sea)" />
+                    </span>
+                  )}
                 </button>
 
                 {/* Her modülün kendi altında açılan detay paneli */}
@@ -160,7 +182,10 @@ export default function LeftPanel({
                       {mod.hasAdd && <span style={s.tagAdd}>+ ekle</span>}
                     </div>
                     {isDone && (
-                      <span style={s.expandDone}>✓ Tamamlandı</span>
+                      <span style={s.expandDone}>
+                        <Check size={12} strokeWidth={2.5} aria-hidden />
+                        Tamamlandı
+                      </span>
                     )}
                   </div>
                 )}
@@ -176,15 +201,18 @@ export default function LeftPanel({
       {/* ── Seyahat Planı (seçilen öğeler) ── */}
       <PlanSection selectedListings={selectedListings} onDeselect={onDeselect} />
 
-      {/* ── Akıllı öneri ── */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}><span>Akıllı öneri</span></div>
-        <div style={s.adviceCard}>
-          <p style={s.adviceText}>
-            Konaklama ve aktiviteler netleşmeye yaklaştı. İstersen bir sonraki adımda yalnızca transfer kısmını tamamlayıp planı sabitleyebiliriz.
-          </p>
+      {/* ── Akıllı öneri (/chat’te harita altında) ── */}
+      {!hideSmartSuggestion ? (
+        <div style={s.section}>
+          <div style={s.sectionTitle}><span>Akıllı öneri</span></div>
+          <div style={s.adviceCard}>
+            <p style={s.adviceText}>
+              Konaklama ve aktiviteler netleşmeye yaklaştı. İstersen bir sonraki adımda yalnızca transfer kısmını tamamlayıp planı sabitleyebiliriz.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
+      {bottomSlot ? <div style={s.bottomSlotWrap}>{bottomSlot}</div> : null}
       </div>
     </div>
   );
@@ -221,7 +249,9 @@ function BudgetSection({ budget }) {
               const pct = Math.round((val / total) * 100);
               return (
                 <div key={cat.key} style={s.budgetRow}>
-                  <span style={s.budgetCatIcon}>{cat.icon}</span>
+                  <span style={s.budgetCatIcon}>
+                    <BudgetCategoryGlyph catKey={cat.key} size={14} />
+                  </span>
                   <span style={s.budgetCatLabel}>{cat.label}</span>
                   <span style={s.budgetCatAmt}>₺{val.toLocaleString('tr-TR')}</span>
                   <div style={s.miniBar}>
@@ -252,18 +282,21 @@ function PlanSection({ selectedListings, onDeselect }) {
 
       <div style={s.planCard}>
         {items.length === 0 ? (
-          <p style={s.emptyNote}>Chat'ten bir seçenek seçince buraya eklenir.</p>
+          <p style={s.emptyNote}>Chat&apos;ten bir seçenek seçince buraya eklenir.</p>
         ) : (
           <div style={s.planList}>
             {items.map((listing, i) => (
               <div key={listing.name ?? i} style={s.planItem}>
                 <span style={s.planItemIcon}>
-                  {PLAN_ICONS[listing.type] ?? '📌'}
+                  <ListingTypeGlyph type={listing.type} size={16} />
                 </span>
                 <div style={s.planItemInfo}>
                   <span style={s.planItemName}>{listing.name}</span>
                   {listing.location && (
-                    <span style={s.planItemLoc}>📍 {listing.location}</span>
+                    <span style={s.planItemLoc}>
+                      <MapPin size={11} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 3 }} aria-hidden />
+                      {listing.location}
+                    </span>
                   )}
                 </div>
                 {listing.price != null && (
@@ -272,10 +305,14 @@ function PlanSection({ selectedListings, onDeselect }) {
                   </span>
                 )}
                 <button
+                  type="button"
                   style={s.planRemoveBtn}
                   onClick={() => onDeselect?.(listing)}
                   title="Plandam kaldır"
-                >✕</button>
+                  aria-label="Kaldır"
+                >
+                  <X size={14} strokeWidth={2} aria-hidden />
+                </button>
               </div>
             ))}
           </div>
@@ -284,11 +321,6 @@ function PlanSection({ selectedListings, onDeselect }) {
     </div>
   );
 }
-
-const PLAN_ICONS = {
-  hotel: '🏨', villa: '🏡', transfer: '🚗', tour: '🎡',
-  restaurant: '🍽️', boat: '⛵', clinic: '🏥', car: '🚙',
-};
 
 function ModuleBlock({ mod, isDone }) {
   const [active, setActive]   = useState(mod.defaultActive);
@@ -308,7 +340,8 @@ function ModuleBlock({ mod, isDone }) {
             ...s.moduleName,
             color: isDone ? 'var(--green)' : active ? 'var(--text1)' : 'var(--muted)',
           }}>
-            {isDone ? '✓ ' : ''}{mod.label}
+            {isDone ? <Check size={12} strokeWidth={2.5} aria-hidden /> : null}
+            {mod.label}
           </div>
           <div style={s.moduleDesc}>{mod.desc}</div>
         </div>
@@ -324,7 +357,7 @@ function ModuleBlock({ mod, isDone }) {
 
           {/* Lock/Unlock */}
           <button
-            style={{ ...s.tinyBtn, ...(locked ? s.tinyBtnGold : {}) }}
+            style={{ ...s.tinyBtn, ...(locked ? s.tinyBtnAccent : {}) }}
             onClick={() => setLocked(l => !l)}
           >
             {locked ? 'Kilitli' : 'Kilitle'}
@@ -345,6 +378,12 @@ const s = {
   planNameRow: {
     marginBottom: '14px',
   },
+  bottomSlotWrap: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTop: '1px solid rgba(0,0,0,.06)',
+    flexShrink: 0,
+  },
   nameDisplay: {
     display: 'flex',
     alignItems: 'center',
@@ -357,8 +396,8 @@ const s = {
     textAlign: 'left',
   },
   nameStar: {
-    fontSize: '14px',
-    color: 'var(--gold)',
+    display: 'inline-flex',
+    alignItems: 'center',
     flexShrink: 0,
   },
   nameText: {
@@ -372,8 +411,8 @@ const s = {
     whiteSpace: 'nowrap',
   },
   namePencil: {
-    fontSize: '13px',
-    color: 'var(--text3)',
+    display: 'inline-flex',
+    alignItems: 'center',
     opacity: 0.6,
     flexShrink: 0,
   },
@@ -382,8 +421,8 @@ const s = {
     fontWeight: 700,
     fontSize: '15px',
     color: 'var(--text1)',
-    background: 'rgba(199,154,70,.07)',
-    border: '1px solid rgba(199,154,70,.30)',
+    background: 'rgba(74,98,120,.07)',
+    border: '1px solid rgba(74,98,120,.30)',
     borderRadius: '10px',
     padding: '6px 10px',
     width: '100%',
@@ -421,15 +460,12 @@ const s = {
     textAlign: 'left',
   },
   tabItemActive: {
-    background: 'rgba(199,154,70,.10)',
-    border: '1px solid rgba(199,154,70,.36)',
+    background: 'rgba(0,0,0,.04)',
+    border: '1px solid rgba(0,0,0,.07)',
   },
   tabItemDone: {
     background: 'rgba(47,143,107,.08)',
     border: '1px solid rgba(47,143,107,.28)',
-  },
-  tabItemPassive: {
-    opacity: 0.55,
   },
   tabBlock: {
     display: 'flex',
@@ -447,9 +483,8 @@ const s = {
     flex: 1,
   },
   tabTick: {
-    fontSize: '12px',
-    fontWeight: 800,
-    color: 'var(--green)',
+    display: 'inline-flex',
+    alignItems: 'center',
     flexShrink: 0,
   },
 
@@ -471,6 +506,9 @@ const s = {
     lineHeight: 1.5,
   },
   expandDone: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
     fontFamily: 'var(--font-sans)',
     fontSize: '11px',
     fontWeight: 700,
@@ -497,9 +535,9 @@ const s = {
   planTag: {
     fontSize: '11px',
     fontWeight: 700,
-    color: 'var(--gold-deep)',
-    background: 'var(--gold-soft)',
-    border: '1px solid rgba(199,154,70,.24)',
+    color: 'var(--ta-accent-deep)',
+    background: 'var(--ta-accent-soft)',
+    border: '1px solid rgba(74,98,120,.24)',
     borderRadius: '999px',
     padding: '2px 9px',
     textTransform: 'none',
@@ -519,7 +557,7 @@ const s = {
     transition: '.2s ease',
   },
   moduleActive: {
-    border: '1px solid rgba(199,154,70,.4)',
+    border: '1px solid rgba(74,98,120,.4)',
     background: 'linear-gradient(180deg,rgba(255,255,255,.95),rgba(248,241,228,.92))',
   },
   moduleLocked: {
@@ -532,6 +570,9 @@ const s = {
   },
   moduleMain: { flex: 1, minWidth: 0 },
   moduleName: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
     fontWeight: 700,
     fontSize: '14px',
     fontFamily: 'var(--font-sans)',
@@ -556,15 +597,15 @@ const s = {
     padding: '5px 8px',
     fontSize: '11px',
     cursor: 'pointer',
-    color: '#433a30',
+    color: 'var(--ta-ink-2)',
     fontFamily: 'var(--font-sans)',
     fontWeight: 500,
     whiteSpace: 'nowrap',
   },
-  tinyBtnGold: {
-    background: 'rgba(199,154,70,.12)',
-    border: '1px solid rgba(199,154,70,.24)',
-    color: 'var(--gold-deep)',
+  tinyBtnAccent: {
+    background: 'rgba(74,98,120,.12)',
+    border: '1px solid rgba(74,98,120,.24)',
+    color: 'var(--ta-accent-deep)',
     fontWeight: 700,
   },
 
@@ -581,7 +622,7 @@ const s = {
     fontSize: '12px',
     background: 'rgba(20,20,20,.04)',
     border: '1px solid rgba(0,0,0,.05)',
-    color: '#4a4137',
+    color: 'var(--ta-ink-muted)',
     fontFamily: 'var(--font-sans)',
   },
   tagAdd: {
@@ -640,7 +681,7 @@ const s = {
     justifyContent: 'center',
     border: '1px solid rgba(0,0,0,.06)',
     background: 'rgba(20,20,20,.04)',
-    color: '#564c42',
+    color: 'var(--ta-ink-muted)',
     transition: 'transform .2s ease',
     flexShrink: 0,
     fontSize: '16px',
@@ -667,7 +708,7 @@ const s = {
   adviceText: {
     fontFamily: 'var(--font-sans)',
     fontSize: '13px',
-    color: '#51493f',
+    color: 'var(--ta-ink-muted)',
     lineHeight: 1.5,
   },
 
@@ -676,9 +717,9 @@ const s = {
     fontFamily: 'var(--font-mono)',
     fontSize: '12px',
     fontWeight: 600,
-    color: 'var(--gold-deep)',
-    background: 'var(--gold-soft)',
-    border: '1px solid rgba(199,154,70,.2)',
+    color: 'var(--ta-accent-deep)',
+    background: 'var(--ta-accent-soft)',
+    border: '1px solid rgba(74,98,120,.2)',
     borderRadius: '999px',
     padding: '2px 8px',
     letterSpacing: 0,
@@ -718,7 +759,13 @@ const s = {
     alignItems: 'center',
     marginBottom: '8px',
   },
-  budgetCatIcon: { fontSize: '14px' },
+  budgetCatIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    flexShrink: 0,
+  },
   budgetCatLabel: {
     fontFamily: 'var(--font-sans)',
     fontSize: '12px',
@@ -740,7 +787,7 @@ const s = {
   },
   miniBarFill: {
     height: '100%',
-    background: 'linear-gradient(90deg,#d3ab5f,#c08d36)',
+    background: 'linear-gradient(90deg, var(--ta-accent-bright), var(--ta-accent-deep))',
     borderRadius: '999px',
     transition: 'width .4s ease',
   },
@@ -769,7 +816,7 @@ const s = {
   planList: { display: 'flex', flexDirection: 'column', gap: '7px' },
   planItem: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto auto',
+    gridTemplateColumns: 'auto 1fr auto auto',
     alignItems: 'center',
     gap: '8px',
     padding: '10px 10px',
@@ -778,7 +825,13 @@ const s = {
     background: 'rgba(255,255,255,.92)',
     transition: 'background .12s',
   },
-  planItemIcon: { display: 'none' },
+  planItemIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '26px',
+    flexShrink: 0,
+  },
   planItemInfo: {
     flex: 1,
     minWidth: 0,
@@ -804,7 +857,7 @@ const s = {
     fontFamily: 'var(--font-mono)',
     fontSize: '11px',
     fontWeight: 600,
-    color: 'var(--gold-deep)',
+    color: 'var(--ta-accent-deep)',
     flexShrink: 0,
   },
   planRemoveBtn: {
@@ -813,9 +866,11 @@ const s = {
     border: '1px solid rgba(0,0,0,.08)',
     background: 'rgba(0,0,0,.03)',
     cursor: 'pointer',
-    fontSize: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
     color: 'var(--muted)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
     transition: 'background .12s, color .12s',
   },

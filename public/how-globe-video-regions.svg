@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Atlas — dünya videosu maske deseni (referans + önizleme).
+  Kırmızı dolgular: videonun görüneceği yaklaşık alanlar (kullanıcı işaretlemesi).
+  <mask> içindeki beyaz path’ler: üretimde videoya uygulanan geometri.
+  Senkron: lib/globeVideoMaskRegions.js
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="400" height="400">
+  <title>Globe video mask regions</title>
+  <defs>
+    <mask id="globeVideoMask" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" x="0" y="0" width="1" height="1">
+      <rect width="1" height="1" fill="black"/>
+      <g fill="white">
+        <path d="M0.15,0.28 L0.26,0.30 L0.24,0.72 L0.13,0.70 Z"/>
+        <path d="M0.40,0.36 L0.78,0.34 L0.79,0.42 L0.41,0.44 Z"/>
+        <path d="M0.42,0.45 L0.77,0.43 L0.78,0.51 L0.43,0.53 Z"/>
+        <path d="M0.40,0.54 L0.75,0.52 L0.76,0.60 L0.41,0.62 Z"/>
+        <path d="M0.43,0.63 L0.73,0.61 L0.74,0.69 L0.44,0.71 Z"/>
+        <path d="M0.46,0.70 L0.70,0.68 L0.71,0.75 L0.47,0.77 Z"/>
+        <path d="M0.48,0.52 L0.68,0.51 L0.69,0.58 L0.49,0.59 Z"/>
+        <path d="M0.63,0.20 L0.83,0.27 L0.80,0.36 L0.61,0.29 Z"/>
+        <path d="M0.52,0.22 L0.62,0.21 L0.63,0.28 L0.53,0.29 Z"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="100" height="100" fill="#ffffff"/>
+  <g fill="#e53935" fill-opacity="0.55" stroke="#b71c1c" stroke-width="0.15" stroke-opacity="0.9">
+    <path d="M15,28 L26,30 L24,72 L13,70 Z"/>
+    <path d="M40,36 L78,34 L79,42 L41,44 Z"/>
+    <path d="M42,45 L77,43 L78,51 L43,53 Z"/>
+    <path d="M40,54 L75,52 L76,60 L41,62 Z"/>
+    <path d="M43,63 L73,61 L74,69 L44,71 Z"/>
+    <path d="M46,70 L70,68 L71,75 L47,77 Z"/>
+    <path d="M48,52 L68,51 L69,58 L49,59 Z"/>
+    <path d="M63,20 L83,27 L80,36 L61,29 Z"/>
+    <path d="M52,22 L62,21 L63,28 L53,29 Z"/>
+  </g>
+  <circle cx="50" cy="50" r="49" fill="none" stroke="#ccc" stroke-width="0.25" stroke-dasharray="1 1"/>
+</svg>

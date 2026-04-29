@@ -1,27 +1,39 @@
 'use client';
 
+import { MessageCircle, Search, ThumbsUp } from 'lucide-react';
+
 const SOURCE_META = {
-  Google:        { label: '🔍 Google içgörüsü', bg: 'rgba(66,133,244,0.10)', color: '#4285F4' },
-  Reddit:        { label: '💬 Reddit yorumu',   bg: 'rgba(255,69,0,0.10)',   color: '#FF4500' },
-  'Ekşi Sözlük': { label: '📝 Ekşi Sözlük',    bg: 'rgba(0,128,96,0.10)',   color: '#008060' },
+  Google: { label: 'Google içgörüsü', bg: 'rgba(66,133,244,0.10)', color: '#4285F4', Icon: Search },
+  Reddit: { label: 'Reddit yorumu', bg: 'rgba(255,69,0,0.10)', color: '#FF4500', Icon: MessageCircle },
+  'Ekşi Sözlük': { label: 'Ekşi Sözlük', bg: 'rgba(0,128,96,0.10)', color: '#008060', Icon: MessageCircle },
 };
 
-const DEFAULT_META = { label: '💬 Yerel yorumlar', bg: 'rgba(107,114,128,0.10)', color: '#6B7280' };
+const DEFAULT_META = {
+  label: 'Yerel yorumlar',
+  bg: 'rgba(107,114,128,0.10)',
+  color: '#6B7280',
+  Icon: MessageCircle,
+};
 
 export default function InsightCard({ insight }) {
   if (!insight) return null;
 
   const { source, text, confirmations } = insight;
   const meta = SOURCE_META[source] ?? DEFAULT_META;
+  const BadgeIcon = meta.Icon;
 
   return (
     <div style={s.card}>
       <span style={{ ...s.badge, background: meta.bg, color: meta.color }}>
+        <BadgeIcon size={12} strokeWidth={2} aria-hidden style={{ flexShrink: 0 }} />
         {meta.label}
       </span>
       <p style={s.text}>{text}</p>
       {confirmations > 0 && (
-        <p style={s.confirm}>👍 {confirmations} kişi onayladı</p>
+        <p style={s.confirm}>
+          <ThumbsUp size={12} strokeWidth={2} aria-hidden style={{ flexShrink: 0 }} />
+          {confirmations} kişi onayladı
+        </p>
       )}
     </div>
   );
@@ -41,6 +53,8 @@ const s = {
   badge: {
     display: 'inline-flex',
     alignSelf: 'flex-start',
+    alignItems: 'center',
+    gap: '6px',
     borderRadius: '999px',
     background: 'rgba(20,20,20,.05)',
     fontSize: '11px',
@@ -57,6 +71,9 @@ const s = {
     lineHeight: 1.5,
   },
   confirm: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
     fontFamily: 'var(--font-sans)',
     fontSize: '11px',
     color: 'var(--muted)',

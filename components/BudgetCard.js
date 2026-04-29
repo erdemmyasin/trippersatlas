@@ -1,10 +1,12 @@
 'use client';
 
+import { BudgetCategoryGlyph } from '@/components/AtlasGlyph';
+
 const CATEGORIES = [
-  { key: 'accommodation', label: 'Konaklama',   icon: '🏨' },
-  { key: 'transport',     label: 'Transfer',     icon: '🚗' },
-  { key: 'activities',    label: 'Aktiviteler',  icon: '🎡' },
-  { key: 'extras',        label: 'Diğer',        icon: '✨' },
+  { key: 'accommodation', label: 'Konaklama' },
+  { key: 'transport', label: 'Transfer' },
+  { key: 'activities', label: 'Aktiviteler' },
+  { key: 'extras', label: 'Diğer' },
 ];
 
 export default function BudgetCard({ budget = {} }) {
@@ -40,7 +42,9 @@ export default function BudgetCard({ budget = {} }) {
       <div style={s.catList}>
         {CATEGORIES.map((cat, i) => (
           <div key={cat.key} style={s.catRow}>
-            <span style={s.catIcon}>{cat.icon}</span>
+            <span style={s.catIcon}>
+              <BudgetCategoryGlyph catKey={cat.key} size={15} />
+            </span>
             <span style={s.catLabel}>{cat.label}</span>
             <span style={s.catAmount}>₺{(values[i]).toLocaleString('tr-TR')}</span>
           </div>
@@ -83,7 +87,7 @@ const s = {
     fontFamily: 'var(--font-serif)',
     fontWeight: 700,
     fontSize: '22px',
-    color: 'var(--gold)',
+    color: 'var(--ta-accent)',
     lineHeight: 1,
   },
   barTrack: {
@@ -96,7 +100,7 @@ const s = {
   barFill: {
     height: '100%',
     borderRadius: '99px',
-    background: 'var(--gold)',
+    background: 'var(--ta-accent)',
     transition: 'width 0.4s ease',
   },
   barLabel: {
@@ -121,7 +125,10 @@ const s = {
     gap: '7px',
   },
   catIcon: {
-    fontSize: '13px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '22px',
     flexShrink: 0,
   },
   catLabel: {

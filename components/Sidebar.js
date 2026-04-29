@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import AtlasLogo from '@/components/AtlasLogo';
 import { 
   ChevronRight, ChevronLeft,
   MessageCircle, Briefcase, Search,
@@ -61,12 +62,12 @@ export default function Sidebar({ activePage, onNavigate }) {
             cursor: 'pointer',
           }}
         >
-          <span style={{ fontSize: 20, color: '#B8934A' }}>◈</span>
+          <AtlasLogo height={22} />
           {expanded && (
             <span style={{
-              fontFamily: 'Playfair Display, serif',
+              fontFamily: 'var(--font-serif)',
               fontSize: 16, fontWeight: 600,
-              color: '#1A1916', whiteSpace: 'nowrap'
+              color: 'var(--ta-ink)', whiteSpace: 'nowrap'
             }}>
               Atlas
             </span>
@@ -78,7 +79,7 @@ export default function Sidebar({ activePage, onNavigate }) {
           onClick={toggle}
           style={{
             cursor: 'pointer',
-            color: '#A8A59E',
+            color: 'var(--ta-ink-subtle)',
             display: 'flex',
             alignItems: 'center',
             marginLeft: expanded ? 0 : 0,
@@ -112,12 +113,12 @@ export default function Sidebar({ activePage, onNavigate }) {
                 position: 'relative',
               }}
             >
-              <Icon size={20} color={active ? '#1A1916' : '#6B6860'} 
+              <Icon size={20} color={active ? 'var(--ta-ink)' : 'var(--ta-ink-muted)'} 
                    strokeWidth={active ? 2 : 1.5} />
               {expanded && (
                 <span style={{
                   fontSize: 14, fontFamily: 'DM Sans, sans-serif',
-                  color: active ? '#1A1916' : '#6B6860',
+                  color: active ? 'var(--ta-ink)' : 'var(--ta-ink-muted)',
                   fontWeight: active ? 500 : 400,
                   whiteSpace: 'nowrap',
                 }}>
@@ -127,7 +128,7 @@ export default function Sidebar({ activePage, onNavigate }) {
               {badge && expanded && (
                 <span style={{
                   marginLeft: 'auto',
-                  background: '#1A1916', color: '#fff',
+                  background: 'var(--ta-ink)', color: '#fff',
                   borderRadius: 999, padding: '1px 7px',
                   fontSize: 11, fontWeight: 600,
                 }}>
@@ -137,7 +138,7 @@ export default function Sidebar({ activePage, onNavigate }) {
               {badge && !expanded && (
                 <span style={{
                   position: 'absolute', top: 6, right: 6,
-                  background: '#1A1916', color: '#fff',
+                  background: 'var(--ta-ink)', color: '#fff',
                   borderRadius: 999, padding: '0 4px',
                   fontSize: 10, fontWeight: 600, lineHeight: '16px',
                 }}>
@@ -158,7 +159,7 @@ export default function Sidebar({ activePage, onNavigate }) {
             border: '1px solid rgba(0,0,0,.08)',
             borderRadius: 20, cursor: 'pointer',
             fontFamily: 'DM Sans, sans-serif',
-            fontSize: 13, color: '#1A1916',
+            fontSize: 13, color: 'var(--ta-ink)',
           }}>
             Yeni Sohbet
           </button>

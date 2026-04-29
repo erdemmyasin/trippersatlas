@@ -1,3 +1,9 @@
+/**
+ * Ortaklık URL’leri. `label=tripperatlas` partner izleme etiketidir (tripperatlas.ai ile uyumlu);
+ * kullanıcıya görünen ürün adı sitede Atlas olarak geçer.
+ */
+import { isTurkeyPrimaryMarket } from '@/lib/taRegion';
+
 export function buildAffiliateUrl(listing) {
   const { affiliatePlatform, name } = listing;
 
@@ -8,12 +14,6 @@ export function buildAffiliateUrl(listing) {
     skyscanner: process.env.NEXT_PUBLIC_SKY_ID      || 'TEST000',
   };
 
-  // eslint-disable-next-line no-unused-vars
-  const hotelSlug = name
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-
   switch (affiliatePlatform) {
     case 'booking':
       return `https://www.booking.com/search.html?ss=${encodeURIComponent(name)}&aid=${IDS.booking}&label=tripperatlas`;
@@ -22,7 +22,9 @@ export function buildAffiliateUrl(listing) {
     case 'kiwitaxi':
       return `https://kiwitaxi.com/?ref=${IDS.kiwitaxi}`;
     case 'skyscanner':
-      return `https://www.skyscanner.com.tr/?associateid=${IDS.skyscanner}`;
+      return isTurkeyPrimaryMarket()
+        ? `https://www.skyscanner.com.tr/?associateid=${IDS.skyscanner}`
+        : `https://www.skyscanner.net/transport/flights/?associateid=${IDS.skyscanner}`;
     default:
       return `https://www.booking.com/search.html?ss=${encodeURIComponent(name)}&aid=${IDS.booking}&label=tripperatlas`;
   }

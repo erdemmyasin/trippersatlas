@@ -23,10 +23,10 @@ const TYPE_TO_MODULE = {
 };
 const EMPTY_BUDGET = { accommodation: 0, transport: 0, activities: 0, extras: 0 };
 const DEFAULT_PILLS = [
-  { id: 'dest',   icon: '📍', label: 'Destinasyon' },
-  { id: 'dates',  icon: '📅', label: 'Tarih' },
-  { id: 'pax',    icon: '👤', label: 'Kişi sayısı' },
-  { id: 'budget', icon: '💰', label: 'Bütçe' },
+  { id: 'dest', label: 'Destinasyon' },
+  { id: 'dates', label: 'Tarih' },
+  { id: 'pax', label: 'Kişi sayısı' },
+  { id: 'budget', label: 'Bütçe' },
 ];
 
 const INITIAL_SAVED_PLANS = [
@@ -48,7 +48,7 @@ export default function PlanPage() {
     const chats = getChats();
     setChatList(chats);
     const savedId = getActiveId();
-    const found = chats.find(c => c.id === savedId);
+    const found = chats.find((c) => String(c.id) === String(savedId));
     if (found) {
       setActiveChat(found);
     } else {
@@ -135,7 +135,7 @@ export default function PlanPage() {
     const city = location.split(/[,·\-]/)[0].trim();
     if (city) {
       setPlanPills(prev =>
-        prev.map(p => p.id === 'dest' ? { ...p, icon: '📍', label: city } : p)
+        prev.map(p => (p.id === 'dest' ? { ...p, label: city } : p))
       );
     }
     trackEvent('listing.select', {

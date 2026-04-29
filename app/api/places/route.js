@@ -40,12 +40,6 @@ function categorize(types = []) {
   return 'Gezilecek Yer';
 }
 
-const CAT_ICONS = {
-  'Restoran': '🍽️', 'Konaklama': '🏨', 'Müze': '🏛️', 'Doğa': '🌿',
-  'İbadet': '🕌', 'Alışveriş': '🛍️', 'Gece Hayatı': '🎵', 'Sağlık': '💆',
-  'Gezilecek Yer': '📍',
-};
-
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const dest = searchParams.get('destination') || 'antalya';
@@ -99,7 +93,6 @@ export async function GET(req) {
         rating: p.rating || 0,
         userRatingsTotal: p.user_ratings_total || 0,
         category: cat,
-        categoryIcon: CAT_ICONS[cat] || '📍',
         address: p.formatted_address || '',
         location: p.geometry?.location || coords,
         photoUrl: p.photos?.[0]?.photo_reference
@@ -158,7 +151,6 @@ function getMockPlaces(dest, tab) {
     rating: p.rating,
     userRatingsTotal: p.total,
     category: p.cat,
-    categoryIcon: CAT_ICONS[p.cat] || '📍',
     address: `${city}, Türkiye`,
     location: { lat: coords.lat + p.offset[0], lng: coords.lng + p.offset[1] },
     photoUrl: null,

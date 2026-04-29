@@ -1,509 +1,594 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Heart, Plus, MapPin, Search } from 'lucide-react';
 import AppSidebar from '@/components/AppSidebar';
+import {
+  FEATURED_GUIDES,
+  loadUserGuides,
+  guideLikeKey,
+} from '@/lib/exploreGuides';
+import { tripCardImageSearchQuery } from '@/lib/taRegion';
 
-const DESTINATIONS = [
-  { id: 'antalya',    name: 'Antalya',    lat: 36.8969, lng: 30.7133 },
-  { id: 'istanbul',   name: 'İstanbul',   lat: 41.0082, lng: 28.9784 },
-  { id: 'bodrum',     name: 'Bodrum',     lat: 37.0344, lng: 27.4305 },
-  { id: 'cappadocia', name: 'Kapadokya',  lat: 38.6431, lng: 34.8289 },
-  { id: 'izmir',      name: 'İzmir',      lat: 38.4192, lng: 27.1287 },
-  { id: 'trabzon',    name: 'Trabzon',    lat: 41.0027, lng: 39.7168 },
-  { id: 'ankara',     name: 'Ankara',     lat: 39.9334, lng: 32.8597 },
-  { id: 'bursa',      name: 'Bursa',      lat: 40.1885, lng: 29.0610 },
-  { id: 'mardin',     name: 'Mardin',     lat: 37.3212, lng: 40.7245 },
-  { id: 'fethiye',    name: 'Fethiye',    lat: 36.6220, lng: 29.1142 },
-];
+const LIKES_LS = 'likes';
 
-const TABS = [
-  { id: 'foryou',      label: 'Senin İçin' },
-  { id: 'todo',        label: 'Yapılacaklar' },
-  { id: 'restaurants', label: 'Restoranlar' },
-  { id: 'stays',       label: 'Konaklama' },
-  { id: 'locations',   label: 'Mekanlar' },
-  { id: 'guides',      label: 'Rehberler' },
-];
+function loadLikedMap() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(LIKES_LS);
+    if (!raw) return {};
+    const p = JSON.parse(raw);
+    return p && typeof p === 'object' && !Array.isArray(p) ? p : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistLikedMap(map) {
+  try {
+    localStorage.setItem(LIKES_LS, JSON.stringify(map));
+    window.dispatchEvent(new Event('likesStorageUpdated'));
+  } catch {
+    /* ignore */
+  }
+}
+
+const COLLECTIONS = ['Mekanlarım', 'Favori rotalar', 'Tatil 2026'];
+
+function GuideImage({ guide }) {
+  const [url, setUrl] = useState(guide.coverUrl || null);
+  const [loading, setLoading] = useState(!guide.coverUrl);
+
+  useEffect(() => {
+    if (guide.coverUrl) {
+      setUrl(guide.coverUrl);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    const q = encodeURIComponent(tripCardImageSearchQuery(guide.imageQuery || guide.title || ''));
+    fetch(`/api/image?query=${q}&type=tour`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const u = data?.url;
+        setUrl(typeof u === 'string' && u ? u : null);
+      })
+      .catch(() => {
+        if (!cancelled) setUrl(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [guide.coverUrl, guide.imageQuery, guide.title]);
+
+  const fallback =
+    'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800&h=600&fit=crop';
+  const src = url || (!loading ? fallback : null);
+
+  return (
+    <div style={st.imgWrap}>
+      {loading && <div style={st.skeleton} />}
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          style={st.img}
+          onError={(e) => {
+            e.target.src = fallback;
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function GuideCard({
+  guide,
+  likedMap,
+  onToggleLike,
+  plusOpen,
+  onPlusToggle,
+  onPickCollection,
+}) {
+  const lk = guideLikeKey(guide.id);
+  const userLiked = Boolean(likedMap[lk]);
+  const displayLikes = guide.likes + (userLiked ? 1 : 0);
+
+  return (
+    <div className="explore-guide-card" style={st.card}>
+      <div style={st.cardInner}>
+        <GuideImage guide={guide} />
+        <div style={st.badgeTL}>{guide.badge}</div>
+        <div style={st.actionsTR}>
+          <button
+            type="button"
+            style={{
+              ...st.roundAct,
+              ...(userLiked ? { color: '#e11d48' } : {}),
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleLike(guide.id);
+            }}
+            aria-label="Beğen"
+          >
+            <Heart
+              size={16}
+              strokeWidth={2}
+              color={userLiked ? '#e11d48' : 'var(--ta-ink)'}
+              fill={userLiked ? '#e11d48' : 'none'}
+            />
+          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              style={st.roundAct}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlusToggle(guide.id);
+              }}
+              aria-label="Koleksiyon"
+            >
+              <Plus size={16} strokeWidth={2} color="var(--ta-ink)" />
+            </button>
+            {plusOpen === guide.id && (
+              <>
+                <div
+                  style={st.dropOverlay}
+                  onClick={() => onPlusToggle(null)}
+                />
+                <div style={st.plusDrop}>
+                  <div style={st.plusDropTitle}>Koleksiyona ekle</div>
+                  {COLLECTIONS.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      style={st.plusDropItem}
+                      onClick={() => onPickCollection(name, guide)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      <div style={st.cardBody}>
+        <h3 style={st.cardTitle}>{guide.title}</h3>
+        <div style={st.locRow}>
+          <MapPin size={14} strokeWidth={2} color="var(--ta-ink-muted)" />
+          <span style={st.loc}>{guide.location}</span>
+        </div>
+        <div style={st.authorRow}>
+          <span
+            style={{
+              ...st.avatar,
+              ...(guide.isOfficial ? st.avatarOfficial : {}),
+            }}
+          >
+            {guide.authorAvatar || '?'}
+          </span>
+          <span style={st.authorName}>{guide.author}</span>
+          <span style={st.likeHint}>
+            <Heart size={12} strokeWidth={2} aria-hidden />
+            {displayLikes}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ExplorePage() {
-  const [dest, setDest]           = useState('antalya');
-  const [destOpen, setDestOpen]   = useState(false);
-  const [activeTab, setActiveTab] = useState('foryou');
-  const [query, setQuery]         = useState('');
-  const [places, setPlaces]       = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [savedIds, setSavedIds]   = useState(new Set());
-  const [hovId, setHovId]         = useState(null);
-  const [selId, setSelId]         = useState(null);
+  const [search, setSearch] = useState('');
+  const [userGuides, setUserGuides] = useState([]);
+  const [likedMap, setLikedMap] = useState({});
+  const [plusOpen, setPlusOpen] = useState(null);
 
-  const destObj = DESTINATIONS.find(d => d.id === dest) || DESTINATIONS[0];
+  useEffect(() => {
+    setLikedMap(loadLikedMap());
+    setUserGuides(loadUserGuides());
+    function onLikes() {
+      setLikedMap(loadLikedMap());
+    }
+    function onGuides() {
+      setUserGuides(loadUserGuides());
+    }
+    window.addEventListener('likesStorageUpdated', onLikes);
+    window.addEventListener('userGuidesUpdated', onGuides);
+    return () => {
+      window.removeEventListener('likesStorageUpdated', onLikes);
+      window.removeEventListener('userGuidesUpdated', onGuides);
+    };
+  }, []);
 
-  const fetchPlaces = useCallback(async () => {
-    setLoading(true);
+  const filterStr = search.trim().toLowerCase();
+  const match = useCallback(
+    (g) => {
+      if (!filterStr) return true;
+      return (
+        String(g.title || '')
+          .toLowerCase()
+          .includes(filterStr) ||
+        String(g.location || '')
+          .toLowerCase()
+          .includes(filterStr) ||
+        String(g.author || '')
+          .toLowerCase()
+          .includes(filterStr)
+      );
+    },
+    [filterStr]
+  );
+
+  const featuredFiltered = useMemo(
+    () => FEATURED_GUIDES.filter(match),
+    [match]
+  );
+  const allGuides = useMemo(
+    () => [...FEATURED_GUIDES, ...userGuides],
+    [userGuides]
+  );
+  const allFiltered = useMemo(() => allGuides.filter(match), [allGuides, match]);
+
+  function toggleLike(id) {
+    const lk = guideLikeKey(id);
+    setLikedMap((prev) => {
+      const next = { ...prev, [lk]: !prev[lk] };
+      persistLikedMap(next);
+      return next;
+    });
+  }
+
+  function pickCollection(name, guide) {
+    setPlusOpen(null);
     try {
-      const p = new URLSearchParams({ destination: dest, tab: activeTab });
-      if (query.trim()) p.set('query', query.trim());
-      const res = await fetch(`/api/places?${p}`);
-      const data = await res.json();
-      setPlaces(data.places || []);
-    } catch { setPlaces([]); }
-    finally { setLoading(false); }
-  }, [dest, activeTab, query]);
-
-  useEffect(() => { fetchPlaces(); }, [fetchPlaces]);
-
-  function toggleSave(id) {
-    setSavedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      const raw = localStorage.getItem('saved') || '[]';
+      const arr = JSON.parse(raw);
+      const list = Array.isArray(arr) ? arr : [];
+      list.push({
+        id: `col-${Date.now()}`,
+        name: guide.title,
+        location: guide.location,
+        collection: name,
+        from: 'explore-guide',
+        guideId: guide.id,
+        savedAt: new Date().toISOString(),
+      });
+      localStorage.setItem('saved', JSON.stringify(list));
+    } catch {
+      /* ignore */
+    }
   }
 
   return (
-    <div style={lay.shell}>
+    <div style={st.shell}>
+      <style>{`
+        @keyframes exploreSk {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .explore-guide-card { transition: transform 0.2s ease; }
+        .explore-guide-card:hover { transform: scale(1.01); }
+        @media (max-width: 1400px) {
+          .explore-grid-5 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+        }
+        @media (max-width: 1100px) {
+          .explore-grid-5 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+        }
+        @media (max-width: 800px) {
+          .explore-grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        }
+      `}</style>
       <AppSidebar activeId="explore" />
 
-      {/* ═══ CONTENT ═══ */}
-      <main style={lay.content}>
-        {/* Dest header */}
-        <div style={{ position: 'relative', marginBottom: 20 }}>
-          <button style={lay.destBtn} onClick={() => setDestOpen(o => !o)}>
-            {destObj.name}
-            <span style={{ ...lay.chevron, transform: destOpen ? 'rotate(180deg)' : '' }}>⌄</span>
-          </button>
-          {destOpen && (
-            <>
-              <div style={lay.overlay} onClick={() => setDestOpen(false)} />
-              <div style={lay.dropdown}>
-                {DESTINATIONS.map(d => (
-                  <button key={d.id} style={{ ...lay.dropItem, ...(d.id === dest ? lay.dropItemActive : {}) }}
-                    onClick={() => { setDest(d.id); setDestOpen(false); }}>
-                    {d.name}
-                  </button>
-                ))}
+      <main style={st.main}>
+        <h1 className="ta-h1" style={st.h1}>
+          Keşfet
+        </h1>
+
+        <div style={st.searchBox}>
+          <Search size={20} strokeWidth={2} color="var(--ta-ink-subtle)" />
+          <input
+            type="search"
+            placeholder="Lokasyon veya kullanıcı ara..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={st.searchInput}
+          />
+        </div>
+
+        <section style={st.section}>
+          <h2 style={st.sectionTitle}>Popüler İçerikler</h2>
+          <div style={st.rowScroll}>
+            {featuredFiltered.map((g) => (
+              <div key={g.id} style={st.scrollCard}>
+                <GuideCard
+                  guide={g}
+                  likedMap={likedMap}
+                  onToggleLike={toggleLike}
+                  plusOpen={plusOpen}
+                  onPlusToggle={setPlusOpen}
+                  onPickCollection={pickCollection}
+                />
               </div>
-            </>
-          )}
-        </div>
-
-        {/* Search */}
-        <div style={lay.searchRow}>
-          <div style={lay.searchBox}>
-            <span style={{ fontSize: 16, opacity: .45 }}>🔍</span>
-            <input style={lay.searchInput} placeholder="Ara..." value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchPlaces()} />
+            ))}
           </div>
-          <button style={lay.filterBtn}>
-            <FilterIcon /> Filtreler
-          </button>
-        </div>
+        </section>
 
-        {/* Tabs */}
-        <div style={lay.tabs}>
-          {TABS.map(t => (
-            <button key={t.id}
-              style={{ ...lay.tab, ...(activeTab === t.id ? lay.tabActive : {}) }}
-              onClick={() => setActiveTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <section style={st.section}>
+          <h2 style={st.sectionTitle}>Tüm İçerikler</h2>
+          <div className="explore-grid-5" style={st.grid5}>
+            {allFiltered.map((g) => (
+              <GuideCard
+                key={g.id}
+                guide={g}
+                likedMap={likedMap}
+                onToggleLike={toggleLike}
+                plusOpen={plusOpen}
+                onPlusToggle={setPlusOpen}
+                onPickCollection={pickCollection}
+              />
+            ))}
+          </div>
+          {allFiltered.length === 0 && (
+            <p style={st.empty}>Sonuç bulunamadı.</p>
+          )}
+        </section>
 
-        {/* Section title */}
-        <h2 style={lay.sectionTitle}>
-          {TABS.find(t => t.id === activeTab)?.label || 'Senin İçin'}
-        </h2>
-
-        {/* Grid */}
-        <div style={lay.grid}>
-          {loading ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />) :
-           places.length === 0 ? (
-             <div style={lay.empty}>
-               <span style={{ fontSize: 40, opacity: .5 }}>🔍</span>
-               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--muted)' }}>
-                 Bu kategoride sonuç bulunamadı.
-               </p>
-             </div>
-           ) : places.map((p, i) => (
-             <PlaceCard key={p.id} place={p} index={i}
-               saved={savedIds.has(p.id)}
-               hovered={hovId === p.id}
-               selected={selId === p.id}
-               onSave={() => toggleSave(p.id)}
-               onHover={() => setHovId(p.id)}
-               onLeave={() => setHovId(null)}
-               onClick={() => setSelId(p.id)} />
-           ))}
-        </div>
+        <div style={{ paddingBottom: 48 }} />
       </main>
-
-      {/* ═══ MAP ═══ */}
-      <div style={lay.mapPanel}>
-        <div style={lay.mapBg}>
-          <div className="ta-map-grid" />
-
-          {/* Pins */}
-          {places.slice(0, 8).map((p, i) => (
-            <div key={p.id}
-              style={{
-                ...lay.pin,
-                top: `${18 + (i % 3) * 22}%`,
-                left: `${12 + ((i * 31) % 70)}%`,
-                ...(hovId === p.id || selId === p.id ? lay.pinActive : {}),
-              }}
-              onClick={() => setSelId(p.id)}>
-              <div style={{
-                ...lay.pinDot,
-                ...(hovId === p.id || selId === p.id ? lay.pinDotActive : {}),
-              }} />
-              <span style={lay.pinLabel}>{p.name.split(' ').slice(0, 2).join(' ')}</span>
-            </div>
-          ))}
-
-          {/* Header pills */}
-          <div style={lay.mapHeader}>
-            <span style={lay.mapPill}>{destObj.name}</span>
-            <span style={lay.mapPill}>{places.length} mekan</span>
-          </div>
-
-          {/* Explore btn */}
-          <button style={lay.exploreBtn} onClick={fetchPlaces}>
-            Bu alanı keşfet
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
 
-/* ── Place Card ── */
-const GRADS = [
-  'linear-gradient(135deg,#667eea,#764ba2)',
-  'linear-gradient(135deg,#f093fb,#f5576c)',
-  'linear-gradient(135deg,#4facfe,#00f2fe)',
-  'linear-gradient(135deg,#43e97b,#38f9d7)',
-  'linear-gradient(135deg,#fa709a,#fee140)',
-  'linear-gradient(135deg,#a18cd1,#fbc2eb)',
-];
-
-function PlaceCard({ place, index, saved, hovered, selected, onSave, onHover, onLeave, onClick }) {
-  const [imgOk, setImgOk] = useState(false);
-  const grad = GRADS[index % GRADS.length];
-
-  return (
-    <div id={`place-${place.id}`}
-      style={{
-        ...c.card,
-        ...(selected ? c.cardSelected : {}),
-        ...(hovered ? { transform: 'translateY(-3px)', boxShadow: '0 10px 28px rgba(0,0,0,.10)' } : {}),
-      }}
-      onMouseEnter={onHover} onMouseLeave={onLeave} onClick={onClick}>
-
-      {/* Image */}
-      <div style={c.imgWrap}>
-        {place.photoUrl ? (
-          <img src={place.photoUrl} alt={place.name} loading="lazy"
-            style={{ ...c.img, opacity: imgOk ? 1 : 0 }}
-            onLoad={() => setImgOk(true)}
-            onError={e => { e.target.style.display = 'none'; }} />
-        ) : null}
-        {!imgOk && (
-          <div style={{ ...c.placeholder, background: grad }}>
-            <span style={{ fontSize: 32 }}>{place.categoryIcon || '📍'}</span>
-          </div>
-        )}
-
-        {/* Photo dots */}
-        <div style={c.dots}>
-          {[0,1,2,3,4].map(d => (
-            <div key={d} style={{ ...c.dot, opacity: d === 0 ? 1 : .4 }} />
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div style={c.actions}>
-          <button style={{ ...c.actBtn, ...(saved ? { background: 'rgba(255,255,255,.95)' } : {}) }}
-            onClick={e => { e.stopPropagation(); onSave(); }}>
-            {saved ? '❤️' : '🤍'}
-          </button>
-          <button style={c.actBtn} onClick={e => e.stopPropagation()}>➕</button>
-        </div>
-
-        {/* Info */}
-        <button style={c.infoBtn} onClick={e => e.stopPropagation()}>ⓘ</button>
-      </div>
-
-      {/* Body */}
-      <div style={c.body}>
-        <div style={c.titleRow}>
-          <h3 style={c.name}>{place.name}</h3>
-          {place.rating > 0 && (
-            <span style={c.rating}>
-              <span style={{ color: '#F59E0B' }}>★</span> {place.rating.toFixed(1)}
-            </span>
-          )}
-        </div>
-        <div style={c.cat}>
-          <span>{place.categoryIcon}</span>
-          <span>{place.category}</span>
-        </div>
-        <p style={c.addr}>{place.address}</p>
-        {place.userRatingsTotal > 0 && (
-          <p style={c.mentions}>
-            👥 {place.userRatingsTotal.toLocaleString('tr-TR')} değerlendirme
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SkeletonCard() {
-  return (
-    <div style={c.card}>
-      <div style={{ ...c.imgWrap, background: '#e8e5e0' }}>
-        <div style={c.shimmer} />
-      </div>
-      <div style={{ ...c.body, gap: 10 }}>
-        <div style={{ ...c.skelLine, width: '75%' }} />
-        <div style={{ ...c.skelLine, width: '50%' }} />
-        <div style={{ ...c.skelLine, width: '60%' }} />
-      </div>
-    </div>
-  );
-}
-
-function FilterIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/>
-      <line x1="12" y1="18" x2="20" y2="18"/>
-      <circle cx="6" cy="12" r="2" fill="currentColor"/><circle cx="14" cy="18" r="2" fill="currentColor"/>
-    </svg>
-  );
-}
-
-/* ═══ Layout styles ═══ */
-const lay = {
+const st = {
   shell: {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
-    background: 'var(--bg)',
+    background: '#FAFAF8',
   },
-
-  /* Content */
-  content: {
-    flex: 1, minWidth: 0,
-    overflowY: 'auto', padding: '24px 28px',
-    display: 'flex', flexDirection: 'column',
+  main: {
+    flex: 1,
+    minWidth: 0,
+    overflowY: 'auto',
+    padding: '28px 32px',
+    boxSizing: 'border-box',
   },
-  destBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: 8,
-    background: 'none', border: 'none', cursor: 'pointer',
-    fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 28,
-    color: 'var(--text1)', letterSpacing: '-0.02em',
+  h1: {
+    margin: '0 0 20px',
   },
-  chevron: { fontSize: 18, color: 'var(--muted)', transition: 'transform .2s' },
-  overlay: { position: 'fixed', inset: 0, zIndex: 40 },
-  dropdown: {
-    position: 'absolute', top: 'calc(100% + 8px)', left: 0,
-    minWidth: 200, maxHeight: 320, overflowY: 'auto',
-    background: 'rgba(253,252,249,.98)', backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(0,0,0,.08)', borderRadius: 16,
-    boxShadow: '0 16px 36px rgba(0,0,0,.14)', padding: 6, zIndex: 50,
-  },
-  dropItem: {
-    width: '100%', textAlign: 'left', padding: '10px 14px', borderRadius: 10,
-    border: 'none', background: 'transparent', cursor: 'pointer',
-    fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--text1)',
-  },
-  dropItemActive: {
-    background: 'rgba(199,154,70,.10)', color: 'var(--gold-deep)', fontWeight: 700,
-  },
-
-  /* Search */
-  searchRow: { display: 'flex', gap: 10, marginBottom: 16 },
   searchBox: {
-    flex: 1, display: 'flex', alignItems: 'center', gap: 10,
-    height: 44, padding: '0 14px',
-    border: '1px solid rgba(0,0,0,.10)', borderRadius: 12, background: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    padding: '14px 18px',
+    borderRadius: 14,
+    background: 'var(--ta-muted-bg)',
+    border: '1px solid rgba(0,0,0,.06)',
+    boxSizing: 'border-box',
+    marginBottom: 36,
   },
   searchInput: {
-    flex: 1, border: 'none', outline: 'none', background: 'transparent',
-    fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text1)',
+    flex: 1,
+    border: 'none',
+    outline: 'none',
+    background: 'transparent',
+    fontSize: 15,
+    color: 'var(--ta-ink)',
+    fontFamily: 'var(--font-sans)',
   },
-  filterBtn: {
-    display: 'flex', alignItems: 'center', gap: 6,
-    height: 44, padding: '0 16px',
-    border: '1px solid rgba(0,0,0,.10)', borderRadius: 12, background: 'white',
-    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13,
-    fontWeight: 600, color: 'var(--text1)', whiteSpace: 'nowrap',
+  section: {
+    marginBottom: 40,
   },
-
-  /* Tabs */
-  tabs: {
-    display: 'flex', gap: 6, marginBottom: 20,
-    overflowX: 'auto', scrollbarWidth: 'none',
-  },
-  tab: {
-    padding: '8px 18px', borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.10)', background: 'white',
-    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
-    color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap',
-  },
-  tabActive: {
-    background: 'var(--text1)', color: 'white', borderColor: 'var(--text1)',
-  },
-
   sectionTitle: {
-    fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 18,
-    color: 'var(--text1)', marginBottom: 16,
+    margin: '0 0 16px',
+    fontSize: 18,
+    fontWeight: 700,
+    color: 'var(--ta-ink)',
+    fontFamily: 'var(--font-sans)',
   },
-
-  /* Grid */
-  grid: {
+  rowScroll: {
+    display: 'flex',
+    gap: 16,
+    overflowX: 'auto',
+    paddingBottom: 8,
+    scrollbarWidth: 'thin',
+  },
+  scrollCard: {
+    flex: '0 0 220px',
+    width: 220,
+    minWidth: 220,
+  },
+  grid5: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(0,1fr))',
-    gap: 18, paddingBottom: 40,
+    gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+    gap: 16,
   },
-
   empty: {
-    gridColumn: '1 / -1', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: 12, padding: '60px 20px', textAlign: 'center',
-  },
-
-  /* Map panel */
-  mapPanel: {
-    borderLeft: '1px solid rgba(0,0,0,.06)', overflow: 'hidden',
-  },
-  mapBg: {
-    position: 'relative', width: '100%', height: '100%',
-    background: `
-      radial-gradient(circle at 25% 30%, rgba(122,175,132,.9), rgba(122,175,132,.16) 24%, transparent 26%),
-      radial-gradient(circle at 74% 46%, rgba(122,175,132,.8), rgba(122,175,132,.12) 23%, transparent 24%),
-      linear-gradient(135deg,#e2ebdf 0%,#d7e3d2 38%,#d5dfd1 39%,#d8d9e6 39.5%,#d2d6ec 100%)`,
-  },
-  pin: {
-    position: 'absolute', zIndex: 2, display: 'flex', alignItems: 'center',
-    cursor: 'pointer', transition: 'transform .15s',
-  },
-  pinActive: { transform: 'scale(1.15)', zIndex: 3 },
-  pinDot: {
-    width: 16, height: 16, borderRadius: 999,
-    background: '#1d1a16', border: '2.5px solid rgba(255,255,255,.8)',
-    boxShadow: '0 4px 10px rgba(0,0,0,.18)', flexShrink: 0,
-  },
-  pinDotActive: {
-    background: 'linear-gradient(180deg,#d3ab5f,#c08d36)',
-    width: 20, height: 20,
-  },
-  pinLabel: {
-    marginLeft: 5, background: 'rgba(29,26,22,.88)', color: 'white',
-    fontSize: 10, fontWeight: 700, padding: '4px 7px', borderRadius: 999,
-    whiteSpace: 'nowrap', boxShadow: '0 4px 10px rgba(0,0,0,.12)',
+    color: 'var(--ta-ink-muted)',
+    fontSize: 14,
     fontFamily: 'var(--font-sans)',
+    padding: '24px 0',
   },
-  mapHeader: {
-    position: 'absolute', top: 12, left: 12, right: 12,
-    display: 'flex', justifyContent: 'space-between', zIndex: 4,
-  },
-  mapPill: {
-    background: 'rgba(20,20,20,.72)', color: 'white',
-    padding: '8px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-    backdropFilter: 'blur(10px)', boxShadow: '0 6px 16px rgba(0,0,0,.12)',
-    fontFamily: 'var(--font-sans)',
-  },
-  exploreBtn: {
-    position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-    padding: '12px 24px', borderRadius: 999,
-    background: 'rgba(29,26,22,.92)', color: 'white', border: 'none',
-    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700,
-    fontSize: 13, boxShadow: '0 8px 24px rgba(0,0,0,.2)', zIndex: 4,
-  },
-};
-
-/* ═══ Card styles ═══ */
-const c = {
   card: {
-    borderRadius: 16, overflow: 'hidden', background: 'white',
-    border: '1px solid rgba(0,0,0,.06)', boxShadow: '0 2px 8px rgba(0,0,0,.04)',
-    cursor: 'pointer', transition: 'transform .2s, box-shadow .2s, border-color .2s',
+    borderRadius: 12,
+    overflow: 'hidden',
+    background: '#FFFFFF',
+    border: '1px solid rgba(0,0,0,.06)',
+    cursor: 'pointer',
+    boxShadow: '0 2px 10px rgba(0,0,0,.04)',
   },
-  cardSelected: {
-    borderColor: 'var(--gold)',
-    boxShadow: '0 0 0 2px rgba(199,154,70,.2), 0 10px 28px rgba(0,0,0,.08)',
+  cardInner: {
+    position: 'relative',
   },
   imgWrap: {
-    position: 'relative', height: 170, overflow: 'hidden', background: '#e8e5e0',
+    position: 'relative',
+    height: 200,
+    background: '#E4E2DC',
+    overflow: 'hidden',
+  },
+  skeleton: {
+    position: 'absolute',
+    inset: 0,
+    background: 'linear-gradient(90deg,#e4e2dc 25%,#f0ede8 50%,#e4e2dc 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'exploreSk 1.2s ease-in-out infinite',
+    zIndex: 1,
   },
   img: {
-    width: '100%', height: '100%', objectFit: 'cover',
-    transition: 'opacity .4s',
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
   },
-  placeholder: {
-    position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+  badgeTL: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    padding: '5px 10px',
+    borderRadius: 20,
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#FFFFFF',
+    background: 'rgba(0,0,0,.5)',
+    fontFamily: 'var(--font-sans)',
+    backdropFilter: 'blur(8px)',
   },
-  dots: {
-    position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)',
-    display: 'flex', gap: 4, zIndex: 2,
+  actionsTR: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    display: 'flex',
+    gap: 8,
+    zIndex: 2,
   },
-  dot: {
-    width: 6, height: 6, borderRadius: 99, background: 'white',
-    boxShadow: '0 1px 3px rgba(0,0,0,.2)',
+  roundAct: {
+    width: 36,
+    height: 36,
+    borderRadius: '50%',
+    border: 'none',
+    background: 'rgba(255,255,255,.88)',
+    backdropFilter: 'blur(10px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 2px 10px rgba(0,0,0,.1)',
   },
-  actions: {
-    position: 'absolute', top: 10, right: 10,
-    display: 'flex', gap: 6, zIndex: 2,
+  dropOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 40,
   },
-  actBtn: {
-    width: 32, height: 32, borderRadius: '50%',
-    background: 'rgba(255,255,255,.88)', border: 'none', cursor: 'pointer',
-    display: 'grid', placeItems: 'center', fontSize: 14,
-    boxShadow: '0 2px 8px rgba(0,0,0,.12)',
+  plusDrop: {
+    position: 'absolute',
+    top: 'calc(100% + 8px)',
+    right: 0,
+    zIndex: 50,
+    minWidth: 200,
+    background: '#FFFFFF',
+    borderRadius: 12,
+    border: '1px solid rgba(0,0,0,.08)',
+    boxShadow: '0 8px 28px rgba(0,0,0,.12)',
+    padding: '8px 0',
+    overflow: 'hidden',
   },
-  infoBtn: {
-    position: 'absolute', bottom: 10, right: 10,
-    width: 26, height: 26, borderRadius: '50%',
-    background: 'rgba(0,0,0,.45)', border: 'none', cursor: 'pointer',
-    display: 'grid', placeItems: 'center', fontSize: 12, color: 'white',
-    zIndex: 2, backdropFilter: 'blur(4px)',
+  plusDropTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: 'var(--ta-ink-subtle)',
+    textTransform: 'uppercase',
+    letterSpacing: '.06em',
+    padding: '6px 14px 8px',
+    fontFamily: 'var(--font-sans)',
   },
-  body: { padding: 14, display: 'flex', flexDirection: 'column', gap: 4 },
-  titleRow: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8,
+  plusDropItem: {
+    width: '100%',
+    textAlign: 'left',
+    padding: '10px 14px',
+    border: 'none',
+    background: 'none',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 500,
+    color: 'var(--ta-ink)',
+    fontFamily: 'var(--font-sans)',
   },
-  name: {
-    fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14,
-    color: 'var(--text1)', lineHeight: 1.35, margin: 0,
+  cardBody: {
+    padding: '12px 14px 14px',
   },
-  rating: {
-    display: 'inline-flex', alignItems: 'center', gap: 3,
-    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700,
-    color: 'var(--text1)', whiteSpace: 'nowrap', flexShrink: 0,
+  cardTitle: {
+    margin: 0,
+    fontSize: 15,
+    fontWeight: 700,
+    color: 'var(--ta-ink)',
+    lineHeight: 1.35,
+    fontFamily: 'var(--font-sans)',
   },
-  cat: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text2)',
+  locRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
   },
-  addr: {
-    fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text3)',
-    lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden',
-    textOverflow: 'ellipsis', margin: 0,
+  loc: {
+    fontSize: 12,
+    color: 'var(--ta-ink-muted)',
+    fontFamily: 'var(--font-sans)',
   },
-  mentions: {
-    fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text3)',
-    marginTop: 2,
+  authorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
   },
-  shimmer: {
-    position: 'absolute', inset: 0,
-    background: 'linear-gradient(90deg, #e8e5e0 25%, #f0ede8 50%, #e8e5e0 75%)',
-    backgroundSize: '200% 100%',
-    animation: 'skeletonShimmer 1.4s ease-in-out infinite',
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: 'rgba(0,0,0,.08)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 11,
+    fontWeight: 800,
+    color: 'var(--ta-ink)',
+    fontFamily: 'var(--font-sans)',
+    flexShrink: 0,
   },
-  skelLine: {
-    height: 12, borderRadius: 6,
-    background: 'linear-gradient(90deg, #e8e5e0 25%, #f0ede8 50%, #e8e5e0 75%)',
-    backgroundSize: '200% 100%',
-    animation: 'skeletonShimmer 1.4s ease-in-out infinite',
+  avatarOfficial: {
+    background: 'linear-gradient(135deg,#dce4ed,#4a6278)',
+    color: '#fff',
+    border: '1px solid rgba(74,98,120,.4)',
+  },
+  authorName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--ta-ink)',
+    fontFamily: 'var(--font-sans)',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  likeHint: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    fontSize: 12,
+    color: 'var(--ta-ink-muted)',
+    fontFamily: 'var(--font-sans)',
+    flexShrink: 0,
   },
 };

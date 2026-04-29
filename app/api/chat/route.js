@@ -18,7 +18,12 @@ const FALLBACK = {
 
 export async function POST(req) {
   try {
-    const { messages = [], planContext = {} } = await req.json();
+    const { messages = [], planContext: rawCtx = {} } = await req.json();
+    const atlasDest = String(rawCtx?.atlasTripMeta?.destination || '').trim();
+    const planContext = {
+      ...rawCtx,
+      destination: String(rawCtx?.destination || '').trim() || atlasDest,
+    };
 
     const systemPrompt = buildSystemPrompt(planContext);
 

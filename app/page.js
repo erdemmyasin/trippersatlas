@@ -1,11 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import {
+  Bot,
+  Car,
+  Check,
+  Gem,
+  Globe,
+  Hotel,
+  Camera,
+  Landmark,
+  Map,
+  MapPinned,
+  Menu,
+  Mountain,
+  Palmtree,
+  Plane,
+  Ship,
+  Sparkles,
+  UtensilsCrossed,
+  Wallet,
+  X,
+} from 'lucide-react';
+import AtlasLogo from '@/components/AtlasLogo';
+import LandingCapitalsWeather from '@/components/LandingCapitalsWeather';
+import LandingHowItWorks from '@/components/LandingHowItWorks';
+import NavLocaleCurrency from '@/components/NavLocaleCurrency';
+
+const SVC_ICON_MAP = {
+  hotel: Hotel,
+  transfer: Car,
+  tours: MapPinned,
+  restaurant: UtensilsCrossed,
+  flights: Plane,
+  boat: Ship,
+};
 
 /* ═══════════════════════════════════════════════════════════
-   TripperAtlas — Landing Page
-   Türkiye odaklı AI seyahat planlama platformu
+   Atlas — Landing Page
+   Atlas — küresel AI seyahat planlama (Türkiye ağırlığı isteğe bağlı .env ile)
    ═══════════════════════════════════════════════════════════ */
 
 const POPULAR_TRIPS = [
@@ -83,37 +117,55 @@ const POPULAR_TRIPS = [
   },
 ];
 
-const STEPS = [
-  { num: '01', icon: '💬', title: 'Seyahatinizi anlatın', desc: 'Yapay zeka asistanımıza nereye gitmek istediğinizi, bütçenizi ve tercihlerinizi doğal dille anlatın.' },
-  { num: '02', icon: '✨', title: 'Kişisel öneriler alın', desc: 'Fotoğraflar, haritalar ve gerçek kullanıcı yorumlarıyla desteklenen kişiselleştirilmiş öneriler keşfedin.' },
-  { num: '03', icon: '🗺️', title: 'Planınızı tamamlayın', desc: 'Otel, transfer, aktivite — hepsini tek panelden yönetin, gerçek fiyatlarla rezerve edin.' },
-];
+const FEAT_ICON_MAP = {
+  ai: Bot,
+  maps: Map,
+  prices: Wallet,
+  photos: Landmark,
+  i18n: Globe,
+  budget: Sparkles,
+};
 
 const FEATURES = [
-  { icon: '🤖', title: 'Yapay Zeka Destekli Planlama', desc: 'Gelişmiş yapay zeka ile saniyeler içinde kişiselleştirilmiş seyahat planları oluşturun.' },
-  { icon: '🗺️', title: 'İnteraktif Haritalar', desc: 'Rotanızı harita üzerinde görün, noktalar arası mesafeleri ve süreleri anlık hesaplayın.' },
-  { icon: '💰', title: 'Gerçek Zamanlı Fiyatlar', desc: 'Oteller, transferler ve turlar için canlı fiyat karşılaştırması yapın.' },
-  { icon: '📸', title: 'Fotoğraf ve Yorumlar', desc: 'Her destinasyon için yüksek kaliteli görseller ve gerçek gezgin yorumları görün.' },
-  { icon: '🌍', title: 'Çoklu Dil Desteği', desc: 'Türkçe, İngilizce, Almanca ve 9 farklı dilde hizmet alın.' },
-  { icon: '📊', title: 'Akıllı Bütçe Takibi', desc: 'Harcamalarınızı kategorilere göre takip edin, bütçenizi aşmayın.' },
+  { icon: 'ai', title: 'Yapay Zeka Destekli Planlama', desc: 'Gelişmiş yapay zeka ile saniyeler içinde kişiselleştirilmiş seyahat planları oluşturun.' },
+  { icon: 'maps', title: 'İnteraktif Haritalar', desc: 'Rotanızı harita üzerinde görün, noktalar arası mesafeleri ve süreleri anlık hesaplayın.' },
+  { icon: 'prices', title: 'Gerçek Zamanlı Fiyatlar', desc: 'Oteller, transferler ve turlar için canlı fiyat karşılaştırması yapın.' },
+  { icon: 'photos', title: 'Fotoğraf ve Yorumlar', desc: 'Her destinasyon için yüksek kaliteli görseller ve gerçek gezgin yorumları görün.' },
+  {
+    icon: 'i18n',
+    title: 'Çoklu Dil Desteği',
+    desc: 'Türkçe, İngilizce, Almanca ve 9 farklı dilde hizmet alın.',
+    soon: true,
+  },
+  { icon: 'budget', title: 'Akıllı Bütçe Takibi', desc: 'Harcamalarınızı kategorilere göre takip edin, bütçenizi aşmayın.' },
 ];
 
+const QUIZ_ICON_MAP = {
+  explorer: MapPinned,
+  relaxer: Palmtree,
+  foodie: UtensilsCrossed,
+  culture: Landmark,
+  adventure: Mountain,
+  luxury: Gem,
+};
+
+/** Sıra: üst satır Turlar–Oteller–Uçuşlar; alt satır Transfer–Restoranlar–Tekne */
 const SERVICES = [
-  { icon: '🏨', title: 'Oteller', desc: 'En iyi fiyatlarla otel rezervasyonu', active: true },
-  { icon: '🚗', title: 'Transfer', desc: 'Havalimanı karşılama ve özel araç', active: true },
-  { icon: '🎡', title: 'Turlar', desc: 'Rehberli ve özel tur deneyimleri', active: true },
-  { icon: '🍽️', title: 'Restoranlar', desc: 'Yerel lezzetler ve fine dining', active: true },
-  { icon: '✈️', title: 'Uçuşlar', desc: 'Uçak bileti karşılaştırması', active: false },
-  { icon: '⛵', title: 'Tekne Turları', desc: 'Mavi tur ve günlük tekne gezileri', active: true },
+  { icon: 'tours', title: 'Turlar', desc: 'Rehberli ve özel tur deneyimleri', active: true, href: '/inspire' },
+  { icon: 'hotel', title: 'Oteller', desc: 'En iyi fiyatlarla otel rezervasyonu', active: true, href: '/stay' },
+  { icon: 'flights', title: 'Uçuşlar', desc: 'Uçak bileti karşılaştırması', active: true, href: '/flights' },
+  { icon: 'transfer', title: 'Transfer', desc: 'Havalimanı karşılama ve özel araç', active: true, href: '/cars' },
+  { icon: 'restaurant', title: 'Restoranlar', desc: 'Yerel lezzetler ve fine dining', active: true },
+  { icon: 'boat', title: 'Tekne Turları', desc: 'Mavi tur ve günlük tekne gezileri', active: true, href: '/explore' },
 ];
 
 const QUIZ_TYPES = [
-  { id: 'explorer',   icon: '🧭', title: 'Kaşif',         desc: 'Bilinmeyen yerleri keşfetmeyi seversin' },
-  { id: 'relaxer',    icon: '🏖️', title: 'Dinlenme Sever', desc: 'Huzur ve konfor önceliğin' },
-  { id: 'foodie',     icon: '🍴', title: 'Gurme',          desc: 'Yerel lezzetler seni heyecanlandırır' },
-  { id: 'culture',    icon: '🏛️', title: 'Kültür Tutkunu', desc: 'Tarih ve sanat peşinde koşarsın' },
-  { id: 'adventure',  icon: '🏔️', title: 'Maceraperest',   desc: 'Adrenalin ve doğa sporları favorin' },
-  { id: 'luxury',     icon: '💎', title: 'Lüks Gezgin',    desc: 'Premium deneyimler ararsın' },
+  { id: 'explorer',   icon: 'explorer', title: 'Kaşif',         desc: 'Bilinmeyen yerleri keşfetmeyi seversin' },
+  { id: 'relaxer',    icon: 'relaxer', title: 'Dinlenme Sever', desc: 'Huzur ve konfor önceliğin' },
+  { id: 'foodie',     icon: 'foodie', title: 'Gurme',          desc: 'Yerel lezzetler seni heyecanlandırır' },
+  { id: 'culture',    icon: 'culture', title: 'Kültür Tutkunu', desc: 'Tarih ve sanat peşinde koşarsın' },
+  { id: 'adventure',  icon: 'adventure', title: 'Maceraperest',   desc: 'Adrenalin ve doğa sporları favorin' },
+  { id: 'luxury',     icon: 'luxury', title: 'Lüks Gezgin',    desc: 'Premium deneyimler ararsın' },
 ];
 
 const STATS = [
@@ -157,7 +209,7 @@ function TripCard({ trip }) {
 
         {imgState === 'error' && (
           <div className="l-trip__img-fallback">
-            <span>🗺️</span>
+            <Map size={28} strokeWidth={1.6} color="var(--ta-sea)" aria-hidden />
           </div>
         )}
 
@@ -187,93 +239,120 @@ function TripCard({ trip }) {
   );
 }
 
+const NAV_SCROLL_THRESHOLD = 48;
+
 export default function LandingPage() {
-  const [scrollY, setScrollY] = useState(0);
+  const landingRef = useRef(null);
+  const navSolidRef = useRef(false);
+  const [navSolid, setNavSolid] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [quizSelected, setQuizSelected] = useState(null);
   const [email, setEmail] = useState('');
 
   useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const root = landingRef.current;
+    if (!root) return undefined;
+    const syncNav = () => {
+      const next = root.scrollTop > NAV_SCROLL_THRESHOLD;
+      if (next === navSolidRef.current) return;
+      navSolidRef.current = next;
+      setNavSolid(next);
+      if (next) setMobileMenu(false);
+    };
+    syncNav();
+    root.addEventListener('scroll', syncNav, { passive: true });
+    return () => root.removeEventListener('scroll', syncNav);
   }, []);
 
-  const navSolid = scrollY > 60;
+  const onBrandClick = useCallback((e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    const root = landingRef.current;
+    if (!root || root.scrollTop <= 0) return;
+    e.preventDefault();
+    root.scrollTo({ top: 0, behavior: 'smooth' });
+    setMobileMenu(false);
+  }, []);
 
   return (
-    <div className="landing">
+    <div className="landing" ref={landingRef}>
       {/* ── NAVBAR ── */}
       <nav className={`l-nav ${navSolid ? 'l-nav--solid' : ''}`}>
         <div className="l-nav__inner">
-          <Link href="/" className="l-nav__brand">
-            <span className="l-nav__mark">
-              <span className="l-nav__diamond" />
+          <Link href="/" className="l-nav__brand" onClick={onBrandClick}>
+            <span className="l-nav__mark l-nav__mark--logo">
+              <AtlasLogo height={26} />
             </span>
-            <span className="l-nav__logo">TripperAtlas</span>
+            <span className="l-nav__logo">Atlas</span>
           </Link>
 
           <div className="l-nav__links">
-            <a href="#how" className="l-nav__link">Nasıl Çalışır</a>
-            <a href="#destinations" className="l-nav__link">Destinasyonlar</a>
-            <a href="#features" className="l-nav__link">Özellikler</a>
-            <a href="#quiz" className="l-nav__link">Seyahat Testi</a>
-            <Link href="/explore" className="l-nav__link">Keşfet</Link>
+            <a href="#weather" className="l-nav__link">Hızlı Seyahat</a>
+            <a href="#destinations" className="l-nav__link">Popüler Geziler</a>
+            <a href="#services" className="l-nav__link">Tek Platform</a>
+            <a href="#quiz" className="l-nav__link">Gezgin Tipi</a>
           </div>
 
           <div className="l-nav__actions">
-            <button className="l-nav__login">Giriş Yap</button>
-            <Link href="/chat" className="l-nav__cta">
-              <span className="l-nav__cta-star">✦</span>
-              Planlamaya Başla
+            <NavLocaleCurrency />
+            <Link href="/auth/giris" className="l-nav__login">
+              Giriş Yap
             </Link>
           </div>
 
           <button
+            type="button"
             className="l-nav__hamburger"
-            onClick={() => setMobileMenu(v => !v)}
+            onClick={() => setMobileMenu((v) => !v)}
             aria-label="Menü"
           >
-            {mobileMenu ? '✕' : '☰'}
+            {mobileMenu ? <X size={22} strokeWidth={2} aria-hidden /> : <Menu size={22} strokeWidth={2} aria-hidden />}
           </button>
         </div>
 
         {mobileMenu && (
           <div className="l-nav__mobile">
-            <a href="#how" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Nasıl Çalışır</a>
-            <a href="#destinations" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Destinasyonlar</a>
-            <a href="#features" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Özellikler</a>
-            <a href="#quiz" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Seyahat Testi</a>
-            <Link href="/chat" className="l-nav__cta l-nav__cta--full" onClick={() => setMobileMenu(false)}>
-              Planlamaya Başla
+            <div className="l-nav__mobile-prefs">
+              <NavLocaleCurrency className="l-prefs--stack" />
+            </div>
+            <Link
+              href="/auth/giris"
+              className="l-nav__login l-nav__login--mobile-bar"
+              onClick={() => setMobileMenu(false)}
+            >
+              Giriş Yap
             </Link>
+            <a href="#weather" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Hızlı Seyahat</a>
+            <a href="#destinations" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Popüler Geziler</a>
+            <a href="#services" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Tek Platform</a>
+            <a href="#quiz" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Gezgin Tipi</a>
           </div>
         )}
       </nav>
 
-      {/* ── HERO ── */}
-      <section className="l-hero">
+        {/* ── HERO ── */}
+        <section className="l-hero">
         <div className="l-hero__bg" />
         <div className="l-hero__content">
           <div className="l-hero__badge">
             <span className="l-hero__badge-dot" />
             Yapay Zeka Destekli Seyahat Planlama
           </div>
-          <h1 className="l-hero__title">
+          <h1 className="ta-display l-hero__title">
             Seyahati <br />
             <span className="l-hero__title--accent">yeniden keşfet.</span>
           </h1>
           <p className="l-hero__sub">
-            TripperAtlas, kişisel AI seyahat asistanınız. Türkiye&apos;nin en güzel
-            destinasyonlarını keşfedin, planları özelleştirin ve kolayca
-            rezervasyon yapın.
+            Atlas, kişisel yapay zeka seyahat asistanınız. Dünyanın her yerinde
+            destinasyonları keşfedin, planları özelleştirin ve kolayca
+            rezervasyon adımlarına geçin.
           </p>
           <div className="l-hero__actions">
             <Link href="/chat" className="l-hero__btn l-hero__btn--primary">
-              <span>✦</span> Planlamaya Başla
+              <Sparkles size={18} strokeWidth={2} aria-hidden />
+              Atlas&apos;a Sor
             </Link>
-            <a href="#how" className="l-hero__btn l-hero__btn--secondary">
-              Nasıl çalışır?
+            <a href="#weather" className="l-hero__btn l-hero__btn--secondary">
+              Hızlı Seyahat
             </a>
           </div>
           <div className="l-hero__stats">
@@ -292,13 +371,13 @@ export default function LandingPage() {
             <div className="l-hero__chat-header">
               <div className="l-hero__chat-avatar">A</div>
               <div>
-                <div className="l-hero__chat-name">TripperAtlas</div>
+                <div className="l-hero__chat-name">Atlas</div>
                 <div className="l-hero__chat-status">Çevrimiçi</div>
               </div>
             </div>
             <div className="l-hero__chat-body">
               <div className="l-hero__chat-msg l-hero__chat-msg--ai">
-                Merhaba! Ben TripperAtlas. Hayalinizdeki Türkiye seyahatini planlamaya hazır mısınız?
+                Merhaba! Ben Atlas. Nereye gitmek istediğinizi birlikte netleştirelim — yurt içi veya yurt dışı.
               </div>
               <div className="l-hero__chat-msg l-hero__chat-msg--user">
                 İstanbul&apos;da 3 günlük romantik bir kaçamak istiyorum
@@ -308,14 +387,18 @@ export default function LandingPage() {
               </div>
               <div className="l-hero__chat-cards">
                 <div className="l-hero__mini-card">
-                  <div className="l-hero__mini-img" style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)' }}>🏨</div>
+                  <div className="l-hero__mini-img" style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)' }}>
+                    <Hotel size={18} strokeWidth={2} aria-hidden />
+                  </div>
                   <div className="l-hero__mini-info">
                     <span className="l-hero__mini-name">Pera Palace Hotel</span>
                     <span className="l-hero__mini-price">₺4.200/gece</span>
                   </div>
                 </div>
                 <div className="l-hero__mini-card">
-                  <div className="l-hero__mini-img" style={{ background: 'linear-gradient(135deg,#f093fb,#f5576c)' }}>🍽️</div>
+                  <div className="l-hero__mini-img" style={{ background: 'linear-gradient(135deg,#f093fb,#f5576c)' }}>
+                    <UtensilsCrossed size={18} strokeWidth={2} aria-hidden />
+                  </div>
                   <div className="l-hero__mini-info">
                     <span className="l-hero__mini-name">Mikla Restaurant</span>
                     <span className="l-hero__mini-price">₺1.800/kişi</span>
@@ -327,29 +410,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section id="how" className="l-section l-how">
-        <div className="l-section__inner">
-          <div className="l-section__header">
-            <span className="l-section__badge">Nasıl Çalışır</span>
-            <h2 className="l-section__title">Üç adımda hayalinizdeki tatil</h2>
-            <p className="l-section__sub">
-              Karmaşık planlamaya son. Sadece ne istediğinizi söyleyin, gerisini biz halledelim.
-            </p>
-          </div>
-          <div className="l-how__grid">
-            {STEPS.map((step, i) => (
-              <div key={step.num} className="l-how__card">
-                <div className="l-how__num">{step.num}</div>
-                <div className="l-how__icon">{step.icon}</div>
-                <h3 className="l-how__title">{step.title}</h3>
-                <p className="l-how__desc">{step.desc}</p>
-                {i < STEPS.length - 1 && <div className="l-how__arrow">→</div>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <LandingHowItWorks />
+
+      <LandingCapitalsWeather />
 
       {/* ── POPULAR TRIPS ── */}
       <section id="destinations" className="l-section l-trips">
@@ -358,7 +421,7 @@ export default function LandingPage() {
             <span className="l-section__badge">İlham Alın</span>
             <h2 className="l-section__title">Popüler Geziler</h2>
             <p className="l-section__sub">
-              Türkiye&apos;nin en çok tercih edilen rotalarını keşfedin ve hemen planlamaya başlayın.
+              Örnek rotalarla ilham alın; kendi destinasyonunuzu sohbette veya hızlı planda oluşturun.
             </p>
           </div>
           <div className="l-trips__grid">
@@ -380,33 +443,60 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="l-feat__grid">
-            {FEATURES.map(f => (
-              <div key={f.title} className="l-feat__card">
-                <div className="l-feat__icon">{f.icon}</div>
-                <h3 className="l-feat__title">{f.title}</h3>
-                <p className="l-feat__desc">{f.desc}</p>
-              </div>
-            ))}
+            {FEATURES.map((f) => {
+              const FeatIcon = FEAT_ICON_MAP[f.icon];
+              return (
+                <div
+                  key={f.title}
+                  className={`l-feat__card${f.soon ? ' l-feat__card--soon' : ''}`}
+                >
+                  {f.soon ? <span className="l-feat__soon">Yakında</span> : null}
+                  <div className="l-feat__icon" aria-hidden>
+                    {FeatIcon ? <FeatIcon size={24} strokeWidth={1.65} /> : null}
+                  </div>
+                  <h3 className="l-feat__title">{f.title}</h3>
+                  <p className="l-feat__desc">{f.desc}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* ── SERVICES ── */}
-      <section className="l-section l-svc">
+      <section id="services" className="l-section l-svc">
         <div className="l-section__inner">
           <div className="l-section__header">
             <span className="l-section__badge">Hepsi Bir Arada</span>
             <h2 className="l-section__title">Tüm ihtiyaçlarınız tek platformda</h2>
           </div>
           <div className="l-svc__grid">
-            {SERVICES.map(svc => (
-              <div key={svc.title} className={`l-svc__card ${!svc.active ? 'l-svc__card--soon' : ''}`}>
-                <div className="l-svc__icon">{svc.icon}</div>
-                <h3 className="l-svc__title">{svc.title}</h3>
-                <p className="l-svc__desc">{svc.desc}</p>
-                {!svc.active && <span className="l-svc__soon">Yakında</span>}
-              </div>
-            ))}
+            {SERVICES.map(svc => {
+              const Icon = SVC_ICON_MAP[svc.icon];
+              const cardClass = `l-svc__card ${!svc.active ? 'l-svc__card--soon' : ''} ${svc.href && svc.active ? 'l-svc__card--link' : ''}`;
+              const body = (
+                <>
+                  <div className="l-svc__icon" aria-hidden>
+                    {Icon ? <Icon size={26} strokeWidth={1.65} /> : null}
+                  </div>
+                  <h3 className="l-svc__title">{svc.title}</h3>
+                  <p className="l-svc__desc">{svc.desc}</p>
+                  {!svc.active && <span className="l-svc__soon">Yakında</span>}
+                </>
+              );
+              if (svc.href && svc.active) {
+                return (
+                  <Link key={svc.title} href={svc.href} className={cardClass}>
+                    {body}
+                  </Link>
+                );
+              }
+              return (
+                <div key={svc.title} className={cardClass}>
+                  {body}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -415,25 +505,34 @@ export default function LandingPage() {
       <section id="quiz" className="l-section l-quiz">
         <div className="l-section__inner">
           <div className="l-section__header">
-            <span className="l-section__badge">Kendinizi Keşfedin</span>
+            <span className="l-section__badge">GEZGİN TİPİNİZ</span>
             <h2 className="l-section__title">Ne tür bir gezginsiniz?</h2>
             <p className="l-section__sub">
-              Seyahat stilinizi öğrenin, size özel öneriler alın.
+              Seyahat stilinize göre özel öneriler alın.
             </p>
           </div>
           <div className="l-quiz__grid">
-            {QUIZ_TYPES.map(q => (
+            {QUIZ_TYPES.map(q => {
+              const QuizIcon = QUIZ_ICON_MAP[q.icon];
+              return (
               <button
                 key={q.id}
                 className={`l-quiz__card ${quizSelected === q.id ? 'l-quiz__card--active' : ''}`}
-                onClick={() => setQuizSelected(q.id)}
+                onClick={() => setQuizSelected((prev) => (prev === q.id ? null : q.id))}
               >
-                <span className="l-quiz__icon">{q.icon}</span>
+                <span className="l-quiz__icon" aria-hidden>
+                  {QuizIcon ? <QuizIcon size={24} strokeWidth={1.65} /> : null}
+                </span>
                 <strong className="l-quiz__title">{q.title}</strong>
                 <span className="l-quiz__desc">{q.desc}</span>
-                {quizSelected === q.id && <span className="l-quiz__check">✓</span>}
+                {quizSelected === q.id && (
+                  <span className="l-quiz__check" aria-hidden>
+                    <Check size={14} strokeWidth={3} />
+                  </span>
+                )}
               </button>
-            ))}
+              );
+            })}
           </div>
           {quizSelected && (
             <div className="l-quiz__result">
@@ -442,7 +541,8 @@ export default function LandingPage() {
                 kişiselleştirilmiş öneriler sizi bekliyor.
               </p>
               <Link href="/chat" className="l-hero__btn l-hero__btn--primary">
-                <span>✦</span> Kişisel Planımı Oluştur
+                <Sparkles size={18} strokeWidth={2} aria-hidden />
+                Kişisel Planımı Oluştur
               </Link>
             </div>
           )}
@@ -479,11 +579,13 @@ export default function LandingPage() {
           <div className="l-footer__top">
             <div className="l-footer__brand">
               <div className="l-footer__logo-row">
-                <span className="l-nav__mark"><span className="l-nav__diamond" /></span>
-                <span className="l-footer__logo-text">TripperAtlas</span>
+                <span className="l-nav__mark l-nav__mark--logo">
+                  <AtlasLogo height={24} />
+                </span>
+                <span className="l-footer__logo-text">Atlas</span>
               </div>
               <p className="l-footer__tagline">
-                Yapay zeka destekli kişisel seyahat asistanınız. Türkiye&apos;yi keşfetmenin en akıllı yolu.
+                Yapay zeka destekli kişisel seyahat asistanınız — küresel planlama, net arayüz.
               </p>
             </div>
 
@@ -521,11 +623,17 @@ export default function LandingPage() {
           </div>
 
           <div className="l-footer__bottom">
-            <p className="l-footer__copy">© 2026 TripperAtlas. Tüm hakları saklıdır.</p>
+            <p className="l-footer__copy">© 2026 Atlas. Tüm hakları saklıdır.</p>
             <div className="l-footer__social">
-              <a href="#" className="l-footer__social-link" aria-label="Twitter">𝕏</a>
-              <a href="#" className="l-footer__social-link" aria-label="Instagram">📷</a>
-              <a href="#" className="l-footer__social-link" aria-label="LinkedIn">in</a>
+              <a href="#" className="l-footer__social-link" aria-label="Twitter">
+                <X size={18} strokeWidth={2} />
+              </a>
+              <a href="#" className="l-footer__social-link" aria-label="Instagram">
+                <Camera size={18} strokeWidth={2} />
+              </a>
+              <a href="#" className="l-footer__social-link" aria-label="LinkedIn">
+                <span style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-sans)' }}>in</span>
+              </a>
             </div>
           </div>
         </div>

@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Check, MapPin, Star } from 'lucide-react';
+import { ListingTypeGlyph } from '@/components/AtlasGlyph';
 import { buildAffiliateUrl } from '@/services/affiliate';
 import { trackEvent } from '@/lib/analytics';
+import { listingImageKeywordSuffix } from '@/lib/taRegion';
 
 /* ── Tip + lokasyon → Unsplash query ── */
 const TYPE_KEYWORDS = {
@@ -40,7 +43,7 @@ function buildQuery(listing) {
 
   /* Lokasyon keyword */
   const locLower = location.toLowerCase();
-  let locKw = 'turkey,travel';
+  let locKw = listingImageKeywordSuffix();
   for (const [key, kw] of Object.entries(LOCATION_KEYWORDS)) {
     if (locLower.includes(key)) { locKw = kw; break; }
   }
@@ -76,6 +79,13 @@ export default function ListingCard({
   onPlanSelect,   /* page-level handler: listing → budget + module update */
   onPlanRemove,   /* page-level handler: remove from plan */
   isSelected = false,
+  /** encodeURIComponent(listingMapKey) — haritadan scroll */
+  listingDataAttr,
+  /** listingMapKey — hover ile harita pini */
+  listingHoverKey,
+  onMapHoverKey,
+  /** Haritadan pin tıklanınca kart vurgusu */
+  highlightFromMap = false,
 }) {
   const [imgSrc, setImgSrc]     = useState(null);
   const [imgState, setImgState] = useState('loading');
@@ -91,7 +101,6 @@ export default function ListingCard({
     price,
     priceUnit = 'gece',
     badge,
-    emoji,
     type,
     trustSignal,
     affiliatePlatform,
@@ -148,12 +157,29 @@ export default function ListingCard({
   /* Compact mod */
   if (compact) {
     return (
-      <div style={sc.card}>
-        <span style={sc.emoji}>{emoji || '🏨'}</span>
+      <div
+        style={sc.card}
+        {...(listingDataAttr ? { 'data-ta-listing': listingDataAttr } : {})}
+        onMouseEnter={() => listingHoverKey && onMapHoverKey?.(listingHoverKey)}
+        onMouseLeave={() => listingHoverKey && onMapHoverKey?.(null)}
+      >
+        <span style={sc.emoji}>
+          <ListingTypeGlyph type={type} size={22} />
+        </span>
         <div style={sc.body}>
           <p style={sc.name}>{name}</p>
-          {location && <p style={sc.loc}>📍 {location}</p>}
-          {trustSignal && <p style={sc.trust}>★ {trustSignal}</p>}
+          {location && (
+            <p style={sc.loc}>
+              <MapPin size={12} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} aria-hidden />
+              {location}
+            </p>
+          )}
+          {trustSignal && (
+            <p style={sc.trust}>
+              <Star size={12} fill="#F59E0B" stroke="#F59E0B" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} aria-hidden />
+              {trustSignal}
+            </p>
+          )}
         </div>
         <div style={sc.right}>
           {price != null && (
@@ -176,14 +202,23 @@ export default function ListingCard({
   /* Ekstra rating parse */
   const ratingMatch = (trustSignal || '').match(/(\d+\.\d+)\s*[·\-]\s*(\d+)\s*(yorum|review)/i);
 
+  const mapRing = highlightFromMap && !isSelected;
+
   return (
-    <div style={{
-      ...sg.card,
-      border: isSelected ? '2px solid #059669' : '1px solid rgba(0,0,0,.06)',
-      boxShadow: isSelected
-        ? '0 0 0 3px rgba(47,143,107,0.18), 0 14px 28px rgba(0,0,0,.05)'
-        : '0 14px 28px rgba(0,0,0,.05)',
-    }}>
+    <div
+      {...(listingDataAttr ? { 'data-ta-listing': listingDataAttr } : {})}
+      onMouseEnter={() => listingHoverKey && onMapHoverKey?.(listingHoverKey)}
+      onMouseLeave={() => listingHoverKey && onMapHoverKey?.(null)}
+      style={{
+        ...sg.card,
+        border: isSelected ? '2px solid #059669' : mapRing ? '2px solid rgba(192,141,54,0.85)' : '1px solid rgba(0,0,0,.06)',
+        boxShadow: isSelected
+          ? '0 0 0 3px rgba(47,143,107,0.18), 0 14px 28px rgba(0,0,0,.05)'
+          : mapRing
+            ? '0 0 0 3px rgba(192,141,54,0.22), 0 14px 28px rgba(0,0,0,.06)'
+            : '0 14px 28px rgba(0,0,0,.05)',
+      }}
+    >
       {/* ── Görsel alanı ── */}
       <div style={{
         ...sg.imgWrap,
@@ -195,23 +230,28 @@ export default function ListingCard({
 
         {/* Fotoğraf — URL gelince mount et */}
         {imgSrc !== null && imgState !== 'error' && (
-          <img
-            src={imgSrc}
-            alt={name}
-            loading="lazy"
-            style={{
-              ...sg.img,
-              opacity: imgState === 'loaded' ? 1 : 0,
-              transition: 'opacity 0.35s ease',
-            }}
-            onLoad={() => setImgState('loaded')}
-            onError={() => setImgState('error')}
-          />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- harici Unsplash/otel URL */}
+            <img
+              src={imgSrc}
+              alt={name}
+              loading="lazy"
+              style={{
+                ...sg.img,
+                opacity: imgState === 'loaded' ? 1 : 0,
+                transition: 'opacity 0.35s ease',
+              }}
+              onLoad={() => setImgState('loaded')}
+              onError={() => setImgState('error')}
+            />
+          </>
         )}
 
         {/* Hata fallback: büyük emoji */}
         {imgState === 'error' && (
-          <span style={sg.fallbackEmoji}>{emoji || '🏨'}</span>
+          <span style={sg.fallbackEmoji}>
+            <ListingTypeGlyph type={type} size={40} color="rgba(255,255,255,.9)" />
+          </span>
         )}
 
         {/* Alt-üst gradient overlay */}
@@ -220,7 +260,10 @@ export default function ListingCard({
         {/* Seçildi overlay */}
         {isSelected && (
           <div style={sg.selectedOverlay}>
-            <span style={sg.selectedLabel}>✓ Seçildi</span>
+            <span style={sg.selectedLabel}>
+              <Check size={13} strokeWidth={2.5} aria-hidden />
+              Seçildi
+            </span>
           </div>
         )}
 
@@ -244,7 +287,12 @@ export default function ListingCard({
       {/* ── İçerik ── */}
       <div style={sg.body}>
         <p style={sg.name}>{name}</p>
-        {location && <p style={sg.loc}>📍 {location}</p>}
+        {location && (
+          <p style={sg.loc}>
+            <MapPin size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} aria-hidden />
+            {location}
+          </p>
+        )}
 
         {ratingMatch ? (
           <p style={sg.rating}>
@@ -272,7 +320,8 @@ export default function ListingCard({
                 Kaldır
               </button>
               <button style={sg.selDoneBtn} disabled>
-                ✓ Seçildi
+                <Check size={14} strokeWidth={2.5} aria-hidden />
+                Seçildi
               </button>
             </div>
           ) : (
@@ -297,7 +346,7 @@ export default function ListingCard({
 }
 
 function StarIcon() {
-  return <span style={{ color: '#F59E0B' }}>★</span>;
+  return <Star size={14} fill="#F59E0B" stroke="#F59E0B" aria-hidden />;
 }
 
 function BookmarkIcon({ filled }) {
@@ -442,7 +491,7 @@ const sg = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 900,
     fontSize: '18px',
-    color: 'var(--gold-deep)',
+    color: 'var(--ta-accent-deep)',
     letterSpacing: '-0.03em',
   },
   unit: {
@@ -466,7 +515,7 @@ const sg = {
   },
   selBtn: {
     border: 0,
-    background: 'linear-gradient(180deg,#d3ab5f,#c08d36)',
+    background: 'linear-gradient(180deg,#5f7a94,#3d5266)',
     color: 'white',
     fontWeight: 800,
     padding: '10px 14px',
@@ -501,6 +550,9 @@ const sg = {
     whiteSpace: 'nowrap',
   },
   selDoneBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
     border: 0,
     background: 'linear-gradient(180deg,#3ea87a,#2f8f6b)',
     color: 'white',
@@ -524,6 +576,9 @@ const sg = {
     zIndex: 3,
   },
   selectedLabel: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
     background: '#059669',
     color: '#fff',
     fontFamily: 'var(--font-sans)',

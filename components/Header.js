@@ -1,14 +1,22 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, ChevronDown, Briefcase, Plus, Check } from 'lucide-react';
+import { X, ChevronDown, Briefcase, Plus, Check, Sparkles, ChevronLeft, MessageCircle } from 'lucide-react';
 import ChipModal from './ChipModal';
+import TripFilterChipBar from '@/components/TripFilterChipBar';
+import NavLocaleCurrency from '@/components/NavLocaleCurrency';
 import {
   mergeTripMetaForChips,
   readTripMetaSnapshot,
   TRIP_LS,
   notifyTripStorage,
 } from '@/lib/tripChipStorage';
+import { tripCardImageSearchQuery } from '@/lib/taRegion';
+import { useNewTrip } from '@/components/NewTripProvider';
+import { loadMergedTrips, findMergedTripById } from '@/lib/tripMerge';
+import { listChatsForTrip } from '@/lib/chatStore';
 
 const NOTES_LEGACY_KEY = 'ta_header_trip_notes';
 const LS_TRIPS_KEY = 'trips';
@@ -30,6 +38,22 @@ function formatTripListDate(trip) {
     }
     if (trip?.month && trip?.days) {
       return `${trip.days} gün · ${trip.month}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  return '—';
+}
+
+function formatChatRowDate(meta) {
+  try {
+    const d = new Date(meta?.updatedAt || meta?.createdAt);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
     }
   } catch {
     /* ignore */
@@ -126,8 +150,6 @@ const INITIAL_TRIP_META = {
   travelType: '',
 };
 
-const CHIP_IDS = ['dest', 'dates', 'pax', 'budget'];
-
 /** Claude stage → özet chip vurgusu */
 const STAGE_TO_CHIP = {
   purpose: 'dest',
@@ -137,80 +159,6 @@ const STAGE_TO_CHIP = {
   activities: 'pax',
   extras: 'budget',
 };
-
-function chipLabel(id, meta) {
-  if (id === 'dest') return meta.destination || 'Destinasyon';
-  if (id === 'dates') {
-    if (meta.datesChipText) return meta.datesChipText;
-    if (meta.nights && meta.month) return `${meta.nights} gece ${meta.month}`;
-    return 'Tarih';
-  }
-  if (id === 'pax') {
-    if (meta.paxChipText) return meta.paxChipText;
-    return 'Kişi sayısı';
-  }
-  if (id === 'budget') return meta.budget || 'Bütçe';
-  return '';
-}
-
-/** Trip chip satırında gösterim: her kelimenin ilk harfi (tr-TR, i→İ) */
-function capitalizeTurkishWord(word) {
-  if (!word) return word;
-  if (/^\d+$/.test(word)) return word;
-  const m = word.match(/^(\d+)([a-zA-ZğüşöçıİĞÜŞÖÇı].*)$/u);
-  if (m) {
-    return m[1] + capitalizeTurkishWord(m[2]);
-  }
-  if (!/[a-zA-ZğüşöçıİĞÜŞÖÇı]/u.test(word)) return word;
-  return (
-    word.charAt(0).toLocaleUpperCase('tr-TR') +
-    word.slice(1).toLocaleLowerCase('tr-TR')
-  );
-}
-
-function formatChipText(input) {
-  if (input == null || input === '') return input;
-  const str = String(input);
-  return str
-    .split(/(\s*·\s*)/)
-    .map((segment) => {
-      if (/^\s*·\s*$/.test(segment)) return segment;
-      return segment
-        .split(/\s+/)
-        .filter(Boolean)
-        .map(capitalizeTurkishWord)
-        .join(' ');
-    })
-    .join('');
-}
-
-const LANGUAGES = [
-  { code: 'TR', label: 'Türkçe' },
-  { code: 'EN', label: 'İngilizce' },
-  { code: 'DE', label: 'Almanca' },
-  { code: 'FR', label: 'Fransızca' },
-  { code: 'ES', label: 'İspanyolca' },
-  { code: 'AR', label: 'العربية' },
-  { code: 'RU', label: 'Русский' },
-  { code: 'ZH', label: '中文' },
-  { code: 'JA', label: '日本語' },
-  { code: 'PT', label: 'Portekizce' },
-  { code: 'IT', label: 'İtalyanca' },
-  { code: 'KO', label: '한국어' },
-];
-
-const CURRENCIES = [
-  { code: 'TRY', symbol: '₺', label: 'Türk Lirası' },
-  { code: 'USD', symbol: '$', label: 'ABD Doları' },
-  { code: 'EUR', symbol: '€', label: 'Euro' },
-  { code: 'GBP', symbol: '£', label: 'İngiliz Sterlini' },
-  { code: 'JPY', symbol: '¥', label: 'Japon Yeni' },
-  { code: 'AED', symbol: 'د.إ', label: 'BAE Dirhemi' },
-  { code: 'SAR', symbol: '﷼', label: 'Suudi Riyali' },
-  { code: 'RUB', symbol: '₽', label: 'Rus Rublesi' },
-  { code: 'CNY', symbol: '¥', label: 'Çin Yuanı' },
-  { code: 'CHF', symbol: 'Fr', label: 'İsviçre Frangı' },
-];
 
 export default function Header({
   planPills: _planPills,
@@ -224,14 +172,31 @@ export default function Header({
   onNewPlan,
   onSwitchPlan,
   onActivateStoredTrip,
+  /** /chat minimal menü: gezi seçildiğinde sohbet kalır, plan verisi yüklenir */
+  onPickTripFromPlanMenu = null,
+  /** Sol panel içeriği: plan pill açılır menüde gösterilir */
+  planWorkspaceSlot = null,
+  onPlanNameChange,
+  /** /chat: chip satırı sonunda Atlas’a Sor (sohbet) */
+  atlasAskMode = false,
+  onAtlasAskFromFilters,
+  /**
+   * /chat sohbet: Plan adı + LeftPanel (modüller, bütçe, plan özeti); bu blokta Geziler / Yeni gezi yok.
+   */
+  planDropdownMinimal = false,
+  /** Açık sohbet bir geziye bağlıysa menü açılışında gezi sohbetleri paneli */
+  linkedTripIdForPlanMenu = null,
+  /** Gezi sohbetleri listesinde seçili sohbet (tik) */
+  activeChatIdForPlanMenu = null,
+  /** Açık sohbetin gezi bağlantısı (Sohbete Devam eşlemesi) */
+  activeChatTripIdForPlanMenu = null,
 }) {
   void _planPills;
   void savedPlans;
 
-  const [lang, setLang]           = useState('TR');
-  const [currency, setCurrency]   = useState('TRY');
+  const router = useRouter();
+  const { openNewTrip } = useNewTrip();
   const [loginHov, setLoginHov]   = useState(false);
-  const [planHov, setPlanHov]     = useState(false);
   const [dropOpen, setDropOpen]   = useState(false);
   const [openModal, setOpenModal] = useState(null);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
@@ -241,27 +206,134 @@ export default function Header({
   const [localTripMeta, setLocalTripMeta] = useState(INITIAL_TRIP_META);
   const [stageChipId, setStageChipId] = useState(null);
   const [planCreateOk, setPlanCreateOk] = useState(false);
-  const [tripsTick, setTripsTick] = useState(0);
+  const [trips, setTrips] = useState([]);
+  const [hoverTripId, setHoverTripId] = useState(null);
+  /** planDropdownMinimal: trips | tripChats | modules */
+  const [planMinimalPanel, setPlanMinimalPanel] = useState('trips');
+  const [tripChatsFocusTrip, setTripChatsFocusTrip] = useState(null);
+  /** tripChats listesinden seçilen sohbet: modüller panelinde "Sohbete Devam Et" */
+  const [modulesContinueChatId, setModulesContinueChatId] = useState(null);
+  const [chatListTick, setChatListTick] = useState(0);
   const lastAssistantTRef = useRef(null);
-
-  const storedTrips = useMemo(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const raw = localStorage.getItem(LS_TRIPS_KEY);
-      const p = raw ? JSON.parse(raw) : [];
-      return Array.isArray(p) ? p : [];
-    } catch {
-      return [];
-    }
-  }, [tripsTick, dropOpen]);
-
+  const tripPillWrapRef = useRef(null);
+  const dropWasOpenRef = useRef(false);
   useEffect(() => {
     function bump() {
-      setTripsTick((t) => t + 1);
+      setChatListTick((x) => x + 1);
     }
-    window.addEventListener('tripsUpdated', bump);
-    return () => window.removeEventListener('tripsUpdated', bump);
+    window.addEventListener('chatsUpdated', bump);
+    return () => window.removeEventListener('chatsUpdated', bump);
   }, []);
+
+  useEffect(() => {
+    if (!dropOpen) {
+      setPlanMinimalPanel('trips');
+      setTripChatsFocusTrip(null);
+      setModulesContinueChatId(null);
+    }
+  }, [dropOpen]);
+
+  useEffect(() => {
+    if (!dropOpen || !planDropdownMinimal) {
+      dropWasOpenRef.current = dropOpen;
+      return;
+    }
+    if (!dropWasOpenRef.current && linkedTripIdForPlanMenu) {
+      const trip = findMergedTripById(linkedTripIdForPlanMenu);
+      if (trip) {
+        if (typeof onPickTripFromPlanMenu === 'function') {
+          onPickTripFromPlanMenu(trip);
+        }
+        setTripChatsFocusTrip(trip);
+        setModulesContinueChatId(
+          activeChatIdForPlanMenu != null ? String(activeChatIdForPlanMenu) : null
+        );
+        setPlanMinimalPanel('modules');
+      }
+    }
+    dropWasOpenRef.current = dropOpen;
+  }, [dropOpen, planDropdownMinimal, linkedTripIdForPlanMenu, activeChatIdForPlanMenu, onPickTripFromPlanMenu]);
+
+  const tripChatsList = useMemo(() => {
+    if (!tripChatsFocusTrip?.id) return [];
+    return listChatsForTrip(String(tripChatsFocusTrip.id));
+  }, [tripChatsFocusTrip, chatListTick]);
+
+  const modulesBackTargetTrip = useMemo(
+    () =>
+      tripChatsFocusTrip ||
+      (String(activePlanId) !== 'active' ? findMergedTripById(activePlanId) : null),
+    [tripChatsFocusTrip, activePlanId]
+  );
+
+  const tripContextIdForModules = useMemo(() => {
+    if (tripChatsFocusTrip?.id != null) return String(tripChatsFocusTrip.id);
+    if (linkedTripIdForPlanMenu) return String(linkedTripIdForPlanMenu);
+    if (String(activePlanId) !== 'active') return String(activePlanId);
+    return null;
+  }, [tripChatsFocusTrip, linkedTripIdForPlanMenu, activePlanId]);
+
+  const effectiveContinueChatId = useMemo(() => {
+    if (modulesContinueChatId) return String(modulesContinueChatId);
+    if (
+      activeChatIdForPlanMenu &&
+      activeChatTripIdForPlanMenu &&
+      tripContextIdForModules &&
+      String(activeChatTripIdForPlanMenu) === String(tripContextIdForModules)
+    ) {
+      return String(activeChatIdForPlanMenu);
+    }
+    return null;
+  }, [
+    modulesContinueChatId,
+    activeChatIdForPlanMenu,
+    activeChatTripIdForPlanMenu,
+    tripContextIdForModules,
+  ]);
+
+  useEffect(() => {
+    if (dropOpen && planDropdownMinimal && planMinimalPanel === 'tripChats' && !tripChatsFocusTrip) {
+      setPlanMinimalPanel('trips');
+    }
+  }, [dropOpen, planDropdownMinimal, planMinimalPanel, tripChatsFocusTrip]);
+
+  useEffect(() => {
+    if (!dropOpen) return;
+    function onPointerDownOutside(ev) {
+      const root = tripPillWrapRef.current;
+      if (!root) return;
+      if (!root.contains(ev.target)) setDropOpen(false);
+    }
+    document.addEventListener('mousedown', onPointerDownOutside, true);
+    document.addEventListener('touchstart', onPointerDownOutside, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('mousedown', onPointerDownOutside, true);
+      document.removeEventListener('touchstart', onPointerDownOutside, true);
+    };
+  }, [dropOpen]);
+
+  const loadTrips = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      setTrips(loadMergedTrips());
+    } catch {
+      setTrips([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTrips();
+    window.addEventListener('tripsUpdated', loadTrips);
+    window.addEventListener('storage', loadTrips);
+    return () => {
+      window.removeEventListener('tripsUpdated', loadTrips);
+      window.removeEventListener('storage', loadTrips);
+    };
+  }, [loadTrips]);
+
+  useEffect(() => {
+    if (dropOpen) loadTrips();
+  }, [dropOpen, loadTrips]);
 
   useEffect(() => {
     setNotes(readNotesFromStorage());
@@ -388,12 +460,11 @@ export default function Header({
       list.unshift(newTrip);
       localStorage.setItem(LS_TRIPS_KEY, JSON.stringify(list));
       window.dispatchEvent(new Event('tripsUpdated'));
-      setTripsTick((t) => t + 1);
     } catch {
       /* ignore */
     }
     if (destStr && typeof window !== 'undefined') {
-      const q = encodeURIComponent(`${destStr.split(' · ')[0]} Turkey travel`);
+      const q = encodeURIComponent(tripCardImageSearchQuery(destStr.split(' · ')[0]));
       fetch(`/api/image?query=${q}&type=tour`)
         .then((r) => r.json())
         .then((data) => {
@@ -408,7 +479,6 @@ export default function Header({
               arr[idx] = { ...arr[idx], imageUrl: url };
               localStorage.setItem(LS_TRIPS_KEY, JSON.stringify(arr));
               window.dispatchEvent(new Event('tripsUpdated'));
-              setTripsTick((t) => t + 1);
             }
           } catch {
             /* ignore */
@@ -453,18 +523,32 @@ export default function Header({
 
   return (
     <>
-    <header style={s.header}>
-      {/* ── Orta: tek birleşik pill bar ── */}
-      <div style={s.center}>
-        <div style={s.pillBar}>
+    <header style={{ ...s.header, ...(dropOpen ? s.headerDropOpen : {}) }}>
+      <div style={s.headerLeft} aria-hidden="true" />
+      {/* ── Orta: pill bar + Plan Oluştur ── */}
+      <div
+        style={{
+          ...s.center,
+          ...(dropOpen ? s.centerDropOpen : {}),
+        }}
+      >
+        <div style={s.centerRow}>
+        <div
+          style={{
+            ...s.pillBar,
+            ...(dropOpen ? s.pillBarDropOpen : {}),
+          }}
+        >
           {/* Trip name dropdown */}
-          <div style={s.tripPillWrap}>
+          <div ref={tripPillWrapRef} style={s.tripPillWrap}>
             <button
               type="button"
               style={{ ...s.tripPill, ...(dropOpen ? s.tripPillOpen : {}) }}
               onClick={() => setDropOpen((o) => !o)}
             >
-              <span style={s.tripStar}>✦</span>
+              <span style={s.tripStar} aria-hidden>
+                <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent-deep)" />
+              </span>
               <span style={s.tripName}>{displayName}</span>
               <span
                 style={{
@@ -479,54 +563,386 @@ export default function Header({
               </span>
             </button>
 
-            {dropOpen && (
+            {dropOpen && planDropdownMinimal && planWorkspaceSlot ? (
+              <>
+                <div style={s.dropOverlay} onClick={() => setDropOpen(false)} />
+                <div
+                  style={{
+                    ...s.dropdown,
+                    ...s.dropdownMinimalChat,
+                    ...(planMinimalPanel === 'modules' ? s.dropdownMinimalChatFlex : {}),
+                  }}
+                >
+                  {planMinimalPanel === 'trips' ? (
+                    <>
+                      <div style={s.planMinimalTripsHeaderRow}>
+                        <span style={s.planMinimalTripsTitle}>Gezilerim</span>
+                        <button
+                          type="button"
+                          style={s.dropMenuCloseBtnCompact}
+                          onClick={() => setDropOpen(false)}
+                          aria-label="Menüyü kapat"
+                        >
+                          <X size={15} strokeWidth={2.2} color="var(--text3)" aria-hidden />
+                        </button>
+                      </div>
+                      <div
+                        style={s.planMinimalTripsList}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        {trips.length === 0 ? (
+                          <p style={s.planMinimalTripsEmpty}>Henüz kayıtlı gezi yok.</p>
+                        ) : (
+                          trips.map((trip) => {
+                            const sel = String(activePlanId) === String(trip.id);
+                            const hovered = hoverTripId === trip.id;
+                            return (
+                              <button
+                                key={trip.id}
+                                type="button"
+                                style={{
+                                  ...s.dropTripRow,
+                                  ...(sel ? s.dropItemActive : {}),
+                                  ...(!sel && hovered ? s.dropTripRowHover : {}),
+                                }}
+                                onMouseEnter={() => setHoverTripId(trip.id)}
+                                onMouseLeave={() => setHoverTripId(null)}
+                                onClick={() => {
+                                  setNotes(readNotesFromStorage());
+                                  if (typeof onPickTripFromPlanMenu === 'function') {
+                                    onPickTripFromPlanMenu(trip);
+                                  } else {
+                                    onActivateStoredTrip?.(trip);
+                                  }
+                                  setTripChatsFocusTrip(trip);
+                                  setModulesContinueChatId(null);
+                                  setPlanMinimalPanel('tripChats');
+                                }}
+                              >
+                                <Briefcase size={16} color="var(--ta-accent-deep)" strokeWidth={2} aria-hidden />
+                                <div style={s.dropTripTextCol}>
+                                  <span style={s.dropTripTitle}>{trip.name}</span>
+                                  <span style={s.dropTripSub}>
+                                    {(trip.destination && String(trip.destination).trim()) || '—'} ·{' '}
+                                    {formatTripListDate(trip)}
+                                  </span>
+                                </div>
+                                {sel ? (
+                                  <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
+                                ) : null}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      <div style={s.dropdownMinimalFooter}>
+                        <button
+                          type="button"
+                          style={s.dropdownGeziBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDropOpen(false);
+                            openNewTrip();
+                          }}
+                        >
+                          <Sparkles size={14} strokeWidth={2.1} color="#fff" aria-hidden />
+                          Gezi Oluştur
+                        </button>
+                      </div>
+                    </>
+                  ) : planMinimalPanel === 'tripChats' && tripChatsFocusTrip ? (
+                    <>
+                      <div style={s.planMinimalTripsHeaderRow}>
+                        <span style={s.planMinimalTripsTitle}>Gezi sohbetleri</span>
+                        <button
+                          type="button"
+                          style={s.dropMenuCloseBtnCompact}
+                          onClick={() => setDropOpen(false)}
+                          aria-label="Menüyü kapat"
+                        >
+                          <X size={15} strokeWidth={2.2} color="var(--text3)" aria-hidden />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        style={s.planMinimalBackBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPlanMinimalPanel('trips');
+                        }}
+                      >
+                        <ChevronLeft size={16} strokeWidth={2.2} color="var(--ta-accent-deep)" aria-hidden />
+                        Gezilerime Geri Dön
+                      </button>
+                      <div
+                        style={s.planMinimalTripsList}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        {tripChatsList.length === 0 ? (
+                          <p style={s.planMinimalTripsEmpty}>
+                            Bu geziyle henüz sohbet yok. Aşağıdan yeni sohbet oluşturabilirsiniz.
+                          </p>
+                        ) : (
+                          tripChatsList.map((c) => {
+                            const sel =
+                              (activeChatIdForPlanMenu != null &&
+                                String(activeChatIdForPlanMenu) === String(c.id)) ||
+                              String(modulesContinueChatId) === String(c.id);
+                            const hovered = hoverTripId === c.id;
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                style={{
+                                  ...s.dropTripRow,
+                                  ...(sel ? s.dropItemActive : {}),
+                                  ...(!sel && hovered ? s.dropTripRowHover : {}),
+                                }}
+                                onMouseEnter={() => setHoverTripId(c.id)}
+                                onMouseLeave={() => setHoverTripId(null)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNotes(readNotesFromStorage());
+                                  if (typeof onPickTripFromPlanMenu === 'function' && tripChatsFocusTrip) {
+                                    onPickTripFromPlanMenu(tripChatsFocusTrip);
+                                  }
+                                  setModulesContinueChatId(String(c.id));
+                                  setPlanMinimalPanel('modules');
+                                }}
+                              >
+                                <MessageCircle
+                                  size={16}
+                                  color="var(--ta-accent-deep)"
+                                  strokeWidth={2}
+                                  aria-hidden
+                                />
+                                <div style={s.dropTripTextCol}>
+                                  <span style={s.dropTripTitle}>{c.title || 'Başlıksız'}</span>
+                                  <span style={s.dropTripSub}>{formatChatRowDate(c)}</span>
+                                </div>
+                                {sel ? (
+                                  <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
+                                ) : null}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      <div style={s.dropdownMinimalFooter}>
+                        <button
+                          type="button"
+                          style={s.dropdownGeziBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (typeof onPickTripFromPlanMenu === 'function' && tripChatsFocusTrip) {
+                              onPickTripFromPlanMenu(tripChatsFocusTrip);
+                            }
+                            setModulesContinueChatId(null);
+                            setDropOpen(false);
+                            router.push(
+                              `/chat?newChat=1&trip=${encodeURIComponent(String(tripChatsFocusTrip.id))}`
+                            );
+                          }}
+                        >
+                          <MessageCircle size={14} strokeWidth={2.1} color="#fff" aria-hidden />
+                          Sohbet oluştur
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        style={s.planMinimalBackBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const tr =
+                            tripChatsFocusTrip ||
+                            (String(activePlanId) !== 'active'
+                              ? findMergedTripById(activePlanId)
+                              : null);
+                          if (tr) {
+                            setTripChatsFocusTrip(tr);
+                            setModulesContinueChatId(null);
+                            setPlanMinimalPanel('tripChats');
+                          } else {
+                            setModulesContinueChatId(null);
+                            setPlanMinimalPanel('trips');
+                          }
+                        }}
+                      >
+                        <ChevronLeft size={16} strokeWidth={2.2} color="var(--ta-accent-deep)" aria-hidden />
+                        {modulesBackTargetTrip ? 'Gezi sohbetlerine dön' : 'Gezilerime Dön'}
+                      </button>
+                      <div style={s.planMinimalTopRow}>
+                        {typeof onPlanNameChange === 'function' ? (
+                          <div style={s.planMinimalInputWrap}>
+                            <input
+                              type="text"
+                              key={displayName}
+                              defaultValue={displayName}
+                              maxLength={48}
+                              aria-label="Plan adı"
+                              style={s.planNameDropInputCompact}
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={(e) => {
+                                const v = e.target.value.trim() || 'Yeni Seyahat Planı';
+                                if (v !== displayName) onPlanNameChange(v);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') e.currentTarget.blur();
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div style={s.planMinimalInputWrap} aria-hidden />
+                        )}
+                        <button
+                          type="button"
+                          style={s.dropMenuCloseBtnCompact}
+                          onClick={() => setDropOpen(false)}
+                          aria-label="Menüyü kapat"
+                        >
+                          <X size={15} strokeWidth={2.2} color="var(--text3)" aria-hidden />
+                        </button>
+                      </div>
+                      <div style={s.minimalModulesShell}>
+                        <div
+                          style={s.minimalModulesScroll}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <div style={s.planSlotTripFrameInMenu}>{planWorkspaceSlot}</div>
+                        </div>
+                        {effectiveContinueChatId ? (
+                          <div style={s.modulesStickyFooter}>
+                            <button
+                              type="button"
+                              style={s.dropdownGeziBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDropOpen(false);
+                                router.push(
+                                  `/chat?chat=${encodeURIComponent(String(effectiveContinueChatId))}`
+                                );
+                                setModulesContinueChatId(null);
+                              }}
+                            >
+                              <MessageCircle size={14} strokeWidth={2.1} color="#fff" aria-hidden />
+                              Sohbete Devam Et
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : dropOpen ? (
               <>
                 <div style={s.dropOverlay} onClick={() => setDropOpen(false)} />
                 <div style={s.dropdown}>
-                  <div style={s.dropSectionLabel}>Aktif Plan</div>
+                  <div style={s.dropMenuHeaderRow}>
+                    <span style={s.dropMenuHeaderTitle}>Plan menüsü</span>
+                    <button
+                      type="button"
+                      style={s.dropMenuCloseBtn}
+                      onClick={() => setDropOpen(false)}
+                      aria-label="Menüyü kapat"
+                    >
+                      <X size={16} strokeWidth={2.2} color="var(--text3)" aria-hidden />
+                    </button>
+                  </div>
+                  <div style={s.dropSectionLabel}>Mevcut Plan</div>
                   <div style={{ ...s.dropItem, ...s.dropItemActive }}>
-                    <span style={s.dropIcon}>✦</span>
+                    <span style={s.dropIcon} aria-hidden>
+                      <Sparkles size={14} strokeWidth={2.2} color="var(--ta-accent-deep)" />
+                    </span>
                     <div style={s.dropItemMeta}>
-                      <span style={{ ...s.dropLabel, color: 'var(--gold-deep)' }}>{displayName}</span>
+                      <span style={{ ...s.dropTripTitle, color: 'var(--ta-accent-deep)' }}>{displayName}</span>
                     </div>
-                    <Check size={16} color="var(--gold-deep)" strokeWidth={2.5} aria-hidden />
+                    <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
                   </div>
 
-                  <div style={s.dropDivider} />
-                  <div style={s.dropSectionRow}>
-                    <Briefcase size={12} color="var(--text3)" strokeWidth={2} aria-hidden />
-                    <span style={s.dropSectionLabelInline}>Geziler</span>
-                  </div>
-                  {storedTrips.length === 0 ? (
-                    <div style={s.dropEmptyHint}>Kayıtlı gezi yok</div>
-                  ) : (
-                    storedTrips.map((trip) => {
-                      const sel = String(activePlanId) === String(trip.id);
-                      return (
-                        <button
-                          key={trip.id}
-                          type="button"
-                          style={{
-                            ...s.dropTripBtn,
-                            ...(sel ? s.dropItemActive : {}),
-                          }}
-                          onClick={() => {
-                            onActivateStoredTrip?.(trip);
-                            setDropOpen(false);
-                          }}
-                        >
-                          <span style={s.dropIcon}>🧳</span>
-                          <div style={s.dropItemMeta}>
-                            <span style={s.dropLabel}>{trip.name}</span>
-                          </div>
-                          <span style={s.dropDate}>{formatTripListDate(trip)}</span>
-                          {sel ? (
-                            <Check size={16} color="var(--gold-deep)" strokeWidth={2.5} aria-hidden />
-                          ) : null}
-                        </button>
-                      );
-                    })
-                  )}
+                  {trips.length > 0 ? (
+                    <>
+                      <div style={s.dropDivider} />
+                      <div style={s.dropSectionLabel}>Geziler</div>
+                      {trips.map((trip) => {
+                        const sel = String(activePlanId) === String(trip.id);
+                        const hovered = hoverTripId === trip.id;
+                        return (
+                          <button
+                            key={trip.id}
+                            type="button"
+                            style={{
+                              ...s.dropTripRow,
+                              ...(sel ? s.dropItemActive : {}),
+                              ...(!sel && hovered ? s.dropTripRowHover : {}),
+                            }}
+                            onMouseEnter={() => setHoverTripId(trip.id)}
+                            onMouseLeave={() => setHoverTripId(null)}
+                            onClick={() => {
+                              onActivateStoredTrip?.(trip);
+                              setNotes(readNotesFromStorage());
+                              setDropOpen(false);
+                              if (typeof window !== 'undefined') {
+                                window.location.href = `/trips/${encodeURIComponent(String(trip.id))}`;
+                              }
+                            }}
+                          >
+                            <Briefcase size={16} color="var(--ta-accent-deep)" strokeWidth={2} aria-hidden />
+                            <div style={s.dropTripTextCol}>
+                              <span style={s.dropTripTitle}>{trip.name}</span>
+                              <span style={s.dropTripSub}>
+                                {(trip.destination && String(trip.destination).trim()) || '—'} ·{' '}
+                                {formatTripListDate(trip)}
+                              </span>
+                            </div>
+                            {sel ? (
+                              <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : null}
+
+                  {planWorkspaceSlot ? (
+                    <>
+                      <div style={s.dropDivider} />
+                      <div style={s.dropSectionLabel}>Plan adı</div>
+                      {typeof onPlanNameChange === 'function' ? (
+                        <div style={{ padding: '2px 8px 8px' }}>
+                          <input
+                            type="text"
+                            key={displayName}
+                            defaultValue={displayName}
+                            maxLength={48}
+                            aria-label="Plan adı"
+                            style={s.planNameDropInput}
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={(e) => {
+                              const v = e.target.value.trim() || 'Yeni Seyahat Planı';
+                              if (v !== displayName) onPlanNameChange(v);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') e.currentTarget.blur();
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                      <div
+                        style={s.planWorkspaceSlotWrap}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        {planWorkspaceSlot}
+                      </div>
+                    </>
+                  ) : null}
 
                   <div style={s.dropDivider} />
                   <button
@@ -534,121 +950,73 @@ export default function Header({
                     style={s.dropNew}
                     onClick={() => {
                       setDropOpen(false);
-                      if (typeof window !== 'undefined') window.location.href = '/trips';
+                      openNewTrip();
                     }}
                   >
-                    <Plus size={16} color="var(--gold-deep)" strokeWidth={2.2} />
+                    <Plus size={16} color="var(--ta-accent-deep)" strokeWidth={2.2} />
                     Yeni Gezi Oluştur
                   </button>
                 </div>
               </>
-            )}
+            ) : null}
           </div>
 
           {/* Separator */}
           <span style={s.barSep} />
 
           {/* Trip summary chips — referans: Interior · 5 days in Jul · … */}
-          {CHIP_IDS.map((chipId, i) => {
-            const label = formatChipText(chipLabel(chipId, tripMetaForChips));
-            const modalOpen = openModal?.id === chipId;
-            const stageOn = stageChipId === chipId;
-            const highlighted = modalOpen || stageOn;
-            return (
-              <span key={chipId} style={s.chipRow}>
-                {i > 0 && <span style={s.dot}>·</span>}
-                <button
-                  type="button"
-                  style={{
-                    ...s.chip,
-                    ...(highlighted ? s.chipHi : s.chipLo),
-                  }}
-                  onClick={() => {
-                    setNotesModalOpen(false);
-                    setOpenModal((c) => (c?.id === chipId ? null : { id: chipId, label }));
-                  }}
-                >
-                  {label}
-                </button>
-              </span>
-            );
-          })}
-          <span style={s.chipRow}>
-            <span style={s.dot}>·</span>
-            <button
-              type="button"
-              style={{
-                ...s.chip,
-                ...(notesModalOpen ? s.chipHi : s.chipLo),
-              }}
-              onClick={() => {
-                setOpenModal(null);
-                setNotesModalOpen((o) => !o);
-              }}
-            >
-              {formatChipText(
-                notes.length ? `${notes.length} not` : 'Notlar'
-              )}
-            </button>
-          </span>
+          <TripFilterChipBar
+            variant="header"
+            tripMetaForChips={tripMetaForChips}
+            openModal={openModal}
+            setOpenModal={setOpenModal}
+            notesModalOpen={notesModalOpen}
+            setNotesModalOpen={setNotesModalOpen}
+            notes={notes}
+            stageChipId={stageChipId}
+          />
+        </div>
+        <button
+          type="button"
+          style={s.planCreateChipBtn}
+          onClick={() => {
+            if (atlasAskMode) {
+              onAtlasAskFromFilters?.(
+                'Üstteki seyahat filtrelerime göre özet ve önerilerini güncelle.'
+              );
+              return;
+            }
+            handlePlanCreateFromChips();
+          }}
+        >
+          {atlasAskMode ? (
+            <Sparkles size={14} strokeWidth={2.5} color="#FFFFFF" aria-hidden />
+          ) : (
+            <Plus size={14} strokeWidth={2.5} color="#FFFFFF" aria-hidden />
+          )}
+          {atlasAskMode ? "Atlas'a Sor" : 'Plan Oluştur'}
+        </button>
         </div>
       </div>
 
-      {/* ── Sağ: Plan Oluştur + dil + giriş ── */}
+      {/* ── Sağ: dil + para + giriş ── */}
       <div style={s.right}>
         {planCreateOk ? (
           <div style={s.planToast} role="status">
-            ✓ Gezi oluşturuldu
+            <Check size={14} strokeWidth={2.5} aria-hidden style={{ flexShrink: 0 }} />
+            Gezi oluşturuldu
           </div>
         ) : null}
-        <button
-          type="button"
-          style={{ ...s.planBtn, ...(planHov ? s.planBtnHov : {}) }}
-          onMouseEnter={() => setPlanHov(true)}
-          onMouseLeave={() => setPlanHov(false)}
-          onClick={handlePlanCreateFromChips}
-        >
-          <Plus size={14} strokeWidth={2.5} color="white" />
-          Plan Oluştur
-        </button>
+        <NavLocaleCurrency />
 
-        <div style={s.selectWrap} title="Dil seçin">
-          <select
-            style={s.selectCompact}
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.code} — {l.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} color="#6B6860" strokeWidth={2} style={s.selectChevron} aria-hidden />
-        </div>
-
-        <div style={s.selectWrap} title="Para birimi seçin">
-          <select
-            style={s.selectCompact}
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.symbol} {c.code} — {c.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} color="#6B6860" strokeWidth={2} style={s.selectChevron} aria-hidden />
-        </div>
-
-        <button
-          style={{ ...s.loginBtn, ...(loginHov ? s.loginBtnHov : {}) }}
+        <Link
+          href="/auth/giris"
+          style={{ ...s.loginBtn, ...(loginHov ? s.loginBtnHov : {}), textDecoration: 'none' }}
           onMouseEnter={() => setLoginHov(true)}
           onMouseLeave={() => setLoginHov(false)}
         >
           Giriş Yap
-        </button>
+        </Link>
       </div>
     </header>
     {notesModalOpen && (
@@ -671,7 +1039,7 @@ export default function Header({
             onClick={() => setNotesModalOpen(false)}
             aria-label="Kapat"
           >
-            <X size={20} strokeWidth={2} color="#A8A59E" />
+            <X size={20} strokeWidth={2} color="var(--ta-ink-subtle)" />
           </button>
           <h2 id="notes-modal-title" style={nm.title}>
             Seyahat Tercihleri
@@ -719,7 +1087,7 @@ export default function Header({
                   onClick={() => removeNote(idx)}
                   aria-label="Notu sil"
                 >
-                  <X size={16} strokeWidth={2} color="#A8A59E" />
+                  <X size={16} strokeWidth={2} color="var(--ta-ink-subtle)" />
                 </button>
               </div>
             ))}
@@ -795,11 +1163,11 @@ const nm = {
     paddingBottom: 16,
     fontSize: 18,
     fontWeight: 800,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     letterSpacing: '-0.02em',
   },
   inputBox: {
-    background: '#F4F3EF',
+    background: 'var(--ta-muted-bg)',
     borderRadius: 12,
     padding: 12,
     boxSizing: 'border-box',
@@ -813,7 +1181,7 @@ const nm = {
     resize: 'vertical',
     fontSize: 14,
     fontFamily: 'var(--font-sans)',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     outline: 'none',
     lineHeight: 1.45,
   },
@@ -827,7 +1195,7 @@ const nm = {
     border: 'none',
     background: 'transparent',
     fontSize: 13,
-    color: '#A8A59E',
+    color: 'var(--ta-ink-subtle)',
     cursor: 'pointer',
     fontFamily: 'var(--font-sans)',
     padding: '4px 0',
@@ -838,7 +1206,7 @@ const nm = {
     height: 32,
     borderRadius: '50%',
     border: 'none',
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     color: '#fff',
     fontSize: 20,
     lineHeight: 1,
@@ -874,7 +1242,7 @@ const nm = {
     flex: 1,
     minWidth: 0,
     fontSize: 14,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     lineHeight: 1.45,
     wordBreak: 'break-word',
   },
@@ -894,7 +1262,7 @@ const nm = {
     height: 48,
     borderRadius: 999,
     border: 'none',
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     color: '#fff',
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
@@ -916,7 +1284,7 @@ function HamburgerIcon() {
 const s = {
   header: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto',
+    gridTemplateColumns: 'auto 1fr auto',
     alignItems: 'center',
     gap: '12px',
     padding: '0 18px',
@@ -929,6 +1297,9 @@ const s = {
     top: 0,
     zIndex: 30,
     flexShrink: 0,
+  },
+  headerDropOpen: {
+    zIndex: 2000,
   },
 
   /* Left */
@@ -965,6 +1336,11 @@ const s = {
     whiteSpace: 'nowrap',
   },
 
+  headerLeft: {
+    minWidth: 0,
+    flexShrink: 0,
+  },
+
   /* Center */
   center: {
     display: 'flex',
@@ -972,6 +1348,34 @@ const s = {
     justifyContent: 'center',
     minWidth: 0,
     overflow: 'hidden',
+  },
+  centerDropOpen: {
+    overflow: 'visible',
+  },
+  centerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    minWidth: 0,
+    maxWidth: '100%',
+  },
+  planCreateChipBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    flexShrink: 0,
+    padding: '6px 14px',
+    fontSize: '13px',
+    fontWeight: 600,
+    fontFamily: 'var(--font-sans)',
+    border: '1px solid rgba(0,0,0,.15)',
+    borderRadius: '999px',
+    background: 'var(--ta-ink)',
+    color: '#FFFFFF',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    boxSizing: 'border-box',
   },
 
   /* Unified pill bar */
@@ -987,6 +1391,9 @@ const s = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     maxWidth: '100%',
+  },
+  pillBarDropOpen: {
+    overflow: 'visible',
   },
   barSep: {
     width: '1px',
@@ -1029,11 +1436,13 @@ const s = {
     transition: 'background .15s',
   },
   tripPillOpen: {
-    background: 'rgba(199,154,70,.10)',
+    background: 'rgba(74,98,120,.10)',
   },
   tripStar: {
-    color: 'var(--gold)',
-    fontSize: '12px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   tripName: { fontSize: '13px' },
   chevron: {
@@ -1059,6 +1468,8 @@ const s = {
     position: 'fixed',
     inset: 0,
     zIndex: 999,
+    cursor: 'pointer',
+    background: 'rgba(15, 23, 32, 0.12)',
   },
   dropdown: {
     position: 'absolute',
@@ -1066,6 +1477,11 @@ const s = {
     left: 0,
     marginTop: '8px',
     minWidth: '280px',
+    maxWidth: 'min(400px, calc(100vw - 24px))',
+    maxHeight: 'min(88vh, 820px)',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    WebkitOverflowScrolling: 'touch',
     background: '#FFFFFF',
     border: '1px solid rgba(0,0,0,.08)',
     borderRadius: '16px',
@@ -1073,6 +1489,196 @@ const s = {
     padding: '8px',
     zIndex: 1000,
     boxSizing: 'border-box',
+  },
+  dropMenuHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    padding: '2px 2px 8px',
+    marginBottom: 2,
+    borderBottom: '1px solid rgba(0,0,0,.06)',
+  },
+  dropMenuHeaderTitle: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '.06em',
+    textTransform: 'uppercase',
+    color: 'var(--text3)',
+  },
+  dropMenuCloseBtn: {
+    flexShrink: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    border: '1px solid rgba(0,0,0,.08)',
+    background: 'rgba(0,0,0,.04)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  dropdownMinimalChat: {
+    minWidth: 260,
+    maxWidth: 'min(352px, calc(100vw - 20px))',
+    padding: '10px 10px 10px',
+    background: 'var(--ta-elevated)',
+    border: '1px solid var(--ta-border-strong)',
+    borderRadius: 16,
+    boxShadow: '0 12px 40px rgba(15, 23, 32, 0.14)',
+  },
+  dropdownMinimalChatFlex: {
+    display: 'flex',
+    flexDirection: 'column',
+    maxHeight: 'min(88vh, 720px)',
+    minHeight: 0,
+    boxSizing: 'border-box',
+  },
+  planMinimalTripsHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottom: '1px solid rgba(0,0,0,.06)',
+  },
+  planMinimalTripsTitle: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '.08em',
+    textTransform: 'uppercase',
+    color: 'var(--text3)',
+  },
+  planMinimalTripsList: {
+    maxHeight: 'min(42vh, 320px)',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    WebkitOverflowScrolling: 'touch',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    paddingBottom: 4,
+  },
+  planMinimalTripsEmpty: {
+    margin: '12px 4px 16px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 13,
+    color: 'var(--muted)',
+    lineHeight: 1.45,
+  },
+  planMinimalBackBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+    padding: '6px 8px',
+    border: 'none',
+    borderRadius: 10,
+    background: 'rgba(74,98,120,.08)',
+    color: 'var(--ta-accent-deep)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    width: '100%',
+    boxSizing: 'border-box',
+    justifyContent: 'flex-start',
+  },
+  minimalModulesShell: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    minHeight: 0,
+    marginTop: 2,
+  },
+  minimalModulesScroll: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    WebkitOverflowScrolling: 'touch',
+    paddingRight: 2,
+    boxSizing: 'border-box',
+  },
+  planSlotTripFrameInMenu: {
+    padding: '6px 4px 6px',
+    borderRadius: 14,
+    background: 'rgba(74,98,120,.05)',
+    border: '1px solid var(--ta-border)',
+    boxSizing: 'border-box',
+  },
+  modulesStickyFooter: {
+    flexShrink: 0,
+    paddingTop: 10,
+    paddingBottom: 2,
+    marginTop: 'auto',
+    borderTop: '1px solid rgba(0,0,0,.1)',
+    background: 'var(--ta-elevated)',
+    boxSizing: 'border-box',
+  },
+  dropdownMinimalFooter: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTop: '1px solid rgba(0,0,0,.06)',
+  },
+  dropdownGeziBtn: {
+    width: '100%',
+    boxSizing: 'border-box',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '10px 14px',
+    borderRadius: 12,
+    background: 'linear-gradient(135deg, var(--ta-night-a), var(--ta-night-b) 55%, var(--ta-accent))',
+    color: '#fff',
+    border: '1px solid rgba(15, 23, 32, 0.12)',
+    boxShadow: '0 4px 14px rgba(15, 23, 32, 0.12)',
+    fontFamily: 'var(--font-sans)',
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: 'pointer',
+    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+  },
+  planMinimalTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  planMinimalInputWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  planNameDropInputCompact: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '7px 10px',
+    borderRadius: 10,
+    border: '1px solid rgba(74,98,120,.28)',
+    background: 'rgba(255,255,255,.95)',
+    fontFamily: 'var(--font-serif)',
+    fontWeight: 700,
+    fontSize: 13,
+    color: 'var(--text1)',
+    outline: 'none',
+  },
+  dropMenuCloseBtnCompact: {
+    flexShrink: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    border: '1px solid rgba(0,0,0,.08)',
+    background: 'rgba(0,0,0,.04)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: 0,
   },
   dropSectionRow: {
     display: 'flex',
@@ -1088,25 +1694,45 @@ const s = {
     textTransform: 'uppercase',
     color: 'var(--text3)',
   },
-  dropEmptyHint: {
-    fontFamily: 'var(--font-sans)',
-    fontSize: '12px',
-    color: 'var(--text3)',
-    padding: '8px 10px 10px',
-  },
-  dropTripBtn: {
+  dropTripRow: {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '10px 10px',
-    borderRadius: '12px',
+    gap: '10px',
+    padding: '10px 12px',
+    borderRadius: '10px',
     border: '1px solid transparent',
     background: 'transparent',
     cursor: 'pointer',
     textAlign: 'left',
     transition: 'background .15s',
     boxSizing: 'border-box',
+    fontFamily: 'var(--font-sans)',
+  },
+  dropTripRowHover: {
+    background: 'var(--ta-muted-bg)',
+  },
+  dropTripTextCol: {
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  dropTripTitle: {
+    fontSize: '13px',
+    fontWeight: 700,
+    color: 'var(--text1)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  dropTripSub: {
+    fontSize: '11px',
+    color: 'var(--text3)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   dropSectionLabel: {
     fontFamily: 'var(--font-sans)',
@@ -1123,8 +1749,8 @@ const s = {
     gap: '8px',
     padding: '10px 10px',
     borderRadius: '12px',
-    background: 'rgba(199,154,70,.08)',
-    border: '1px solid rgba(199,154,70,.18)',
+    background: 'rgba(74,98,120,.08)',
+    border: '1px solid rgba(74,98,120,.18)',
   },
   dropItemBtn: {
     width: '100%',
@@ -1135,8 +1761,8 @@ const s = {
     transition: 'background .15s',
   },
   dropItemActive: {
-    background: 'rgba(199,154,70,.08)',
-    border: '1px solid rgba(199,154,70,.18)',
+    background: 'rgba(74,98,120,.08)',
+    border: '1px solid rgba(74,98,120,.18)',
   },
   dropItemMeta: {
     flex: 1,
@@ -1146,8 +1772,9 @@ const s = {
     minWidth: 0,
   },
   dropIcon: {
-    fontSize: '14px',
-    color: 'var(--gold)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   dropLabel: {
@@ -1198,14 +1825,68 @@ const s = {
     gap: '8px',
     padding: '10px 10px',
     borderRadius: '12px',
-    border: '1px solid rgba(199,154,70,.2)',
-    background: 'rgba(199,154,70,.06)',
+    border: '1px solid rgba(74,98,120,.2)',
+    background: 'rgba(74,98,120,.06)',
     cursor: 'pointer',
     fontFamily: 'var(--font-sans)',
     fontWeight: 600,
     fontSize: '13px',
-    color: 'var(--gold-deep)',
+    color: 'var(--ta-accent-deep)',
     transition: 'background .15s',
+  },
+  planWorkspaceSlotWrap: {
+    overflowX: 'hidden',
+    padding: '4px 4px 10px',
+    borderRadius: '12px',
+    background: 'rgba(74,98,120,.04)',
+    border: '1px solid rgba(0,0,0,.05)',
+    boxSizing: 'border-box',
+  },
+  planNameDropInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '9px 11px',
+    borderRadius: '10px',
+    border: '1px solid rgba(74,98,120,.28)',
+    background: 'rgba(255,255,255,.95)',
+    fontFamily: 'var(--font-serif)',
+    fontWeight: 700,
+    fontSize: '14px',
+    color: 'var(--text1)',
+    outline: 'none',
+  },
+  planDropTripLabel: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '.06em',
+    textTransform: 'uppercase',
+    color: 'var(--text3)',
+    padding: '2px 4px 8px',
+  },
+  planNameDropInputTrip: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '9px 11px',
+    borderRadius: 10,
+    border: '1px solid rgba(74,98,120,.28)',
+    background: 'rgba(255,255,255,.95)',
+    fontFamily: 'var(--font-serif)',
+    fontWeight: 700,
+    fontSize: 14,
+    color: 'var(--text1)',
+    outline: 'none',
+    marginBottom: 10,
+  },
+  planSlotTripFrame: {
+    padding: '6px 4px 6px',
+    borderRadius: 14,
+    background: 'rgba(74,98,120,.05)',
+    border: '1px solid var(--ta-border)',
+    maxHeight: 'min(58vh, 520px)',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    WebkitOverflowScrolling: 'touch',
   },
 
   chip: {
@@ -1229,7 +1910,7 @@ const s = {
     fontWeight: 500,
   },
   chipHi: {
-    border: '1.5px solid #1A1916',
+    border: '1.5px solid var(--ta-ink)',
     color: 'var(--text1)',
     fontWeight: 600,
   },
@@ -1247,6 +1928,9 @@ const s = {
     top: '62px',
     right: '18px',
     zIndex: 2000,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
     background: '#2f8f6b',
     color: '#fff',
     padding: '8px 14px',
@@ -1281,35 +1965,57 @@ const s = {
     WebkitAppearance: 'none',
     MozAppearance: 'none',
   },
+  selectTrigger: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    whiteSpace: 'nowrap',
+    textAlign: 'left',
+  },
+  selectLangTrigger: {
+    minWidth: 46,
+  },
+  selectCurTrigger: {
+    minWidth: 76,
+  },
+  selectMenu: {
+    position: 'absolute',
+    top: 'calc(100% + 4px)',
+    right: 0,
+    minWidth: 'max(100%, 200px)',
+    background: '#fff',
+    border: '1px solid rgba(0,0,0,.1)',
+    borderRadius: 10,
+    boxShadow: '0 10px 28px rgba(15,23,32,.12)',
+    zIndex: 5000,
+    padding: 4,
+    maxHeight: 280,
+    overflowY: 'auto',
+  },
+  selectMenuItem: {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    padding: '8px 10px',
+    border: 'none',
+    borderRadius: 6,
+    background: 'transparent',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontFamily: 'var(--font-sans)',
+    fontWeight: 500,
+    color: 'var(--text1)',
+  },
+  selectMenuItemOn: {
+    background: 'rgba(0,0,0,.06)',
+    fontWeight: 700,
+  },
   selectChevron: {
     position: 'absolute',
     right: '6px',
     top: '50%',
     transform: 'translateY(-50%)',
     pointerEvents: 'none',
-  },
-  planBtn: {
-    height: '36px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '0 16px',
-    borderRadius: '999px',
-    background: 'linear-gradient(180deg,#d3ab5f,#c08d36)',
-    color: 'white',
-    border: '1px solid rgba(167,125,50,.28)',
-    boxShadow: '0 6px 14px rgba(199,154,70,.28)',
-    fontFamily: 'var(--font-sans)',
-    fontWeight: 700,
-    fontSize: '13px',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'opacity .15s',
-  },
-  planBtnHov: { opacity: 0.88 },
-  planBtnStar: {
-    fontSize: '12px',
-    opacity: 0.9,
   },
   loginBtn: {
     height: '34px',

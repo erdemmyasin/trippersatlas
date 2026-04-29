@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { TRIP_LS, notifyTripStorage } from '@/lib/tripChipStorage';
+import { isTurkeyPrimaryMarket } from '@/lib/taRegion';
 import {
   Wallet,
   Scale,
@@ -14,6 +15,7 @@ import {
   Calendar,
   MapPin,
   X as LucideX,
+  FileText,
   ChevronDown,
   Check,
 } from 'lucide-react';
@@ -49,7 +51,7 @@ function parseSummaryToLocations(summary) {
     .map((part, i) => ({
       id: `s-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 9)}`,
       city: part.trim(),
-      country: 'Türkiye',
+      country: isTurkeyPrimaryMarket() ? 'Türkiye' : '',
       type: 'visit',
       nights: 0,
       imageUrl: DEFAULT_DEST_IMAGE,
@@ -182,7 +184,9 @@ export default function ChipModal({ chip, onClose, onSave, onOpenNotes, destInit
         aria-modal="true"
         aria-labelledby="chip-modal-title"
       >
-        <button type="button" style={s.closeBtn} onClick={onClose} aria-label="Kapat">✕</button>
+        <button type="button" style={s.closeBtn} onClick={onClose} aria-label="Kapat">
+          <LucideX size={18} strokeWidth={2} aria-hidden />
+        </button>
 
         {chip?.id !== 'pax' && chip?.id !== 'dates' && chip?.id !== 'dest' && (
           <h2 id="chip-modal-title" style={s.title}>{TITLES[chip?.id] ?? chip?.label}</h2>
@@ -365,7 +369,7 @@ function DestModal({ onSave, onClose, initialDestinationSummary }) {
       {
         id,
         city: t,
-        country: 'Türkiye',
+        country: isTurkeyPrimaryMarket() ? 'Türkiye' : '',
         type: 'visit',
         nights: 0,
         imageUrl: DEFAULT_DEST_IMAGE,
@@ -768,7 +772,7 @@ function DatesModal({ onSave }) {
               width: 36,
               height: 36,
               borderRadius: '50%',
-              background: '#1A1916',
+              background: 'var(--ta-ink)',
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
@@ -1131,7 +1135,7 @@ function DatesModal({ onSave }) {
                     style={{ ...s.dmFlexCard, ...(sel ? s.dmFlexCardOn : {}) }}
                     onClick={() => toggleFlexMonth(key)}
                   >
-                    <Calendar size={18} strokeWidth={2} color="#1A1916" />
+                    <Calendar size={18} strokeWidth={2} color="var(--ta-ink)" />
                     <span style={s.dmFlexCardLabel}>{TR_MONTHS_FULL[m0]}</span>
                     <span style={s.dmFlexCardYear}>{y}</span>
                   </button>
@@ -1282,7 +1286,9 @@ function PaxModal({ onSave, onClose, onOpenNotes }) {
       <div style={s.paxDivider} />
 
       <div style={s.paxHint}>
-        <span style={s.paxHintIcon} aria-hidden>📝</span>
+        <span style={s.paxHintIcon} aria-hidden>
+          <FileText size={16} strokeWidth={1.75} color="var(--ta-accent-deep)" />
+        </span>
         <div style={s.paxHintTextWrap}>
           <span style={s.paxHintLine}>Engeli veya özel ihtiyacı olan</span>
           <span style={s.paxHintLine}>gezgininiz var mı?</span>
@@ -1333,11 +1339,11 @@ function PaxCatRow({ label, sub, val, onDec, onInc, minGuard }) {
           disabled={minGuard && val <= 1}
           aria-label={`${label} azalt`}
         >
-          <Minus size={16} strokeWidth={2} color="#1A1916" />
+          <Minus size={16} strokeWidth={2} color="var(--ta-ink)" />
         </button>
         <span style={s.paxStepVal}>{val}</span>
         <button type="button" style={s.paxRoundBtn} onClick={onInc} aria-label={`${label} arttır`}>
-          <Plus size={16} strokeWidth={2} color="#1A1916" />
+          <Plus size={16} strokeWidth={2} color="var(--ta-ink)" />
         </button>
       </div>
     </div>
@@ -1371,7 +1377,7 @@ function BudgetModal({ onSave, onClose }) {
             onClick={() => setSelected(lvl.id)}
           >
             <span style={s.budgetIconWrap}>
-              <Icon size={28} color="#1A1916" strokeWidth={1.75} aria-hidden />
+              <Icon size={28} color="var(--ta-ink)" strokeWidth={1.75} aria-hidden />
             </span>
             <strong style={s.budgetLabel}>{lvl.label}</strong>
             <span style={s.budgetDesc}>{lvl.desc}</span>
@@ -1473,7 +1479,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 800,
     fontSize: 22,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     letterSpacing: '-0.02em',
     marginBottom: 16,
   },
@@ -1520,7 +1526,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
     fontSize: 14,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
   },
   destCountry: {
     fontFamily: 'var(--font-sans)',
@@ -1547,7 +1553,7 @@ const s = {
     fontSize: 13,
     fontFamily: 'var(--font-sans)',
     fontWeight: 600,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     background: '#fff',
     cursor: 'pointer',
   },
@@ -1578,7 +1584,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontSize: 13,
     fontWeight: 600,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     textAlign: 'left',
     boxSizing: 'border-box',
   },
@@ -1586,7 +1592,7 @@ const s = {
     fontWeight: 700,
   },
   destDdItemHover: {
-    background: '#F4F3EF',
+    background: 'var(--ta-muted-bg)',
   },
   destDdCheckSp: {
     width: 16,
@@ -1615,7 +1621,7 @@ const s = {
     justifyContent: 'center',
     cursor: 'pointer',
     padding: 0,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     flexShrink: 0,
   },
   destNightsRow: {
@@ -1645,7 +1651,7 @@ const s = {
     cursor: 'pointer',
     fontSize: 16,
     fontWeight: 700,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1657,7 +1663,7 @@ const s = {
     fontSize: 15,
     minWidth: 20,
     textAlign: 'center',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
   },
   destAddTrigger: {
     width: '100%',
@@ -1669,7 +1675,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
     fontSize: 14,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     cursor: 'pointer',
   },
   destAddRow: {
@@ -1695,7 +1701,7 @@ const s = {
     padding: '0 16px',
     borderRadius: 12,
     border: 'none',
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     color: '#fff',
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
@@ -1731,7 +1737,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 800,
     fontSize: '22px',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     letterSpacing: '-0.02em',
   },
   dmHeadSub: {
@@ -1761,8 +1767,8 @@ const s = {
   },
   dmTabOn: {
     background: '#fff',
-    border: '1px solid #1A1916',
-    color: '#1A1916',
+    border: '1px solid var(--ta-ink)',
+    color: 'var(--ta-ink)',
   },
   dmTabOff: {
     background: 'rgba(0,0,0,.06)',
@@ -1783,7 +1789,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 600,
     background: '#fff',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     cursor: 'pointer',
   },
   dmFlexMenu: {
@@ -1816,17 +1822,17 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontSize: 14,
     fontWeight: 600,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     textAlign: 'left',
     borderRadius: 10,
     boxSizing: 'border-box',
   },
   dmFlexMenuRowSelected: {
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     color: '#fff',
   },
   dmFlexMenuRowHover: {
-    background: '#F4F3EF',
+    background: 'var(--ta-muted-bg)',
   },
   dmFlexRadioDotEmpty: {
     width: 16,
@@ -1843,7 +1849,7 @@ const s = {
     width: 16,
     height: 16,
     borderRadius: '50%',
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     border: '2px solid #fff',
     flexShrink: 0,
     boxSizing: 'border-box',
@@ -1875,7 +1881,7 @@ const s = {
     justifyContent: 'center',
     cursor: 'pointer',
     padding: 0,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
   },
   dmTwoCal: {
     display: 'flex',
@@ -1888,7 +1894,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
     fontSize: 14,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -1919,7 +1925,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 600,
     fontSize: 13,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     cursor: 'pointer',
     padding: 0,
     width: '100%',
@@ -1945,7 +1951,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
     fontSize: 14,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     marginBottom: 10,
     textAlign: 'center',
     width: '100%',
@@ -1966,7 +1972,7 @@ const s = {
     cursor: 'pointer',
     fontSize: 18,
     fontWeight: 700,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1978,7 +1984,7 @@ const s = {
     fontSize: 18,
     minWidth: 28,
     textAlign: 'center',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
   },
   dmFlexStepInput: {
     width: 52,
@@ -1991,7 +1997,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
     fontSize: 18,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     padding: 0,
     margin: 0,
     lineHeight: 1.2,
@@ -2000,7 +2006,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
     fontSize: 14,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     marginBottom: 12,
     textAlign: 'center',
     width: '100%',
@@ -2024,7 +2030,7 @@ const s = {
     justifyContent: 'center',
     cursor: 'pointer',
     padding: 0,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     flexShrink: 0,
   },
   dmFlexStrip: {
@@ -2053,12 +2059,12 @@ const s = {
     boxSizing: 'border-box',
   },
   dmFlexCardOn: {
-    border: '2px solid #1A1916',
+    border: '2px solid var(--ta-ink)',
   },
   dmFlexCardLabel: {
     fontSize: 13,
     fontWeight: 600,
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     whiteSpace: 'nowrap',
     marginTop: 2,
   },
@@ -2090,7 +2096,7 @@ const s = {
     padding: '12px 28px',
     borderRadius: 999,
     border: 'none',
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     color: '#fff',
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
@@ -2110,7 +2116,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 800,
     fontSize: '22px',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     letterSpacing: '-0.02em',
   },
   paxHeadSub: {
@@ -2129,7 +2135,7 @@ const s = {
     padding: '14px 0',
     minWidth: 0,
   },
-  paxCatLabel: { fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '14px', color: '#1A1916' },
+  paxCatLabel: { fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '14px', color: 'var(--ta-ink)' },
   paxCatSub: { fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#7f7466', marginTop: '3px' },
   paxStepper: { display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 },
   paxRoundBtn: {
@@ -2155,7 +2161,7 @@ const s = {
     fontSize: '16px',
     minWidth: 20,
     textAlign: 'center',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
   },
   paxDivider: {
     height: 0,
@@ -2198,7 +2204,7 @@ const s = {
     height: 52,
     borderRadius: 999,
     border: 'none',
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     color: '#fff',
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
@@ -2244,7 +2250,7 @@ const s = {
     background: '#fff',
   },
   budgetOptionActive: {
-    border: '2px solid #1A1916',
+    border: '2px solid var(--ta-ink)',
     background: 'rgba(0,0,0,.03)',
   },
   budgetIconWrap: {
@@ -2257,7 +2263,7 @@ const s = {
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,
     fontSize: '15px',
-    color: '#1A1916',
+    color: 'var(--ta-ink)',
     textAlign: 'center',
   },
   budgetDesc: {
@@ -2272,7 +2278,7 @@ const s = {
     height: '52px',
     borderRadius: '999px',
     border: 'none',
-    background: '#1A1916',
+    background: 'var(--ta-ink)',
     color: '#fff',
     fontFamily: 'var(--font-sans)',
     fontWeight: 700,

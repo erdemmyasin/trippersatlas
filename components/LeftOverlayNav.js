@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   MessageCircle, Briefcase, Search, Heart, Bell,
-  Compass, Plus, ArrowLeft, PenLine, Map,
+  Compass, Plus, ArrowLeft, PenLine, Map, Sparkles, Luggage,
 } from 'lucide-react';
 import { getChats } from '@/lib/chatStore';
 import { getTrips } from '@/lib/tripStore';
+import { useNewTrip } from '@/components/NewTripProvider';
 
 const NAV_ITEMS = [
   { id: 'chats',   Icon: MessageCircle, label: 'Sohbetler',    href: null },
   { id: 'trips',   Icon: Briefcase,     label: 'Geziler',      href: '/trips' },
   { id: 'explore', Icon: Search,        label: 'Keşfet',       href: '/explore' },
-  { id: 'saved',   Icon: Heart,         label: 'Kaydedilenler', href: '#' },
+  { id: 'saved',   Icon: Heart,         label: 'Kaydedilenler', href: '/saved' },
   { id: 'updates', Icon: Bell,          label: 'Güncellemeler', href: '#' },
   { id: 'inspire', Icon: Compass,       label: 'İlham',        href: '/' },
   { id: 'create',  Icon: Plus,          label: 'Oluştur',      href: '/plan' },
@@ -37,6 +38,7 @@ export default function LeftOverlayNav({
   onNewChat,
   onSelectChat,
 }) {
+  const { openNewTrip } = useNewTrip();
   const [view, setView] = useState('nav');
   const [chats, setChats] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -94,7 +96,9 @@ export default function LeftOverlayNav({
       }}>
         {/* Logo */}
         <div style={s.logoRow}>
-          <span style={s.logoStar}>✦</span>
+          <span style={s.logoStar} aria-hidden>
+            <Sparkles size={20} strokeWidth={2} color="var(--ta-ink)" />
+          </span>
         </div>
 
         {/* Nav items */}
@@ -105,7 +109,7 @@ export default function LeftOverlayNav({
               <div style={{ ...s.navItem, ...(isChats ? s.navItemActive : {}) }}
                 onMouseEnter={e => { if (!isChats) e.currentTarget.style.background = 'rgba(0,0,0,.03)'; }}
                 onMouseLeave={e => { if (!isChats) e.currentTarget.style.background = 'transparent'; }}>
-                <item.Icon size={20} strokeWidth={1.8} color="#1A1916" />
+                <item.Icon size={20} strokeWidth={1.8} color="var(--ta-ink)" />
                 <span style={s.navLabel}>{item.label}</span>
                 {isChats && chatCount > 0 && (
                   <span style={s.badge}>{chatCount}</span>
@@ -150,7 +154,7 @@ export default function LeftOverlayNav({
         {/* Narrow icon rail */}
         <div style={s.iconRail}>
           <button style={s.railBtn} onClick={() => setView('nav')} title="Geri">
-            <ArrowLeft size={18} strokeWidth={2} color="#1A1916" />
+            <ArrowLeft size={18} strokeWidth={2} color="var(--ta-ink)" />
           </button>
 
           <div style={s.railDivider} />
@@ -163,7 +167,7 @@ export default function LeftOverlayNav({
                 if (found?.href) { onClose?.(); window.location.href = found.href; }
               }}
               title={NAV_ITEMS.find(i => i.id === n.id)?.label}>
-              <n.Icon size={18} strokeWidth={1.8} color={n.id === 'chats' ? '#1A1916' : '#A8A59E'} />
+              <n.Icon size={18} strokeWidth={1.8} color={n.id === 'chats' ? 'var(--ta-ink)' : 'var(--ta-ink-subtle)'} />
             </button>
           ))}
         </div>
@@ -172,7 +176,7 @@ export default function LeftOverlayNav({
         <div style={s.chatsContent}>
           {/* Search */}
           <div style={s.searchWrap}>
-            <Search size={15} strokeWidth={2} color="#A8A59E" style={{ flexShrink: 0 }} />
+            <Search size={15} strokeWidth={2} color="var(--ta-ink-subtle)" style={{ flexShrink: 0 }} />
             <input style={s.searchInput} placeholder="Ara..."
               value={search} onChange={e => setSearch(e.target.value)} />
           </div>
@@ -180,12 +184,15 @@ export default function LeftOverlayNav({
           {/* New chat / New trip */}
           <button style={s.actionRow}
             onClick={() => { onNewChat?.(); onClose?.(); }}>
-            <PenLine size={16} strokeWidth={2} color="#1A1916" />
+            <PenLine size={16} strokeWidth={2} color="var(--ta-ink)" />
             <span style={s.actionLabel}>Yeni Sohbet</span>
           </button>
           <button style={s.actionRow}
-            onClick={() => { onClose?.(); window.location.href = '/trips'; }}>
-            <Map size={16} strokeWidth={2} color="#1A1916" />
+            onClick={() => {
+              onClose?.();
+              openNewTrip();
+            }}>
+            <Map size={16} strokeWidth={2} color="var(--ta-ink)" />
             <span style={s.actionLabel}>Yeni Gezi</span>
           </button>
 
@@ -195,7 +202,9 @@ export default function LeftOverlayNav({
               <div style={s.sectionTitle}>Geziler</div>
               {filteredTrips.map(trip => (
                 <Link key={trip.id} href="/trips" style={s.chatRow} onClick={() => onClose?.()}>
-                  <div style={s.tripThumb}>🧳</div>
+                  <div style={s.tripThumb}>
+                    <Luggage size={16} strokeWidth={2} color="var(--ta-ink-muted)" aria-hidden />
+                  </div>
                   <span style={s.chatName}>{trip.name}</span>
                 </Link>
               ))}
@@ -250,7 +259,8 @@ const s = {
     padding: '20px 20px 12px',
   },
   logoStar: {
-    fontSize: 20, color: '#1A1916', fontWeight: 700,
+    display: 'inline-flex',
+    alignItems: 'center',
   },
 
   navList: {
@@ -270,14 +280,14 @@ const s = {
     borderRadius: 999,
   },
   navLabel: {
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 15, fontWeight: 500,
-    color: '#1A1916', flex: 1,
+    fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500,
+    color: 'var(--ta-ink)', flex: 1,
   },
   badge: {
-    background: '#1A1916', color: 'white',
+    background: 'var(--ta-ink)', color: 'white',
     fontSize: 11, fontWeight: 700,
     padding: '2px 8px', borderRadius: 999,
-    lineHeight: '18px', fontFamily: '"Inter", var(--font-sans)',
+    lineHeight: '18px', fontFamily: 'var(--font-sans)',
   },
 
   bottomArea: {
@@ -286,8 +296,8 @@ const s = {
   newChatBtnMain: {
     width: '100%', height: 44, borderRadius: 999,
     background: 'rgba(0,0,0,.05)', border: 'none',
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 14, fontWeight: 500,
-    color: '#1A1916', cursor: 'pointer',
+    fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+    color: 'var(--ta-ink)', cursor: 'pointer',
     transition: 'background .12s',
   },
 
@@ -327,8 +337,8 @@ const s = {
   },
   searchInput: {
     flex: 1, border: 'none', outline: 'none', background: 'transparent',
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 14,
-    color: '#1A1916',
+    fontFamily: 'var(--font-sans)', fontSize: 14,
+    color: 'var(--ta-ink)',
   },
 
   actionRow: {
@@ -339,14 +349,14 @@ const s = {
     transition: 'background .12s', textAlign: 'left',
   },
   actionLabel: {
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 14, fontWeight: 500,
-    color: '#1A1916',
+    fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+    color: 'var(--ta-ink)',
   },
 
   sectionTitle: {
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 11, fontWeight: 600,
+    fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
     letterSpacing: '.04em', textTransform: 'uppercase',
-    color: '#A8A59E', padding: '16px 12px 6px',
+    color: 'var(--ta-ink-subtle)', padding: '16px 12px 6px',
   },
 
   chatRow: {
@@ -361,24 +371,24 @@ const s = {
     width: 32, height: 32, borderRadius: 8,
     background: 'rgba(0,0,0,.06)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 16, flexShrink: 0,
+    flexShrink: 0,
   },
   chatMeta: {
     flex: 1, minWidth: 0,
     display: 'flex', flexDirection: 'column', gap: 1,
   },
   chatName: {
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 14, fontWeight: 500,
-    color: '#1A1916', lineHeight: 1.35,
+    fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+    color: 'var(--ta-ink)', lineHeight: 1.35,
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
   chatSub: {
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 12,
-    color: '#A8A59E', lineHeight: 1.3,
+    fontFamily: 'var(--font-sans)', fontSize: 12,
+    color: 'var(--ta-ink-subtle)', lineHeight: 1.3,
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
   emptyText: {
-    fontFamily: '"Inter", var(--font-sans)', fontSize: 13,
-    color: '#A8A59E', padding: '8px 12px',
+    fontFamily: 'var(--font-sans)', fontSize: 13,
+    color: 'var(--ta-ink-subtle)', padding: '8px 12px',
   },
 };

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 const TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
 
+/** Travelpayouts / Hotellook — şu an Türkiye şehir ID’leri; küresel otel akışı için ayrı entegrasyon gerekir. */
+
 // Şehir ID mapping
 const CITY_IDS = {
   istanbul: 12209,
