@@ -1,0 +1,58 @@
+/*
+ * Landing navbar — page.js ile import edilir (globals + Tailwind sırasından sonra),
+ * preflight / önbellek ile çakışan eski renklere karşı net kazanım.
+ */
+nav.l-nav .l-nav__logo {
+  color: #0a0a0a !important;
+}
+
+nav.l-nav .l-nav__link,
+nav.l-nav a.l-nav__link {
+  color: #0a0a0a !important;
+}
+
+nav.l-nav .l-nav__link:hover,
+nav.l-nav a.l-nav__link:hover {
+  color: #0a0a0a !important;
+}
+
+nav.l-nav .l-nav__mobile-link {
+  color: #0a0a0a !important;
+}
+
+nav.l-nav .l-nav__hamburger {
+  color: #0a0a0a !important;
+}
+
+nav.l-nav a.l-nav__login,
+nav.l-nav .l-nav__login {
+  border: 1px solid color-mix(in srgb, #d97706 45%, transparent) !important;
+  background: linear-gradient(180deg, #fef9c3 0%, #fde047 32%, #facc15 70%, #f59e0b 100%) !important;
+  background-color: transparent !important;
+  color: #14110a !important;
+  -webkit-text-fill-color: #14110a !important;
+  box-shadow: 0 1px 2px rgba(146, 90, 10, 0.18) !important;
+}
+
+nav.l-nav a.l-nav__login:hover,
+nav.l-nav .l-nav__login:hover {
+  filter: brightness(1.05);
+}
+
+/* Dil / para — seçili pil (Tailwind button arka planı sıfırla) */
+nav.l-nav button.l-prefs__pill.l-prefs__pill--on {
+  background: linear-gradient(180deg, #fef9c3 0%, #fde047 35%, #facc15 72%, #f59e0b 100%) !important;
+  background-color: transparent !important;
+  color: #14110a !important;
+  -webkit-text-fill-color: #14110a !important;
+  font-weight: 700 !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 252, 240, 0.95),
+    0 1px 3px rgba(146, 90, 10, 0.22) !important;
+}
+
+nav.l-nav button.l-prefs__pill.l-prefs__pill--on:hover {
+  color: #14110a !important;
+  -webkit-text-fill-color: #14110a !important;
+  filter: brightness(1.04);
+}

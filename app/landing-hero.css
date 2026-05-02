@@ -1,0 +1,465 @@
+/* Ana sayfa hero — doğrudan app/page.js ile import (Tailwind/globals zincirinden bağımsız yükleme).
+   globals.css içindeki :root değişkenlerini kullanır (layout önce yüklendiği sürece). */
+
+/* ── Hero (yatay harita tam yüzeme, tek sütun) ── */
+.l-hero {
+  --ta-hero-amber: #f59e0b;
+  --ta-hero-amber-deep: #d97706;
+  /* globals: .l-nav__inner { height: 72px } ile hizalı */
+  --ta-landing-nav-h: 72px;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  /* Yan yorum: görsel tam yanlara sıçrar; yazı bileşeni .l-hero__inner içinde güvenlik paylı */
+  padding-inline: 0;
+  padding-top: calc(var(--ta-landing-nav-h) + max(10px, env(safe-area-inset-top)));
+  /* Alt güvenlik: scroll ipucu için (absolute); içerik bu payın üzerinde kalır */
+  padding-bottom: max(52px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  /* Tek tam ekran yüksekliği — min-height ile büyümez, scroll ile “yarım hero” görünmez */
+  height: 100vh;
+  max-height: 100vh;
+  height: 100svh;
+  max-height: 100svh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.l-hero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: #faf8f5;
+}
+
+/* Hafif perde — önceki sürümde güçlü radial/linear sütlü kahve etkisi yapıyordu → harita bulanıkmış gibi. */
+.l-hero__bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    185deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(253, 252, 248, 0.04) 38%,
+    rgba(250, 248, 244, 0.12) 72%,
+    rgba(247, 244, 238, 0.22) 100%
+  );
+}
+
+/* Klasik <img>; global img { max-width:100% } tam kaplamayı bozar */
+.l-hero__bg-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 0;
+  pointer-events: none;
+  /* Ölçeklemede yumuşatıcı etkiyi mümkün olduğunca az tut (foto / yüksek çözünürlüklü PNG) */
+  image-rendering: auto;
+}
+
+@supports (image-rendering: high-quality) {
+  .l-hero__bg-map {
+    image-rendering: high-quality;
+  }
+}
+
+.l-hero__inner {
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: min(720px, 100%);
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 28px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: clamp(6px, 1.25vh, 16px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.l-hero__badge--premium {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: clamp(5px, 0.9vh, 8px) clamp(12px, 2.5vw, 16px);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--ta-hero-amber-deep);
+}
+
+.l-hero__badge-icon {
+  color: var(--ta-hero-amber);
+}
+
+/*
+ * Başlık: gece lacivertleri → şafak (leylak/pembe) → gün doğumu altın → batık güneş turuncu–mürdüm
+ */
+.l-hero__display {
+  margin: 0;
+  margin-top: -0.06em;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  font-size: clamp(1.65rem, 3svh + 2.2vw, 3.25rem);
+  line-height: 1.22;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  /* background-clip: text satır kutusunu sığdırır; descender (ş,g,y…) için yan/alt pay */
+  padding: 0.04em 0.02em 0.16em;
+  overflow: visible;
+  background-image: linear-gradient(
+    168deg,
+    #050914 0%,
+    #0c1828 12%,
+    #152238 22%,
+    #2d3f62 34%,
+    #5c4f7a 44%,
+    #a8788c 52%,
+    #e8b896 62%,
+    #fbbf24 72%,
+    #f59e0b 80%,
+    #ea580c 89%,
+    #c0264f 96%,
+    #7f1d4a 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* clip metin kümesi iki satırı tek degrade içinde düşünür — alt satır turuncu/mürdüm bandına denk gelir */
+.l-hero__display-line {
+  display: block;
+  margin: 0;
+  padding: 0;
+  line-height: 1.22;
+}
+
+.l-hero__display-line:first-child {
+  padding-bottom: 0.02em;
+}
+
+.l-hero__display-line:last-child {
+  padding-bottom: 0.14em;
+}
+
+@supports not (background-clip: text) {
+  .l-hero__display {
+    background-image: none;
+    color: var(--ta-night-a);
+    -webkit-text-fill-color: currentColor;
+  }
+
+  .l-hero__display-line--amber {
+    color: var(--ta-hero-amber);
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+.l-hero__lead {
+  margin: 0;
+  max-width: 34em;
+  font-family: var(--font-sans);
+  font-size: clamp(14px, 1.4svh + 1vw, 18px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--ta-ink-2) 92%, transparent);
+}
+
+.l-hero__search {
+  width: min(640px, 100%);
+  margin-top: 0;
+  flex-shrink: 0;
+  padding: clamp(12px, 1.75vh, 20px);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 20px 50px rgba(15, 23, 32, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.l-hero__search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.l-hero__search-sparkle {
+  flex-shrink: 0;
+  color: rgba(245, 158, 11, 0.9);
+}
+
+.l-hero__search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text1);
+}
+
+.l-hero__search-input::placeholder {
+  color: var(--ta-ink-4);
+}
+
+.l-hero__send {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #fbbf24 0%, var(--ta-hero-amber) 100%);
+  color: var(--ta-night-a);
+  border: none;
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.l-hero__send:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(245, 158, 11, 0.45);
+}
+
+.l-hero__chips-caption {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ta-ink-3);
+}
+
+.l-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.l-hero__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: var(--ta-ink-1);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(11px, 1.1svh, 13px);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.l-hero__chip:hover {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.l-hero__chip-icon {
+  flex-shrink: 0;
+  color: var(--ta-hero-amber-deep);
+}
+
+.l-hero__stat-strip {
+  width: min(940px, 100%);
+  margin-top: clamp(4px, 1vh, 14px);
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  align-items: stretch;
+  padding: clamp(8px, 1.5vh, 16px) clamp(8px, 1.5vw, 16px);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  /* backdrop-blur arkayı yumuşatır; kullanıcı haritanın tamamının bulanığı zannedebilir → kapatıldı */
+}
+
+.l-hero__stat-strip-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 12px;
+  min-width: 0;
+}
+
+.l-hero__stat-strip-cell:not(:first-child) {
+  border-inline-start: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.l-hero__stat-strip-ico {
+  flex-shrink: 0;
+  color: var(--ta-hero-amber);
+}
+
+.l-hero__stat-strip-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+  min-width: 0;
+}
+
+.l-hero__stat-strip-num {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: clamp(14px, 1.4svh + 0.8vw, 19px);
+  letter-spacing: -0.03em;
+  color: var(--ta-night-a);
+}
+
+.l-hero__stat-strip-label {
+  font-family: var(--font-sans);
+  font-size: clamp(11px, 1.5vw, 12px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text2);
+}
+
+.l-hero__scroll-down {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(6px, env(safe-area-inset-bottom));
+  z-index: 4;
+  margin: 0;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-sans);
+  font-size: clamp(11px, 1.1svh, 13px);
+  font-weight: 600;
+  color: var(--ta-ink-3);
+  text-decoration: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.l-hero__scroll-down:hover {
+  color: var(--ta-ink-2);
+}
+
+.l-hero__scroll-chevron {
+  color: rgba(245, 158, 11, 0.85);
+  animation: ta-bounce 2.2s ease-in-out infinite;
+}
+
+@media (max-width: 1024px) {
+  .l-hero {
+    --ta-landing-nav-h: 72px;
+  }
+  .l-hero__stat-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 20px;
+  }
+  .l-hero__stat-strip-cell:not(:first-child) {
+    border-inline-start: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .l-hero {
+    --ta-landing-nav-h: 72px;
+    padding-inline: 0;
+    padding-bottom: max(52px, env(safe-area-inset-bottom));
+  }
+  .l-hero__inner {
+    padding-inline: clamp(14px, 5vw, 22px);
+  }
+  .l-hero__lead {
+    font-size: var(--ta-type-body-lg);
+    max-width: 100%;
+  }
+  .l-hero__chips-caption {
+    text-align: center;
+  }
+  .l-hero__chips {
+    justify-content: center;
+  }
+  .l-hero__stat-strip {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+  .l-hero__stat-strip-cell {
+    justify-content: flex-start;
+  }
+  .l-hero__stat-strip-cell:not(:first-child) {
+    border-inline-start: none;
+    border-block-start: 1px solid rgba(0, 0, 0, 0.06);
+    padding-top: 10px;
+  }
+  .l-hero__stat-strip-cell {
+    justify-content: center;
+  }
+}
+
+/* Çok kısa ekran (yatay mod / küçük laptop): tek ekranda sığması için ek sıkılık */
+@media (max-height: 720px) {
+  .l-hero__badge--premium {
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+
+  .l-hero__display {
+    font-size: clamp(1.45rem, 2.8svh + 1.8vw, 2.35rem);
+  }
+
+  .l-hero__send {
+    width: 42px;
+    height: 42px;
+  }
+
+  .l-hero__stat-strip-cell {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+}
+
+/* globals yüklenmese bile ok ikonunda animasyon (globals ile aynı isim güvenli) */
+@keyframes ta-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: .35; }
+  40%           { transform: translateY(-4px); opacity: 1; }
+}

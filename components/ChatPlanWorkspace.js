@@ -462,6 +462,7 @@ export default function ChatPlanWorkspace({
     setLastUiContext('chat', fresh.id);
     setChatFlowPhase('collect_meta');
     trackEvent('chat.new');
+    return fresh.id;
   }, [persistCurrentWorkspace, resetPlanAndMapUi]);
 
   const bootstrapFromLastUi = useCallback(() => {
@@ -630,7 +631,23 @@ export default function ChatPlanWorkspace({
     handledQsRef.current = '';
     if (!urlBootRef.current) {
       urlBootRef.current = true;
-      navHandlersRef.current.bootstrapFromLastUi();
+      let heroText = '';
+      try {
+        heroText = (sessionStorage.getItem('ta_hero_prompt') || '').trim();
+        if (heroText) sessionStorage.removeItem('ta_hero_prompt');
+      } catch {
+        /* ignore */
+      }
+      if (heroText) {
+        const cid = navHandlersRef.current.runNewChat();
+        if (cid != null) {
+          queueMicrotask(() => {
+            setPendingTripBootstrap({ chatId: cid, userText: heroText });
+          });
+        }
+      } else {
+        navHandlersRef.current.bootstrapFromLastUi();
+      }
     }
   }, [queryString, router, forcedTripId]);
 

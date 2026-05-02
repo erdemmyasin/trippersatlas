@@ -1,25 +1,35 @@
 'use client';
 
+import './landing-hero.css';
+import './landing-nav.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Bot,
   Car,
   Check,
+  ChevronDown,
   Gem,
   Globe,
+  Heart,
   Hotel,
   Camera,
   Landmark,
   Map,
   MapPinned,
   Menu,
+  Mouse,
   Mountain,
   Palmtree,
   Plane,
+  Send,
+  Shield,
   Ship,
   Sparkles,
+  Star,
   UtensilsCrossed,
+  Users,
   Wallet,
   X,
 } from 'lucide-react';
@@ -168,11 +178,17 @@ const QUIZ_TYPES = [
   { id: 'luxury',     icon: 'luxury', title: 'Lüks Gezgin',    desc: 'Premium deneyimler ararsın' },
 ];
 
-const STATS = [
-  { num: '50K+', label: 'Oluşturulan plan' },
-  { num: '200+', label: 'Destinasyon' },
-  { num: '15K+', label: 'Mutlu gezgin' },
-  { num: '4.9',  label: 'Kullanıcı puanı' },
+const HERO_STATS = [
+  { Icon: Globe, num: '10.000+', label: 'Oluşturulan Rota' },
+  { Icon: Star, num: '150+', label: 'Ülke Keşfedildi' },
+  { Icon: Users, num: '50K+', label: 'Mutlu Gezgin' },
+  { Icon: Shield, num: '%100', label: 'Güvenli Planlama' },
+];
+
+const HERO_CHIPS = [
+  { Icon: Palmtree, text: 'Kalabalıktan uzak sahil öner', prompt: 'Kalabalıktan uzak sakin bir sahil destinasyonu öner.' },
+  { Icon: Heart, text: 'Sevgilimle romantik rota', prompt: 'İki kişilik romantik bir seyahat rotası planla.' },
+  { Icon: Landmark, text: 'Ucuz Avrupa turu', prompt: 'Bütçe dostu bir Avrupa turu için rota öner.' },
 ];
 
 /* ── Dynamic Trip Card with image fetching ── */
@@ -242,12 +258,14 @@ function TripCard({ trip }) {
 const NAV_SCROLL_THRESHOLD = 48;
 
 export default function LandingPage() {
+  const router = useRouter();
   const landingRef = useRef(null);
   const navSolidRef = useRef(false);
   const [navSolid, setNavSolid] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [quizSelected, setQuizSelected] = useState(null);
   const [email, setEmail] = useState('');
+  const [heroPrompt, setHeroPrompt] = useState('');
 
   useEffect(() => {
     const root = landingRef.current;
@@ -272,6 +290,23 @@ export default function LandingPage() {
     root.scrollTo({ top: 0, behavior: 'smooth' });
     setMobileMenu(false);
   }, []);
+
+  const goChatFromHero = useCallback(
+    (optionalPrompt) => {
+      const raw = typeof optionalPrompt === 'string' ? optionalPrompt : heroPrompt;
+      const t = raw.trim();
+      if (typeof window !== 'undefined') {
+        try {
+          if (t) sessionStorage.setItem('ta_hero_prompt', t);
+          else sessionStorage.removeItem('ta_hero_prompt');
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      router.push('/chat');
+    },
+    [heroPrompt, router],
+  );
 
   return (
     <div className="landing" ref={landingRef}>
@@ -330,85 +365,98 @@ export default function LandingPage() {
       </nav>
 
         {/* ── HERO ── */}
-        <section className="l-hero">
-        <div className="l-hero__bg" />
-        <div className="l-hero__content">
-          <div className="l-hero__badge">
-            <span className="l-hero__badge-dot" />
-            Yapay Zeka Destekli Seyahat Planlama
+        <section className="l-hero" aria-labelledby="hero-heading">
+          <div className="l-hero__bg" aria-hidden>
+            <img
+              className="l-hero__bg-map"
+              src="/images/yatay-harita.png"
+              alt=""
+              decoding="async"
+              fetchPriority="high"
+            />
           </div>
-          <h1 className="ta-display l-hero__title">
-            Seyahati <br />
-            <span className="l-hero__title--accent">yeniden keşfet.</span>
-          </h1>
-          <p className="l-hero__sub">
-            Atlas, kişisel yapay zeka seyahat asistanınız. Dünyanın her yerinde
-            destinasyonları keşfedin, planları özelleştirin ve kolayca
-            rezervasyon adımlarına geçin.
-          </p>
-          <div className="l-hero__actions">
-            <Link href="/chat" className="l-hero__btn l-hero__btn--primary">
-              <Sparkles size={18} strokeWidth={2} aria-hidden />
-              Atlas&apos;a Sor
-            </Link>
-            <a href="#weather" className="l-hero__btn l-hero__btn--secondary">
-              Hızlı Seyahat
-            </a>
-          </div>
-          <div className="l-hero__stats">
-            {STATS.map(s => (
-              <div key={s.label} className="l-hero__stat">
-                <span className="l-hero__stat-num">{s.num}</span>
-                <span className="l-hero__stat-label">{s.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Floating chat preview */}
-        <div className="l-hero__preview">
-          <div className="l-hero__chat-mock">
-            <div className="l-hero__chat-header">
-              <div className="l-hero__chat-avatar">A</div>
-              <div>
-                <div className="l-hero__chat-name">Atlas</div>
-                <div className="l-hero__chat-status">Çevrimiçi</div>
-              </div>
+          <div className="l-hero__inner">
+            <div className="l-hero__badge l-hero__badge--premium">
+              <Sparkles className="l-hero__badge-icon" size={16} strokeWidth={2} aria-hidden />
+              Dijital Atlas ile Planlayın
             </div>
-            <div className="l-hero__chat-body">
-              <div className="l-hero__chat-msg l-hero__chat-msg--ai">
-                Merhaba! Ben Atlas. Nereye gitmek istediğinizi birlikte netleştirelim — yurt içi veya yurt dışı.
+
+            <h1 id="hero-heading" className="l-hero__display">
+              <span className="l-hero__display-line">Seyahati</span>
+              <span className="l-hero__display-line l-hero__display-line--amber">yeniden keşfedin.</span>
+            </h1>
+
+            <p className="l-hero__lead">
+              Atlas ile hayal ettiğin yolculuğu yaz, biz senin için en iyi rotayı oluşturalım.
+            </p>
+
+            <form
+              className="l-hero__search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                goChatFromHero(heroPrompt);
+              }}
+            >
+              <div className="l-hero__search-row">
+                <Sparkles className="l-hero__search-sparkle" size={22} strokeWidth={2} aria-hidden />
+                <input
+                  id="hero-trip-prompt"
+                  className="l-hero__search-input"
+                  type="text"
+                  name="trip"
+                  placeholder="Hayalindeki seyahati yaz…"
+                  value={heroPrompt}
+                  onChange={(e) => setHeroPrompt(e.target.value)}
+                  autoComplete="off"
+                  aria-label="Hayalindeki seyahati yazın"
+                />
+                <button type="submit" className="l-hero__send" aria-label="Sohbete gönder">
+                  <Send size={20} strokeWidth={2} aria-hidden />
+                </button>
               </div>
-              <div className="l-hero__chat-msg l-hero__chat-msg--user">
-                İstanbul&apos;da 3 günlük romantik bir kaçamak istiyorum
+              <span className="l-hero__chips-caption">Örnek öneriler</span>
+              <div className="l-hero__chips" role="list">
+                {HERO_CHIPS.map((c) => {
+                  const Ci = c.Icon;
+                  return (
+                    <button
+                      key={c.text}
+                      type="button"
+                      className="l-hero__chip"
+                      role="listitem"
+                      onClick={() => goChatFromHero(c.prompt)}
+                    >
+                      <Ci size={17} strokeWidth={2} className="l-hero__chip-icon" aria-hidden />
+                      <span>{c.text}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="l-hero__chat-msg l-hero__chat-msg--ai">
-                Harika bir tercih! İstanbul&apos;da romantik bir gezi için size özel butik otel önerileri ve Boğaz manzaralı restoran seçenekleri hazırlıyorum...
-              </div>
-              <div className="l-hero__chat-cards">
-                <div className="l-hero__mini-card">
-                  <div className="l-hero__mini-img" style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)' }}>
-                    <Hotel size={18} strokeWidth={2} aria-hidden />
+            </form>
+
+            <div className="l-hero__stat-strip">
+              {HERO_STATS.map((s) => {
+                const Si = s.Icon;
+                return (
+                  <div key={s.label} className="l-hero__stat-strip-cell">
+                    <Si className="l-hero__stat-strip-ico" size={22} strokeWidth={2} aria-hidden />
+                    <div className="l-hero__stat-strip-text">
+                      <span className="l-hero__stat-strip-num">{s.num}</span>
+                      <span className="l-hero__stat-strip-label">{s.label}</span>
+                    </div>
                   </div>
-                  <div className="l-hero__mini-info">
-                    <span className="l-hero__mini-name">Pera Palace Hotel</span>
-                    <span className="l-hero__mini-price">₺4.200/gece</span>
-                  </div>
-                </div>
-                <div className="l-hero__mini-card">
-                  <div className="l-hero__mini-img" style={{ background: 'linear-gradient(135deg,#f093fb,#f5576c)' }}>
-                    <UtensilsCrossed size={18} strokeWidth={2} aria-hidden />
-                  </div>
-                  <div className="l-hero__mini-info">
-                    <span className="l-hero__mini-name">Mikla Restaurant</span>
-                    <span className="l-hero__mini-price">₺1.800/kişi</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-      </section>
+
+          <a className="l-hero__scroll-down" href="#destinations">
+            <Mouse size={26} strokeWidth={1.5} aria-hidden />
+            <span>Keşfetmeye başla</span>
+            <ChevronDown className="l-hero__scroll-chevron" size={20} strokeWidth={2} aria-hidden />
+          </a>
+        </section>
 
       <LandingHowItWorks />
 

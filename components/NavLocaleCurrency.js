@@ -4,7 +4,7 @@ import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import { ATLAS_CURRENCIES, ATLAS_LANGS } from '@/lib/atlasPrefs';
 
 /**
- * Segment pill — dil (TR/EN) + para (EUR/TRY/USD).
+ * Segment pill — dil (TR/EN) + para (TRY/EUR/USD).
  * Stil: globals.css `.l-prefs*`
  */
 export default function NavLocaleCurrency({ className = '' }) {
