@@ -60,7 +60,7 @@ export default function ProfilAyarlarPage() {
           minWidth: 0,
           minHeight: 0,
           overflowY: 'auto',
-          background: 'var(--bg, #F6F4EF)',
+          background: 'var(--bg, #fff)',
           padding: '24px 20px 48px',
           fontFamily: 'var(--font-sans)',
         }}

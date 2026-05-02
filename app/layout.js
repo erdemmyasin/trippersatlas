@@ -1,6 +1,26 @@
 import "./globals.css";
 import AppProviders from "@/components/AppProviders";
-import { Fraunces, JetBrains_Mono } from "next/font/google";
+import {
+  Fraunces,
+  JetBrains_Mono,
+  Playfair_Display,
+  Plus_Jakarta_Sans,
+} from "next/font/google";
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-jakarta",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+/** Landing hero başlığı — serif (scroll narrative) */
+const playfairLanding = Playfair_Display({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-playfair-landing",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 /** Display / başlıklar — design tool: Fraunces (H1–H2, hero, quote) */
 const fraunces = Fraunces({
@@ -39,7 +59,10 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="tr" className={`${fraunces.variable} ${jetbrainsMono.variable}`}>
+    <html
+      lang="tr"
+      className={`${fraunces.variable} ${jetbrainsMono.variable} ${plusJakarta.variable} ${playfairLanding.variable}`}
+    >
       <head>
         <link
           rel="stylesheet"

@@ -243,7 +243,7 @@ const lay = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
-    background: 'var(--ta-canvas-top, #f4f7fa)',
+    background: 'var(--ta-canvas-top, #fff)',
   },
 
   content: {

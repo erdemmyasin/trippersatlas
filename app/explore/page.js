@@ -354,7 +354,7 @@ const st = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
-    background: '#FAFAF8',
+    background: '#fff',
   },
   main: {
     flex: 1,

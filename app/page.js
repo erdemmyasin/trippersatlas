@@ -332,6 +332,9 @@ export default function LandingPage() {
             <Link href="/auth/giris" className="l-nav__login">
               Giriş Yap
             </Link>
+            <Link href="/chat" className="l-nav__login">
+              Atlas'a Sor
+            </Link>
           </div>
 
           <button
@@ -356,6 +359,13 @@ export default function LandingPage() {
             >
               Giriş Yap
             </Link>
+            <Link
+              href="/chat"
+              className="l-nav__login l-nav__login--mobile-bar"
+              onClick={() => setMobileMenu(false)}
+            >
+              Atlas'a Sor
+            </Link>
             <a href="#weather" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Hızlı Seyahat</a>
             <a href="#destinations" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Popüler Geziler</a>
             <a href="#services" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Tek Platform</a>
@@ -377,19 +387,21 @@ export default function LandingPage() {
           </div>
 
           <div className="l-hero__inner">
-            <div className="l-hero__badge l-hero__badge--premium">
-              <Sparkles className="l-hero__badge-icon" size={16} strokeWidth={2} aria-hidden />
-              Dijital Atlas ile Planlayın
+            <div className="l-hero__masthead">
+              <div className="l-hero__badge l-hero__badge--premium">
+                <Sparkles className="l-hero__badge-icon" size={16} strokeWidth={2} aria-hidden />
+                Dijital Atlas ile Planlayın
+              </div>
+
+              <h1 id="hero-heading" className="l-hero__display">
+                <span className="l-hero__display-line">Seyahati</span>
+                <span className="l-hero__display-line l-hero__display-line--amber">yeniden keşfedin.</span>
+              </h1>
+
+              <p className="l-hero__lead">
+                Atlas ile hayal ettiğin yolculuğu yaz, biz senin için en iyi rotayı oluşturalım.
+              </p>
             </div>
-
-            <h1 id="hero-heading" className="l-hero__display">
-              <span className="l-hero__display-line">Seyahati</span>
-              <span className="l-hero__display-line l-hero__display-line--amber">yeniden keşfedin.</span>
-            </h1>
-
-            <p className="l-hero__lead">
-              Atlas ile hayal ettiğin yolculuğu yaz, biz senin için en iyi rotayı oluşturalım.
-            </p>
 
             <form
               className="l-hero__search"
@@ -415,7 +427,6 @@ export default function LandingPage() {
                   <Send size={20} strokeWidth={2} aria-hidden />
                 </button>
               </div>
-              <span className="l-hero__chips-caption">Örnek öneriler</span>
               <div className="l-hero__chips" role="list">
                 {HERO_CHIPS.map((c) => {
                   const Ci = c.Icon;

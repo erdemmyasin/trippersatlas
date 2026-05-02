@@ -35,7 +35,7 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: #faf8f5;
+  background: #fff;
 }
 
 /* Hafif perde — önceki sürümde güçlü radial/linear sütlü kahve etkisi yapıyordu → harita bulanıkmış gibi. */
@@ -94,6 +94,27 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* Rozet + başlık + lead aynı sütunda; rozet viewport soluna kaymasın diye blok içinde sabit orta eksen */
+.l-hero__masthead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  gap: clamp(6px, 1.25vh, 16px);
+}
+
+.l-hero__badge {
+  align-self: center;
+  margin-inline: auto;
+  /* Rozeti başlığa yaklaştır (hafif yukarı) */
+  margin-top: -10px;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .l-hero__badge--premium {
@@ -187,6 +208,7 @@
 
 .l-hero__lead {
   margin: 0;
+  margin-bottom: clamp(16px, 3vh, 28px);
   max-width: 34em;
   font-family: var(--font-sans);
   font-size: clamp(14px, 1.4svh + 1vw, 18px);
@@ -253,24 +275,12 @@
   box-shadow: 0 14px 30px rgba(245, 158, 11, 0.45);
 }
 
-.l-hero__chips-caption {
-  display: block;
-  margin-top: 10px;
-  margin-bottom: 6px;
-  text-align: left;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ta-ink-3);
-}
-
 .l-hero__chips {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
   gap: 8px;
+  margin-top: 10px;
 }
 
 .l-hero__chip {
@@ -301,7 +311,7 @@
 
 .l-hero__stat-strip {
   width: min(940px, 100%);
-  margin-top: clamp(4px, 1vh, 14px);
+  margin-top: clamp(22px, 3.5vh, 38px);
   flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -413,9 +423,6 @@
     font-size: var(--ta-type-body-lg);
     max-width: 100%;
   }
-  .l-hero__chips-caption {
-    text-align: center;
-  }
   .l-hero__chips {
     justify-content: center;
   }
@@ -438,6 +445,18 @@
 
 /* Çok kısa ekran (yatay mod / küçük laptop): tek ekranda sığması için ek sıkılık */
 @media (max-height: 720px) {
+  .l-hero__badge {
+    margin-top: -6px;
+  }
+
+  .l-hero__lead {
+    margin-bottom: clamp(10px, 2vh, 20px);
+  }
+
+  .l-hero__stat-strip {
+    margin-top: clamp(14px, 2.8vh, 26px);
+  }
+
   .l-hero__badge--premium {
     font-size: 10px;
     letter-spacing: 0.02em;

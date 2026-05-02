@@ -628,7 +628,7 @@ const st = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
-    background: '#FAFAF8',
+    background: '#fff',
   },
   mainWrap: {
     flex: 1,

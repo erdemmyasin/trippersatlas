@@ -42,7 +42,7 @@ export default function KayitPage() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        background: 'var(--bg, #F6F4EF)',
+        background: 'var(--bg, #fff)',
         fontFamily: 'var(--font-sans)',
       }}
     >

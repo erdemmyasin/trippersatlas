@@ -561,7 +561,7 @@ const s = {
     borderRadius: '4px 18px 18px 18px',
   },
   bubbleUser: {
-    background: 'linear-gradient(160deg,#e8edf3,#b8c5d4)',
+    background: '#ffffff',
     color: '#15232f',
     border: '1px solid rgba(74,98,120,.22)',
     borderRadius: '18px 4px 18px 18px',
