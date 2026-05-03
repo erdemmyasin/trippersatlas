@@ -35,7 +35,14 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: #fff;
+  /* Harita gelene dek boş parlaklık yerine sayfayla uyumlu sıcak ton */
+  background:
+    radial-gradient(
+      ellipse 140% 80% at 50% -10%,
+      rgba(253, 250, 244, 0.95),
+      transparent 62%
+    ),
+    linear-gradient(185deg, #faf7f2 0%, #f3ede4 52%, #ebe4d9 100%);
 }
 
 /* Hafif perde — önceki sürümde güçlü radial/linear sütlü kahve etkisi yapıyordu → harita bulanıkmış gibi. */
@@ -54,7 +61,13 @@
   );
 }
 
-/* Klasik <img>; global img { max-width:100% } tam kaplamayı bozar */
+/* global img { max-width:100% }; next/image dolgu sarmalayıcısı tam alanı kaplasın */
+.l-hero__bg > span {
+  position: absolute !important;
+  inset: 0;
+  margin: 0 !important;
+}
+
 .l-hero__bg-map {
   position: absolute;
   inset: 0;
@@ -65,12 +78,23 @@
   object-position: center center;
   z-index: 0;
   pointer-events: none;
-  /* Ölçeklemede yumuşatıcı etkiyi mümkün olduğunca az tut (foto / yüksek çözünürlüklü PNG) */
+  opacity: 0;
+  transition: opacity 0.42s cubic-bezier(0.25, 0.1, 0.25, 1);
   image-rendering: auto;
 }
 
-@supports (image-rendering: high-quality) {
+.l-hero__bg-map--ready {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
   .l-hero__bg-map {
+    transition-duration: 0.01ms;
+  }
+}
+
+@supports (image-rendering: high-quality) {
+  .l-hero__bg-map--ready {
     image-rendering: high-quality;
   }
 }
@@ -93,7 +117,6 @@
   gap: clamp(6px, 1.25vh, 16px);
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 /* Rozet + başlık + lead aynı sütunda; rozet viewport soluna kaymasın diye blok içinde sabit orta eksen */

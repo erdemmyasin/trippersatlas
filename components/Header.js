@@ -7,6 +7,7 @@ import { X, ChevronDown, Briefcase, Plus, Check, Sparkles, ChevronLeft, MessageC
 import ChipModal from './ChipModal';
 import TripFilterChipBar from '@/components/TripFilterChipBar';
 import NavLocaleCurrency from '@/components/NavLocaleCurrency';
+import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import {
   mergeTripMetaForChips,
   readTripMetaSnapshot,
@@ -21,19 +22,19 @@ import { listChatsForTrip } from '@/lib/chatStore';
 const NOTES_LEGACY_KEY = 'ta_header_trip_notes';
 const LS_TRIPS_KEY = 'trips';
 
-function formatTripListDate(trip) {
+function formatTripListDate(trip, locale = 'tr-TR') {
   try {
     if (trip?.startDate && trip?.endDate) {
       const a = new Date(trip.startDate);
       const b = new Date(trip.endDate);
       if (!Number.isNaN(a.getTime()) && !Number.isNaN(b.getTime())) {
-        return `${a.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+        return `${a.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}`;
       }
     }
     if (trip?.createdAt) {
       const c = new Date(trip.createdAt);
       if (!Number.isNaN(c.getTime())) {
-        return c.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+        return c.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
       }
     }
     if (trip?.month && trip?.days) {
@@ -45,11 +46,11 @@ function formatTripListDate(trip) {
   return '—';
 }
 
-function formatChatRowDate(meta) {
+function formatChatRowDate(meta, locale = 'tr-TR') {
   try {
     const d = new Date(meta?.updatedAt || meta?.createdAt);
     if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('tr-TR', {
+      return d.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -195,6 +196,7 @@ export default function Header({
   void savedPlans;
 
   const router = useRouter();
+  const { locale } = useLocaleCurrency();
   const { openNewTrip } = useNewTrip();
   const [loginHov, setLoginHov]   = useState(false);
   const [dropOpen, setDropOpen]   = useState(false);
@@ -625,7 +627,7 @@ export default function Header({
                                   <span style={s.dropTripTitle}>{trip.name}</span>
                                   <span style={s.dropTripSub}>
                                     {(trip.destination && String(trip.destination).trim()) || '—'} ·{' '}
-                                    {formatTripListDate(trip)}
+                                    {formatTripListDate(trip, locale)}
                                   </span>
                                 </div>
                                 {sel ? (
@@ -720,7 +722,7 @@ export default function Header({
                                 />
                                 <div style={s.dropTripTextCol}>
                                   <span style={s.dropTripTitle}>{c.title || 'Başlıksız'}</span>
-                                  <span style={s.dropTripSub}>{formatChatRowDate(c)}</span>
+                                  <span style={s.dropTripSub}>{formatChatRowDate(c, locale)}</span>
                                 </div>
                                 {sel ? (
                                   <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
@@ -898,7 +900,7 @@ export default function Header({
                               <span style={s.dropTripTitle}>{trip.name}</span>
                               <span style={s.dropTripSub}>
                                 {(trip.destination && String(trip.destination).trim()) || '—'} ·{' '}
-                                {formatTripListDate(trip)}
+                                {formatTripListDate(trip, locale)}
                               </span>
                             </div>
                             {sel ? (

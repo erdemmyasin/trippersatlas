@@ -31,6 +31,12 @@
 
 #destinations.l-section.l-trips .l-section__sub {
   color: color-mix(in srgb, #4a4032 42%, var(--text2));
+  max-width: min(48rem, 92vw);
+}
+@media (min-width: 900px) {
+  #destinations.l-section.l-trips .l-section__sub {
+    white-space: nowrap;
+  }
 }
 
 #destinations.l-section.l-trips .l-trip__card {
@@ -45,7 +51,8 @@
 
 /* Tam genişlik: 8 kart — masaüstü 4×2, tablet/telefon globals’taki .l-trips__grid kırılımlarıyla */
 #destinations.l-section.l-trips .l-section__header {
-  margin-bottom: clamp(24px, 3.5vw, 40px);
+  gap: 12px;
+  margin-bottom: clamp(10px, 1.8vw, 20px);
 }
 
 #destinations.l-section.l-trips .l-trips__grid {

@@ -4,6 +4,7 @@ import './landing-hero.css';
 import './landing-nav.css';
 import './landing-trips-bg.css';
 import './landing-quiz-bg.css';
+import './landing-card-photos.css';
 import './landing-feat-bg.css';
 import './landing-cta-bg.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -42,6 +43,10 @@ import AtlasLogo from '@/components/AtlasLogo';
 import LandingCapitalsWeather from '@/components/LandingCapitalsWeather';
 import LandingHowItWorks from '@/components/LandingHowItWorks';
 import NavLocaleCurrency from '@/components/NavLocaleCurrency';
+import Image from 'next/image';
+
+/** LCP görsel — public altında tek kaynak */
+const HERO_MAP_SRC = '/images/yatay-harita.png';
 
 const SVC_ICON_MAP = {
   hotel: Hotel,
@@ -57,6 +62,11 @@ const SVC_ICON_MAP = {
    Atlas — küresel AI seyahat planlama (Türkiye ağırlığı isteğe bağlı .env ile)
    ═══════════════════════════════════════════════════════════ */
 
+/** Unsplash görselleri — https://unsplash.com/license (ücretsiz kullanım) */
+const UNSPLASH = (id, w = 1200) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80&ixlib=rb-4.1.0`;
+
+/** Popüler Geziler — kart başına sabit güncel kapak (API aramasına bağlı kalmaz) */
 const POPULAR_TRIPS = [
   {
     id: 'istanbul-culture',
@@ -66,6 +76,7 @@ const POPULAR_TRIPS = [
     days: 5,
     locations: 4,
     query: 'Istanbul Bosphorus sunset mosque',
+    coverImage: UNSPLASH('photo-1524231757912-21f4fe3a7200'),
   },
   {
     id: 'cappadocia-balloon',
@@ -75,6 +86,7 @@ const POPULAR_TRIPS = [
     days: 3,
     locations: 2,
     query: 'Cappadocia balloon sunrise',
+    coverImage: UNSPLASH('photo-1506905925346-21bda4d32df4'),
   },
   {
     id: 'bodrum-aegean',
@@ -84,6 +96,7 @@ const POPULAR_TRIPS = [
     days: 7,
     locations: 3,
     query: 'Bodrum castle marina boats',
+    coverImage: UNSPLASH('photo-1533105079780-92b9be482077'),
   },
   {
     id: 'antalya-riviera',
@@ -93,6 +106,7 @@ const POPULAR_TRIPS = [
     days: 5,
     locations: 4,
     query: 'Antalya Turkey old town beach',
+    coverImage: UNSPLASH('photo-1559827260-dc66d52bef19'),
   },
   {
     id: 'trabzon-green',
@@ -102,6 +116,7 @@ const POPULAR_TRIPS = [
     days: 4,
     locations: 3,
     query: 'Uzungol lake green mountain',
+    coverImage: UNSPLASH('photo-1501785888041-af3ef285b470'),
   },
   {
     id: 'izmir-efes',
@@ -111,6 +126,7 @@ const POPULAR_TRIPS = [
     days: 4,
     locations: 3,
     query: 'Alacati Turkey colorful street',
+    coverImage: UNSPLASH('photo-1516483638261-f4dbaf036963'),
   },
   {
     id: 'mardin-mezopotamya',
@@ -120,6 +136,7 @@ const POPULAR_TRIPS = [
     days: 3,
     locations: 2,
     query: 'Mardin Turkey old city stone',
+    coverImage: UNSPLASH('photo-1565008576549-57569a49371d'),
   },
   {
     id: 'pamukkale-thermal',
@@ -129,6 +146,7 @@ const POPULAR_TRIPS = [
     days: 2,
     locations: 2,
     query: 'Pamukkale travertine white pool',
+    coverImage: UNSPLASH('photo-1625246333195-78d9c38ad449'),
   },
 ];
 
@@ -166,21 +184,99 @@ const QUIZ_ICON_MAP = {
 
 /** Sıra: üst satır Turlar–Oteller–Uçuşlar; alt satır Otobüsler–Araç Kiralama–Aktiviteler */
 const SERVICES = [
-  { icon: 'tours', title: 'Turlar', desc: 'Rehberli ve özel tur deneyimleri', active: true, href: '/turlar' },
-  { icon: 'hotel', title: 'Oteller', desc: 'En iyi fiyatlarla otel rezervasyonu', active: true, href: '/stay' },
-  { icon: 'flights', title: 'Uçuşlar', desc: 'Uçak bileti karşılaştırması', active: true, href: '/flights' },
-  { icon: 'bus', title: 'Otobüsler', desc: 'Şehirler arası ve bölgesel otobüs seferleri', active: true, href: '/bus' },
-  { icon: 'carRental', title: 'Araç Kiralama', desc: 'Günlük ve dönemlik araç kiralama seçenekleri', active: true, href: '/cars' },
-  { icon: 'activities', title: 'Aktiviteler', desc: 'Turlar, deneyimler ve yapılacaklar', active: true, href: '/aktiviteler' },
+  {
+    icon: 'tours',
+    title: 'Turlar',
+    desc: 'Rehberli ve özel tur deneyimleri',
+    active: true,
+    href: '/turlar',
+    bgImage: UNSPLASH('photo-1663530286715-47697d344cdb'),
+  },
+  {
+    icon: 'hotel',
+    title: 'Oteller',
+    desc: 'En iyi fiyatlarla otel rezervasyonu',
+    active: true,
+    href: '/stay',
+    bgImage: UNSPLASH('photo-1618773928121-c32242e63f39'),
+  },
+  {
+    icon: 'flights',
+    title: 'Uçuşlar',
+    desc: 'Uçak bileti karşılaştırması',
+    active: true,
+    href: '/flights',
+    bgImage: UNSPLASH('photo-1436491865332-7a61a109cc05'),
+  },
+  {
+    icon: 'bus',
+    title: 'Otobüsler',
+    desc: 'Şehirler arası ve bölgesel otobüs seferleri',
+    active: true,
+    href: '/bus',
+    bgImage: UNSPLASH('photo-1544620347-c4fd4a3d5957'),
+  },
+  {
+    icon: 'carRental',
+    title: 'Araç Kiralama',
+    desc: 'Günlük ve dönemlik araç kiralama seçenekleri',
+    active: true,
+    href: '/cars',
+    bgImage: UNSPLASH('photo-1492144534655-ae79c964c9d7'),
+  },
+  {
+    icon: 'activities',
+    title: 'Aktiviteler',
+    desc: 'Turlar, deneyimler ve yapılacaklar',
+    active: true,
+    href: '/aktiviteler',
+    bgImage: UNSPLASH('photo-1774429307421-a236d39a145a'),
+  },
 ];
 
 const QUIZ_TYPES = [
-  { id: 'explorer',   icon: 'explorer', title: 'Kaşif',         desc: 'Bilinmeyen yerleri keşfetmeyi seversin' },
-  { id: 'relaxer',    icon: 'relaxer', title: 'Dinlenme Sever', desc: 'Huzur ve konfor önceliğin' },
-  { id: 'foodie',     icon: 'foodie', title: 'Gurme',          desc: 'Yerel lezzetler seni heyecanlandırır' },
-  { id: 'culture',    icon: 'culture', title: 'Kültür Tutkunu', desc: 'Tarih ve sanat peşinde koşarsın' },
-  { id: 'adventure',  icon: 'adventure', title: 'Maceraperest',   desc: 'Adrenalin ve doğa sporları favorin' },
-  { id: 'luxury',     icon: 'luxury', title: 'Lüks Gezgin',    desc: 'Premium deneyimler ararsın' },
+  {
+    id: 'explorer',
+    icon: 'explorer',
+    title: 'Kaşif',
+    desc: 'Bilinmeyen yerleri keşfetmeyi seversin',
+    bgImage: UNSPLASH('photo-1488646953014-85cb44e25828'),
+  },
+  {
+    id: 'relaxer',
+    icon: 'relaxer',
+    title: 'Dinlenme Sever',
+    desc: 'Huzur ve konfor önceliğin',
+    bgImage: UNSPLASH('photo-1507525428034-b723cf961d3e'),
+  },
+  {
+    id: 'foodie',
+    icon: 'foodie',
+    title: 'Gurme',
+    desc: 'Yerel lezzetler seni heyecanlandırır',
+    bgImage: UNSPLASH('photo-1517248135467-4c7edcad34c4'),
+  },
+  {
+    id: 'culture',
+    icon: 'culture',
+    title: 'Kültür Tutkunu',
+    desc: 'Tarih ve sanat peşinde koşarsın',
+    bgImage: UNSPLASH('photo-1575223970966-76ae61ee7838'),
+  },
+  {
+    id: 'adventure',
+    icon: 'adventure',
+    title: 'Maceraperest',
+    desc: 'Adrenalin ve doğa sporları favorin',
+    bgImage: UNSPLASH('photo-1501555088652-021faa106b9b'),
+  },
+  {
+    id: 'luxury',
+    icon: 'luxury',
+    title: 'Lüks Gezgin',
+    desc: 'Premium deneyimler ararsın',
+    bgImage: UNSPLASH('photo-1582719508461-905c673771fd'),
+  },
 ];
 
 const HERO_STATS = [
@@ -196,19 +292,29 @@ const HERO_CHIPS = [
   { Icon: Landmark, text: 'Ucuz Avrupa turu', prompt: 'Bütçe dostu bir Avrupa turu için rota öner.' },
 ];
 
-/* ── Dynamic Trip Card with image fetching ── */
+/* ── Trip card: sabit coverImage varsa doğrudan; yoksa /api/image ile arama ── */
 function TripCard({ trip }) {
-  const [imgSrc, setImgSrc] = useState(null);
+  const [imgSrc, setImgSrc] = useState(trip.coverImage ?? null);
   const [imgState, setImgState] = useState('loading');
 
   useEffect(() => {
+    if (trip.coverImage) {
+      setImgSrc(trip.coverImage);
+      return;
+    }
     let cancelled = false;
     fetch(`/api/image?query=${encodeURIComponent(trip.query)}&type=tour`)
-      .then(r => r.json())
-      .then(data => { if (!cancelled) setImgSrc(data.url); })
-      .catch(() => { if (!cancelled) setImgState('error'); });
-    return () => { cancelled = true; };
-  }, [trip.query]);
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setImgSrc(data.url);
+      })
+      .catch(() => {
+        if (!cancelled) setImgState('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [trip.query, trip.coverImage]);
 
   return (
     <Link href="/chat" className="l-trip__card">
@@ -271,6 +377,7 @@ export default function LandingPage() {
   const [quizSelected, setQuizSelected] = useState(null);
   const [email, setEmail] = useState('');
   const [heroPrompt, setHeroPrompt] = useState('');
+  const [heroMapVisible, setHeroMapVisible] = useState(false);
 
   useEffect(() => {
     const root = landingRef.current;
@@ -326,9 +433,10 @@ export default function LandingPage() {
           </Link>
 
           <div className="l-nav__links">
-            <a href="#destinations" className="l-nav__link">Popüler Geziler</a>
+            <a href="#how-it-works" className="l-nav__link">Nasıl Çalışır ?</a>
+            <a href="#weather" className="l-nav__link">Hızlı Seyahat</a>
             <a href="#services" className="l-nav__link">Tek Platform</a>
-            <a href="#quiz" className="l-nav__link">Gezgin Tipi</a>
+            <a href="#destinations" className="l-nav__link">Popüler Geziler</a>
           </div>
 
           <div className="l-nav__actions">
@@ -370,10 +478,10 @@ export default function LandingPage() {
             >
               Atlas'a Sor
             </Link>
+            <a href="#how-it-works" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Nasıl Çalışır ?</a>
             <a href="#weather" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Hızlı Seyahat</a>
-            <a href="#destinations" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Popüler Geziler</a>
             <a href="#services" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Tek Platform</a>
-            <a href="#quiz" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Gezgin Tipi</a>
+            <a href="#destinations" className="l-nav__mobile-link" onClick={() => setMobileMenu(false)}>Popüler Geziler</a>
           </div>
         )}
       </nav>
@@ -381,12 +489,15 @@ export default function LandingPage() {
         {/* ── HERO ── */}
         <section className="l-hero" aria-labelledby="hero-heading">
           <div className="l-hero__bg" aria-hidden>
-            <img
-              className="l-hero__bg-map"
-              src="/images/yatay-harita.png"
+            <Image
+              className={`l-hero__bg-map${heroMapVisible ? ' l-hero__bg-map--ready' : ''}`}
+              src={HERO_MAP_SRC}
               alt=""
-              decoding="async"
-              fetchPriority="high"
+              fill
+              priority
+              sizes="100vw"
+              draggable={false}
+              onLoadingComplete={() => setHeroMapVisible(true)}
             />
           </div>
 
@@ -483,9 +594,7 @@ export default function LandingPage() {
           <div className="l-section__header">
             <span className="l-section__badge">İlham Alın</span>
             <h2 className="l-section__title">Popüler Geziler</h2>
-            <p className="l-section__sub">
-              Örnek rotalarla ilham alın; kendi destinasyonunuzu sohbette veya hızlı planda oluşturun.
-            </p>
+            <p className="l-section__sub">Örnek rotalardan ilham alın; kendi rotanızı sohbette veya hızlı planda oluşturun.</p>
           </div>
           <div className="l-trips__grid">
             {POPULAR_TRIPS.map((trip) => (
@@ -511,7 +620,9 @@ export default function LandingPage() {
               return (
               <button
                 key={q.id}
+                type="button"
                 className={`l-quiz__card ${quizSelected === q.id ? 'l-quiz__card--active' : ''}`}
+                style={{ '--ta-card-bg': `url("${q.bgImage}")` }}
                 onClick={() => setQuizSelected((prev) => (prev === q.id ? null : q.id))}
               >
                 <span className="l-quiz__icon" aria-hidden>
@@ -585,6 +696,7 @@ export default function LandingPage() {
             {SERVICES.map(svc => {
               const Icon = SVC_ICON_MAP[svc.icon];
               const cardClass = `l-svc__card ${!svc.active ? 'l-svc__card--soon' : ''} ${svc.href && svc.active ? 'l-svc__card--link' : ''}`;
+              const cardStyle = { '--ta-card-bg': `url("${svc.bgImage}")` };
               const body = (
                 <>
                   <div className="l-svc__icon" aria-hidden>
@@ -597,13 +709,13 @@ export default function LandingPage() {
               );
               if (svc.href && svc.active) {
                 return (
-                  <Link key={svc.title} href={svc.href} className={cardClass}>
+                  <Link key={svc.title} href={svc.href} className={cardClass} style={cardStyle}>
                     {body}
                   </Link>
                 );
               }
               return (
-                <div key={svc.title} className={cardClass}>
+                <div key={svc.title} className={cardClass} style={cardStyle}>
                   {body}
                 </div>
               );

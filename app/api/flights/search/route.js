@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { hasAmadeusCredentials, searchFlightsAmadeus } from '@/lib/amadeus';
+import { normalizeCurrency } from '@/lib/atlasPrefs';
 import { normalizeAmadeusOffers, getMockFlights } from '@/lib/flightSearchUtils';
 
 function cabinDisplay(c) {
@@ -46,6 +47,7 @@ export async function POST(req) {
   const cabinClass = String(body.cabinClass || 'ECONOMY').toUpperCase() === 'BUSINESS'
     ? 'BUSINESS'
     : 'ECONOMY';
+  const preferredCurrency = normalizeCurrency(body.currency || 'TRY');
 
   let mock = true;
   let flights = [];
@@ -66,10 +68,10 @@ export async function POST(req) {
       mock = false;
     } catch {
       mock = true;
-      flights = getMockFlights({ origin, destination, date });
+      flights = getMockFlights({ origin, destination, date, preferredCurrency });
     }
   } else {
-    flights = getMockFlights({ origin, destination, date });
+    flights = getMockFlights({ origin, destination, date, preferredCurrency });
   }
 
   return NextResponse.json({

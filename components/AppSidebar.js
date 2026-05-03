@@ -9,6 +9,7 @@ import {
   MoreHorizontal, Pencil, Trash2, X, Building2, Plane, CarFront, Bus, MapPinned, Ticket, Zap, Luggage,
 } from 'lucide-react';
 import AtlasLogo from '@/components/AtlasLogo';
+import NavLocaleCurrency from '@/components/NavLocaleCurrency';
 import SidebarAccount from '@/components/SidebarAccount';
 import { useNewTrip } from '@/components/NewTripProvider';
 import { ta } from '@/lib/brandStyles';
@@ -514,6 +515,11 @@ export default function AppSidebar({
           </nav>
 
           <div style={st.footerCol}>
+            {expanded ? (
+              <div style={{ padding: '0 10px 10px', width: '100%', boxSizing: 'border-box' }}>
+                <NavLocaleCurrency className="l-prefs--stack" />
+              </div>
+            ) : null}
             <SidebarAccount expanded={expanded} />
           </div>
         </aside>

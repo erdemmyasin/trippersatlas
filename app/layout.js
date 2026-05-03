@@ -64,6 +64,7 @@ export default function RootLayout({ children }) {
       className={`${fraunces.variable} ${jetbrainsMono.variable} ${plusJakarta.variable} ${playfairLanding.variable}`}
     >
       <head>
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
         <link
           rel="stylesheet"
           href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap"

@@ -6,6 +6,8 @@ export async function fetchRealHotels(destination, checkIn, checkOut, options = 
       checkOut: checkOut || '',
       limit: '3',
     });
+    if (options.lang) params.set('lang', String(options.lang));
+    if (options.currency) params.set('currency', String(options.currency));
 
     const baseUrl = options.baseUrl || '';
     const res = await fetch(`${baseUrl}/api/hotels?${params.toString()}`);

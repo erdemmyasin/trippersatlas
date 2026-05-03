@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
+import { normalizeCurrency, normalizeLang } from '@/lib/atlasPrefs';
 import { fetchRealHotels } from '@/services/hotels';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -46,7 +47,7 @@ export async function POST(req) {
       return Response.json({ success: false, data: FALLBACK }, { status: 200 });
     }
 
-    const enriched = await enrichListingsWithRealHotelPrices(parsed, planContext, req);
+    const enriched = await enrichListingsWithRealHotelPrices(parsed, planContext, req, atlasPrefs);
     return Response.json({ success: true, data: enriched });
   } catch (err) {
     console.error('Chat API hatası:', err);
@@ -54,7 +55,7 @@ export async function POST(req) {
   }
 }
 
-async function enrichListingsWithRealHotelPrices(parsed, planContext, req) {
+async function enrichListingsWithRealHotelPrices(parsed, planContext, req, atlasPrefs) {
   if (!parsed || !Array.isArray(parsed.listings) || parsed.listings.length === 0) {
     return parsed;
   }
@@ -78,7 +79,11 @@ async function enrichListingsWithRealHotelPrices(parsed, planContext, req) {
   const checkOut = planContext?.checkOut;
   const baseUrl = req.nextUrl.origin;
 
-  const realHotels = await fetchRealHotels(destination, checkIn, checkOut, { baseUrl });
+  const realHotels = await fetchRealHotels(destination, checkIn, checkOut, {
+    baseUrl,
+    lang: atlasPrefs.lang,
+    currency: atlasPrefs.currency,
+  });
   if (!realHotels || realHotels.length === 0) return parsed;
 
   const nextListings = [...parsed.listings];

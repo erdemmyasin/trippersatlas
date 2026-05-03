@@ -22,6 +22,7 @@ import {
   useSearchMapSplitWide,
   CounterMini,
 } from '@/components/SearchScreenPrimitives';
+import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import QuickPlanMap from '@/components/QuickPlanMap';
 import { airportFromStatic, normalizeIata, centerFromMarkers } from '@/lib/airportsGeo';
 
@@ -40,11 +41,11 @@ function fmtDuration(min) {
   return `${h} sa ${m} dk`;
 }
 
-function fmtPrice(n, currency) {
+function fmtPrice(n, currency, locale = 'tr-TR') {
   const cur = currency === 'TRY' || currency === 'TRL' ? '₺' : currency === 'EUR' ? '€' : currency === 'USD' ? '$' : `${currency} `;
   const rounded = Math.round(Number(n) || 0);
-  if (cur.length <= 2) return `${cur}${rounded.toLocaleString('tr-TR')}`;
-  return `${cur}${rounded.toLocaleString('tr-TR')}`;
+  if (cur.length <= 2) return `${cur}${rounded.toLocaleString(locale)}`;
+  return `${cur}${rounded.toLocaleString(locale)}`;
 }
 
 function fmtNavDayTR(iso) {
@@ -116,6 +117,7 @@ function SkeletonCards({ compact }) {
 }
 
 export default function FlightSearchScreen() {
+  const { currency: prefCurrency, locale } = useLocaleCurrency();
   const isPhone = useIsPhoneLayout();
   const isCompact = useIsCompactSearchLayout();
   const splitWide = useSearchMapSplitWide(1100);
@@ -364,6 +366,7 @@ export default function FlightSearchScreen() {
             children,
             infants,
             cabinClass: cabin,
+            currency: prefCurrency,
           }),
         });
         const data = await res.json();
@@ -375,7 +378,7 @@ export default function FlightSearchScreen() {
         setLoading(false);
       }
     },
-    [origin, destination, dateOut, dateIn, tripType, adults, children, infants, cabin]
+    [origin, destination, dateOut, dateIn, tripType, adults, children, infants, cabin, prefCurrency]
   );
 
   const shiftFlightBrowseDay = useCallback(
@@ -626,7 +629,7 @@ export default function FlightSearchScreen() {
                 <div style={st.cabinFoot}>{f.cabinLabel || f.cabin}</div>
               </div>
               <div style={{ ...st.cardRight, ...(isPhone ? { textAlign: 'left' } : {}) }}>
-                <div style={st.price}>{fmtPrice(f.price, f.currency)}</div>
+                <div style={st.price}>{fmtPrice(f.price, f.currency, locale)}</div>
                 <button type="button" style={{ ...st.selectBtn, maxWidth: isPhone ? '100%' : undefined }}>
                   Seçin
                 </button>
@@ -635,7 +638,7 @@ export default function FlightSearchScreen() {
                     type="button"
                     style={st.iconAct}
                     onClick={() => {
-                      const text = `${f.airline} ${f.departure}-${f.arrival} ${fmtPrice(f.price, f.currency)}`;
+                      const text = `${f.airline} ${f.departure}-${f.arrival} ${fmtPrice(f.price, f.currency, locale)}`;
                       if (navigator.share) navigator.share({ title: 'Uçuş', text }).catch(() => {});
                       else navigator.clipboard?.writeText(text);
                     }}

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { normalizeCurrency, normalizeLang } from '@/lib/atlasPrefs';
+import { atlasCurrencyToHotellook, atlasLangToHotellookLanguage } from '@/lib/atlasIntl';
 
 const TOKEN = process.env.TRAVELPAYOUTS_TOKEN;
 
@@ -45,6 +47,8 @@ export async function GET(req) {
   const checkIn = searchParams.get('checkIn') || getTomorrowDate();
   const checkOut = searchParams.get('checkOut') || getNextWeekDate();
   const limit = searchParams.get('limit') || '5';
+  const hlCurrency = atlasCurrencyToHotellook(normalizeCurrency(searchParams.get('currency') || 'TRY'));
+  const hlLanguage = atlasLangToHotellookLanguage(normalizeLang(searchParams.get('lang') || 'TR'));
 
   const cityId = getCityId(destination);
 
@@ -58,8 +62,8 @@ export async function GET(req) {
     }
 
     const url = `https://yasen.hotellook.com/tp/public/widget_location_dump.json` +
-      `?currency=try` +
-      `&language=tr` +
+      `?currency=${hlCurrency}` +
+      `&language=${hlLanguage}` +
       `&limit=${limit}` +
       `&id=${cityId}` +
       `&type=popularity` +

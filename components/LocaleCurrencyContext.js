@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { loadAtlasPrefs, saveAtlasPrefs, normalizeLang, normalizeCurrency } from '@/lib/atlasPrefs';
+import { atlasLangToLocale } from '@/lib/atlasIntl';
 
 const LocaleCurrencyContext = createContext(null);
 
@@ -64,15 +65,18 @@ export function LocaleCurrencyProvider({ children }) {
     saveAtlasPrefs({ currency: v });
   }, []);
 
+  const locale = useMemo(() => atlasLangToLocale(lang), [lang]);
+
   const value = useMemo(
     () => ({
       lang,
       currency,
+      locale,
       setLang,
       setCurrency,
       ready,
     }),
-    [lang, currency, setLang, setCurrency, ready]
+    [lang, currency, locale, setLang, setCurrency, ready]
   );
 
   return <LocaleCurrencyContext.Provider value={value}>{children}</LocaleCurrencyContext.Provider>;
