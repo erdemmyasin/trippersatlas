@@ -1,0 +1,61 @@
+/* Popüler Geziler — layout globals’tan sonra yüklensin diye sayfa bileşeninden import edilir (#destinations seçicisi yüksek özgüllük). */
+
+#destinations.l-section.l-trips {
+  padding-top: clamp(48px, 6vw, 88px);
+  padding-bottom: clamp(52px, 7vw, 80px);
+  border-top: 1px solid color-mix(in srgb, #eab308 40%, rgba(139, 90, 54, 0.35));
+  background-color: #ecd8bb;
+  background-image:
+    radial-gradient(ellipse 100% 70% at 10% -20%, rgba(253, 224, 71, 0.55), transparent 55%),
+    radial-gradient(ellipse 82% 60% at 92% -5%, rgba(251, 191, 36, 0.45), transparent 52%),
+    linear-gradient(
+      188deg,
+      #fdf6e9 0%,
+      #f5e6c8 20%,
+      #e9d5b8 42%,
+      #d4b896 64%,
+      #b8926a 82%,
+      #efe6da 100%
+    );
+}
+
+#destinations.l-section.l-trips .l-section__badge {
+  background: color-mix(in srgb, #ffffff 48%, rgba(253, 230, 138, 0.55));
+  border: 1px solid rgba(139, 90, 54, 0.35);
+  color: #4a3928;
+}
+
+#destinations.l-section.l-trips .l-section__title {
+  color: color-mix(in srgb, #2a2218 52%, var(--text1));
+}
+
+#destinations.l-section.l-trips .l-section__sub {
+  color: color-mix(in srgb, #4a4032 42%, var(--text2));
+}
+
+#destinations.l-section.l-trips .l-trip__card {
+  background: rgba(255, 255, 255, 0.93);
+  border: 1px solid color-mix(in srgb, #6b4830 18%, transparent);
+  box-shadow: 0 4px 22px rgba(52, 34, 22, 0.08);
+}
+
+#destinations.l-section.l-trips .l-trip__card:hover {
+  box-shadow: 0 18px 44px rgba(52, 34, 22, 0.14);
+}
+
+/* Tam genişlik: 8 kart — masaüstü 4×2, tablet/telefon globals’taki .l-trips__grid kırılımlarıyla */
+#destinations.l-section.l-trips .l-section__header {
+  margin-bottom: clamp(24px, 3.5vw, 40px);
+}
+
+#destinations.l-section.l-trips .l-trips__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(14px, 2vw, 20px);
+}
+
+@media (max-width: 1023px) {
+  #destinations.l-section.l-trips .l-trips__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

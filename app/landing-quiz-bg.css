@@ -1,0 +1,122 @@
+/* Gezgin tipi — Popüler Geziler (#destinations) toprak çıkışı → hafif çimen ot yeşiline (landing page.js import) */
+
+#quiz.l-section.l-quiz {
+  padding-top: clamp(56px, 7vw, 100px);
+  padding-bottom: clamp(72px, 9vw, 96px);
+  border-top: 1px solid color-mix(in srgb, #9a7b5c 40%, rgba(120, 150, 100, 0.28));
+  background-color: #dce8d9;
+  background-image:
+    radial-gradient(ellipse 95% 58% at 18% -12%, rgba(176, 140, 102, 0.22), transparent 54%),
+    radial-gradient(ellipse 88% 52% at 88% 5%, rgba(186, 220, 188, 0.38), transparent 50%),
+    linear-gradient(
+      174deg,
+      #efe8de 0%,
+      #e6ddd4 14%,
+      #d9d5c9 26%,
+      #c9d9c5 42%,
+      #c9e4c9 54%,
+      #d8edd6 68%,
+      #e9f6e8 82%,
+      #f6faf5 100%
+    );
+}
+
+#quiz.l-section.l-quiz .l-section__badge {
+  background: color-mix(in srgb, #ffffff 42%, rgba(196, 230, 190, 0.55));
+  border: 1px solid rgba(86, 120, 82, 0.32);
+  color: #2d4830;
+}
+
+#quiz.l-section.l-quiz .l-section__title {
+  color: color-mix(in srgb, #1f3a22 44%, var(--text1));
+}
+
+#quiz.l-section.l-quiz .l-section__sub {
+  color: color-mix(in srgb, #3d5242 38%, var(--text2));
+}
+
+#quiz.l-section.l-quiz .l-quiz__icon {
+  background: color-mix(in srgb, #ffffff 18%, rgba(198, 225, 195, 0.85));
+  color: #3d6940;
+  border-color: color-mix(in srgb, #7fa87c 42%, transparent);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+}
+
+#quiz.l-section.l-quiz .l-quiz__card:hover {
+  border-color: color-mix(in srgb, #6b9570 42%, rgba(74, 98, 120, 0.2));
+}
+
+#quiz.l-section.l-quiz .l-quiz__card--active {
+  border-color: color-mix(in srgb, #4f8a56 88%, transparent);
+  background: rgba(246, 252, 244, 0.95);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, #7fb085 38%, transparent),
+    0 8px 20px rgba(45, 80, 44, 0.08);
+}
+
+/* Seçili kart — tik rozeti çimen paleti (laciverte yakın nötr yerine doğal yeşil) */
+#quiz.l-section.l-quiz .l-quiz__check {
+  background: linear-gradient(158deg, #5fa866 0%, #448a4c 52%, #3a7441 100%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  box-shadow:
+    0 2px 10px rgba(30, 70, 38, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+#quiz.l-section.l-quiz .l-quiz__check svg {
+  stroke: #fff;
+}
+
+/* Seçim sonrası kutu — bölüm zemin degrade’si arkada sürsün (buzlu cam) */
+#quiz.l-section.l-quiz .l-quiz__result {
+  background: linear-gradient(
+    175deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(232, 244, 228, 0.32) 55%,
+    rgba(222, 236, 220, 0.28) 100%
+  );
+  border: 1px solid color-mix(in srgb, #92b892 52%, rgba(255, 255, 255, 0.45));
+  backdrop-filter: blur(16px) saturate(1.06);
+  -webkit-backdrop-filter: blur(16px) saturate(1.06);
+  box-shadow:
+    0 16px 40px rgba(38, 70, 42, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+#quiz.l-section.l-quiz .l-quiz__result-text {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* CTA — kutuyla aynı cam / çimen zemin hissini sürdürür */
+#quiz.l-section.l-quiz .l-quiz__result .l-hero__btn.l-hero__btn--primary {
+  background: linear-gradient(
+    175deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(232, 244, 228, 0.36) 50%,
+    rgba(218, 234, 214, 0.34) 100%
+  );
+  color: #1f3f36;
+  border: 1px solid color-mix(in srgb, #8fb892 58%, rgba(74, 98, 120, 0.22));
+  box-shadow:
+    0 8px 28px rgba(38, 66, 44, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px) saturate(1.06);
+  -webkit-backdrop-filter: blur(14px) saturate(1.06);
+}
+
+#quiz.l-section.l-quiz .l-quiz__result .l-hero__btn.l-hero__btn--primary:hover {
+  background: linear-gradient(
+    175deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(240, 249, 236, 0.44) 100%
+  );
+  color: #152a22;
+  box-shadow:
+    0 12px 34px rgba(38, 66, 44, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+#quiz.l-section.l-quiz .l-quiz__result .l-hero__btn.l-hero__btn--primary svg {
+  opacity: 0.9;
+}

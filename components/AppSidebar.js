@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   MessageCircle, Briefcase, Bookmark, ThumbsUp,
   Compass, Sparkles, Search, ChevronRight, ChevronLeft, PenLine, Map,
-  MoreHorizontal, Pencil, Trash2, X, Building2, Plane, CarFront, Bus, Zap, Luggage,
+  MoreHorizontal, Pencil, Trash2, X, Building2, Plane, CarFront, Bus, MapPinned, Ticket, Zap, Luggage,
 } from 'lucide-react';
 import AtlasLogo from '@/components/AtlasLogo';
 import SidebarAccount from '@/components/SidebarAccount';
@@ -228,6 +228,14 @@ export default function AppSidebar({
   function openQuickPlanCategory(cat) {
     setCtxMenu(null);
     setPanel(null);
+    if (cat === 'tour') {
+      window.location.href = '/turlar';
+      return;
+    }
+    if (cat === 'activities') {
+      window.location.href = '/aktiviteler';
+      return;
+    }
     if (cat === 'flight') {
       window.location.href = '/flights';
       return;
@@ -421,11 +429,11 @@ export default function AppSidebar({
           {/* Logo + expand/collapse */}
           {expanded ? (
             <div style={st.topExp}>
-              <Link href="/" style={{ ...st.topExpLeft, textDecoration: 'none', color: 'inherit' }}>
+              <div style={st.topExpBalancer} aria-hidden />
+              <Link href="/" style={st.topExpLogo}>
                 <AtlasLogo height={38} style={{ flexShrink: 0 }} />
-                <span style={st.logoLabel}>Atlas</span>
               </Link>
-              <button style={st.arrowBtn} onClick={toggleExpand}>
+              <button type="button" style={st.arrowBtn} onClick={toggleExpand} aria-label="Kenar çubuğunu daralt">
                 <ChevronLeft size={16} strokeWidth={2} color={ta.inkMuted} />
               </button>
             </div>
@@ -702,6 +710,12 @@ export default function AppSidebar({
               </div>
 
               <QuickPlanPanelRow
+                icon={MapPinned}
+                title="Turlar"
+                subtitle="Rehberli ve günlük turlara göz at"
+                onClick={() => openQuickPlanCategory('tour')}
+              />
+              <QuickPlanPanelRow
                 icon={Building2}
                 title="Konaklama"
                 subtitle="Otel ve apart ara"
@@ -709,21 +723,27 @@ export default function AppSidebar({
               />
               <QuickPlanPanelRow
                 icon={Plane}
-                title="Uçuş"
+                title="Uçuşlar"
                 subtitle="Uçak bileti bul"
                 onClick={() => openQuickPlanCategory('flight')}
               />
               <QuickPlanPanelRow
+                icon={Bus}
+                title="Otobüsler"
+                subtitle="Şehirler arası sefer ara"
+                onClick={() => openQuickPlanCategory('bus')}
+              />
+              <QuickPlanPanelRow
                 icon={CarFront}
                 title="Araç Kiralama"
-                subtitle="Araç kirala"
+                subtitle="Günlük ve dönemlik kiralama"
                 onClick={() => openQuickPlanCategory('car')}
               />
               <QuickPlanPanelRow
-                icon={Bus}
-                title="Otobüs"
-                subtitle="Şehirler arası sefer ara"
-                onClick={() => openQuickPlanCategory('bus')}
+                icon={Ticket}
+                title="Aktiviteler"
+                subtitle="Deneyimler ve yapılacaklar"
+                onClick={() => openQuickPlanCategory('activities')}
               />
             </div>
           )}
@@ -931,20 +951,24 @@ const st = {
     transition: 'width .25s ease, min-width .25s ease',
     overflow: 'hidden', flexShrink: 0, height: '100%', zIndex: 2,
   },
-  /* Expanded top: logo + Atlas ... < */
+  /* Expanded top: ortada logo; sağda daralt; solda görsel denge için eş genişlik */
   topExp: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 10px 8px', flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '14px 10px 8px',
+    flexShrink: 0,
+    gap: 0,
   },
-  topExpLeft: {
-    display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+  topExpBalancer: { width: 28, flexShrink: 0, pointerEvents: 'none' },
+  topExpLogo: {
+    flex: 1,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     minWidth: 0,
-  },
-  /* Wordmark logodan kısa; yükseklik logo ile flex alignItems:center ile ortalanır */
-  logoLabel: {
-    fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16,
-    lineHeight: 1,
-    letterSpacing: '-0.02em', color: ta.ink, whiteSpace: 'nowrap',
+    textDecoration: 'none',
+    color: 'inherit',
+    cursor: 'pointer',
   },
   arrowBtn: {
     width: 28, height: 28, borderRadius: 8,

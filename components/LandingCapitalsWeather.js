@@ -41,12 +41,37 @@ function WeatherIcon({ code }) {
   return <Cloud {...props} />;
 }
 
-export default function LandingCapitalsWeather() {
-  const [tab, setTab] = useState('business');
+/** Üst sıra: İş → Sağlık → Turizm; URL ile eşlem: /hizli-seyahat/is vb. */
+export const HIZLI_SEYAHAT_TABS = [
+  { set: 'business', path: 'is', label: 'İş' },
+  { set: 'health', path: 'saglik', label: 'Sağlık' },
+  { set: 'tourism', path: 'turizm', label: 'Turizm' },
+];
+
+function slugToSet(slug) {
+  const row = HIZLI_SEYAHAT_TABS.find((d) => d.path === slug);
+  return row ? row.set : 'business';
+}
+
+/**
+ * @param {{ travelSlug?: 'is' | 'saglik' | 'turizm' }} props
+ * — Landing: props yok, #weather ile sekme seçimi yerinde kalır.
+ * — Ayrı sayfa: travelSlug ile set kilitlenir; sekmeler diğer sayfalara gider.
+ */
+export default function LandingCapitalsWeather({ travelSlug }) {
+  const activeSlug =
+    travelSlug && HIZLI_SEYAHAT_TABS.some((d) => d.path === travelSlug) ? travelSlug : undefined;
+  const pageMode = Boolean(activeSlug);
+
+  const [tab, setTab] = useState(() => (activeSlug ? slugToSet(activeSlug) : 'business'));
   const [selectedDate, setSelectedDate] = useState(() => formatLocalYmd(new Date()));
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const { minYmd, maxYmd } = useMemo(() => weatherDateBounds(), []);
+
+  useEffect(() => {
+    if (activeSlug) setTab(slugToSet(activeSlug));
+  }, [activeSlug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,43 +100,47 @@ export default function LandingCapitalsWeather() {
   const cities = data?.cities || [];
   const loading = !data && !err;
 
+  const sectionId = pageMode ? undefined : 'weather';
+
+  const tabSwitcher = pageMode ? (
+    <nav className="l-weather__tabs l-weather__tabs--head" aria-label="Hızlı seyahat">
+      {HIZLI_SEYAHAT_TABS.map(({ set: setKey, path, label }) => (
+        <Link
+          key={path}
+          href={`/hizli-seyahat/${path}`}
+          className={`l-weather__tab ${tab === setKey ? 'l-weather__tab--on' : ''}`}
+          aria-current={tab === setKey ? 'page' : undefined}
+        >
+          {label}
+        </Link>
+      ))}
+    </nav>
+  ) : (
+    <div className="l-weather__tabs l-weather__tabs--head" role="tablist" aria-label="Şehir seti">
+      {HIZLI_SEYAHAT_TABS.map(({ set: setKey, label }) => (
+        <button
+          key={setKey}
+          type="button"
+          role="tab"
+          aria-selected={tab === setKey}
+          className={`l-weather__tab ${tab === setKey ? 'l-weather__tab--on' : ''}`}
+          onClick={() => setTab(setKey)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <section id="weather" className="l-weather">
+    <section id={sectionId} className="l-weather">
       <div className="l-section__inner l-weather__inner">
         <div className="l-weather__shell">
           <header className="l-weather__head">
             <div className="l-weather__head-top">
               <div className="l-weather__head-title-tabs">
                 <h2 className="l-weather__title-main">Hızlı Seyahat</h2>
-                <div className="l-weather__tabs l-weather__tabs--head" role="tablist" aria-label="Şehir listesi">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === 'business'}
-                    className={`l-weather__tab ${tab === 'business' ? 'l-weather__tab--on' : ''}`}
-                    onClick={() => setTab('business')}
-                  >
-                    İş
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === 'tourism'}
-                    className={`l-weather__tab ${tab === 'tourism' ? 'l-weather__tab--on' : ''}`}
-                    onClick={() => setTab('tourism')}
-                  >
-                    Turizm
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === 'health'}
-                    className={`l-weather__tab ${tab === 'health' ? 'l-weather__tab--on' : ''}`}
-                    onClick={() => setTab('health')}
-                  >
-                    Sağlık
-                  </button>
-                </div>
+                {tabSwitcher}
               </div>
               <div className="l-weather__head-meta">
                 <div className="l-weather__head-date-row">

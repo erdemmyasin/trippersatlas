@@ -1,0 +1,58 @@
+/* Özellikler — quiz sonundaki çimen tonundan orman yeşiline (landing page.js import) */
+
+#features.l-section.l-feat {
+  padding-top: clamp(56px, 7vw, 100px);
+  padding-bottom: clamp(80px, 10vw, 104px);
+  border-top: 1px solid color-mix(in srgb, #8fbc8f 48%, rgba(62, 92, 62, 0.28));
+  background-color: #8fb89a;
+  background-image:
+    radial-gradient(ellipse 96% 56% at 14% -6%, rgba(240, 249, 236, 0.65), transparent 56%),
+    radial-gradient(ellipse 72% 44% at 92% 8%, rgba(34, 72, 44, 0.2), transparent 50%),
+    linear-gradient(
+      176deg,
+      #f6faf5 0%,
+      #e8f4e6 12%,
+      #d4ead4 28%,
+      #b8dcb4 46%,
+      #8fbf92 64%,
+      #5e8a62 82%,
+      #3d5c42 94%,
+      #2f4a36 100%
+    );
+}
+
+#features.l-section.l-feat .l-section__badge {
+  background: color-mix(in srgb, #ffffff 38%, rgba(180, 220, 178, 0.5));
+  border: 1px solid rgba(52, 92, 56, 0.35);
+  color: #1e3d24;
+}
+
+#features.l-section.l-feat .l-section__title {
+  color: color-mix(in srgb, #1a3320 52%, var(--text1));
+}
+
+#features.l-section.l-feat .l-section__sub {
+  color: color-mix(in srgb, #2a4530 42%, var(--text2));
+}
+
+#features.l-section.l-feat .l-feat__card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid color-mix(in srgb, #5a7d5e 18%, rgba(0, 0, 0, 0.06));
+  box-shadow: 0 8px 22px rgba(28, 52, 32, 0.1);
+}
+
+#features.l-section.l-feat .l-feat__card:hover {
+  box-shadow: 0 16px 38px rgba(22, 48, 28, 0.16);
+}
+
+#features.l-section.l-feat .l-feat__icon {
+  background: color-mix(in srgb, #ffffff 25%, rgba(168, 210, 170, 0.55));
+  color: #2a5532;
+  border-color: color-mix(in srgb, #5d8a62 45%, transparent);
+}
+
+#features.l-section.l-feat .l-feat__soon {
+  background: rgba(45, 85, 52, 0.12);
+  border-color: rgba(45, 85, 52, 0.28);
+  color: #1e3d26;
+}

@@ -1,0 +1,62 @@
+/* Bülten — özelliklerdeki orman yeşili → gökyüzü mavisi tek sürekli degrade; beyaz blok ayrımı yok */
+
+#cta-newsletter.l-section.l-cta-section {
+  padding-top: clamp(56px, 8vw, 88px);
+  padding-bottom: clamp(72px, 11vw, 112px);
+  border-top: 1px solid color-mix(in srgb, #3d6046 42%, rgba(120, 180, 210, 0.22));
+  background-color: #5a909e;
+  background-image:
+    radial-gradient(ellipse 88% 45% at 18% -6%, rgba(35, 70, 42, 0.5), transparent 58%),
+    radial-gradient(ellipse 70% 40% at 92% 8%, rgba(180, 220, 255, 0.35), transparent 52%),
+    linear-gradient(
+      172deg,
+      #2f4a36 0%,
+      #36543e 14%,
+      #3f6b4e 28%,
+      #4f8570 42%,
+      #5f9eab 56%,
+      #6eabcc 72%,
+      #8ec5ea 88%,
+      #b9dff8 100%
+    );
+}
+
+/* Tek yüzey: koyu “kart kutusu” yok — hafif cam, arka degrade kesintisiz görünsün */
+#cta-newsletter.l-section.l-cta-section .l-cta__card {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 52px 40px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 20px 50px rgba(15, 40, 50, 0.12);
+  text-align: center;
+}
+
+#cta-newsletter.l-section.l-cta-section .l-cta__title {
+  color: #fdfefa;
+  text-shadow: 0 1px 18px rgba(12, 32, 24, 0.35);
+}
+
+#cta-newsletter.l-section.l-cta-section .l-cta__sub {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+#cta-newsletter.l-section.l-cta-section .l-cta__input {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+#cta-newsletter.l-section.l-cta-section .l-cta__btn {
+  background: linear-gradient(180deg, #7eb8dc 0%, #4f8aaf 52%, #3d7398 100%);
+  box-shadow: 0 6px 16px rgba(20, 50, 80, 0.22);
+}
+
+#cta-newsletter.l-section.l-cta-section .l-cta__btn:hover {
+  opacity: 0.94;
+  filter: brightness(1.04);
+}

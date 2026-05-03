@@ -340,7 +340,7 @@ body {
   left: 0;
   right: 0;
   z-index: 100;
-  padding: 0 24px;
+  padding: 0 14px;
   transition: background .3s, box-shadow .3s, backdrop-filter .3s;
 }
 .l-nav--solid {
@@ -351,14 +351,19 @@ body {
 }
 
 .l-nav__inner {
-  max-width: 1200px;
+  position: relative;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
   height: 72px;
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: space-between;
+  gap: 12px;
 }
 .l-nav__brand {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -420,10 +425,18 @@ body {
   color: #0a0a0a;
 }
 .l-nav__links {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
+  min-width: max-content;
+  max-width: calc(100vw - 32px);
+  pointer-events: auto;
+  white-space: nowrap;
 }
 .l-nav__link {
   font-family: var(--font-sans);
@@ -440,9 +453,11 @@ body {
   background: rgba(0,0,0,.06);
 }
 .l-nav__actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-shrink: 0;
 }
 .l-nav__login {
@@ -451,9 +466,9 @@ body {
   justify-content: center;
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 14px;
-  padding: 8px 18px;
-  border-radius: 10px;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 8px;
   border: 1px solid color-mix(in srgb, #d97706 42%, transparent);
   background: linear-gradient(180deg, #fef9c3 0%, #fde047 32%, #facc15 70%, #f59e0b 100%);
   color: #14110a;
@@ -465,6 +480,22 @@ body {
 }
 .l-nav__login:hover {
   filter: brightness(1.04);
+}
+/* CTA — ince maviler arası yumuşak geçiş */
+.l-nav__login--atlas {
+  border-color: color-mix(in srgb, #64748b 30%, rgba(148, 187, 220, 0.55));
+  background: linear-gradient(
+    120deg,
+    #f6fbfe 0%,
+    #ebf5fb 42%,
+    #e4eff8 74%,
+    #eef6fc 100%
+  );
+  color: #0f2d4a;
+  box-shadow: 0 1px 2px rgba(15, 60, 100, 0.1);
+}
+.l-nav__login--atlas:hover {
+  filter: brightness(1.03);
 }
 .l-nav__mobile-prefs {
   padding: 10px 8px 12px;
@@ -558,9 +589,12 @@ body {
 .l-nav__cta--full { width: 100%; justify-content: center; margin-top: 8px; }
 .l-nav__cta-star { font-size: 12px; opacity: .9; }
 .l-nav__hamburger {
+  position: relative;
+  z-index: 2;
   display: none;
-  width: 40px;
-  height: 40px;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   border: 1px solid rgba(0,0,0,.08);
   background: rgba(0,0,0,.03);
@@ -569,7 +603,6 @@ body {
   color: #0a0a0a;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
 }
 .l-nav__mobile {
   display: none;
@@ -776,13 +809,21 @@ body {
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .l-how__btn--primary {
-  background: linear-gradient(135deg, var(--ta-night-a), var(--ta-night-b) 55%, var(--ta-accent));
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(15, 23, 32, 0.12);
+  border: 1px solid color-mix(in srgb, #94a8c4 48%, rgba(226, 232, 242, 0.9));
+  background: linear-gradient(
+    120deg,
+    #f6fbfe 0%,
+    #ebf5fb 42%,
+    #e4eff8 74%,
+    #eef6fc 100%
+  );
+  color: #0f2d4a;
+  box-shadow: 0 4px 14px rgba(15, 55, 90, 0.1);
 }
 .l-how__btn--primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 22px rgba(15, 23, 32, 0.14);
+  box-shadow: 0 8px 22px rgba(15, 55, 90, 0.13);
+  filter: brightness(1.02);
 }
 .l-how__btn--ghost {
   background: var(--ta-elevated);
@@ -864,20 +905,35 @@ body {
   }
 }
 
-/* ── Landing: başkentler hava (Open-Meteo) ── */
+/* ── Landing: başkentler hava — turkuaz / mercan sıcak kıyı (Open-Meteo) ── */
 .l-weather {
-  padding: 72px 24px;
-  background: #fff;
+  --wv-deep: #0f766e;
+  --wv-mid: #14b8a6;
+  --wv-shadow: rgba(13, 120, 110, 0.14);
+  /* Dış zemin = .l-weather__shell ile aynı 168° geçiş (kartla tek parça kıyı hissi) */
+  --wv-page-grad: linear-gradient(
+    168deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(226, 250, 245, 0.92) 30%,
+    rgba(167, 239, 234, 0.78) 55%,
+    rgba(207, 250, 245, 0.92) 85%,
+    rgba(229, 252, 248, 0.96) 100%
+  );
+  padding: 72px 24px clamp(56px, 6vw, 68px);
+  border-top: 1px solid color-mix(in srgb, var(--wv-deep) 14%, transparent);
+  background:
+    radial-gradient(ellipse 100% 55% at 50% -8%, rgba(94, 234, 212, 0.2) 0%, transparent 50%),
+    var(--wv-page-grad);
 }
 .l-weather__inner {
   max-width: 1120px;
   margin: 0 auto;
 }
 .l-weather__shell {
-  background: var(--ta-elevated);
   border-radius: var(--ta-radius-xl);
-  border: 1px solid rgba(15, 23, 32, 0.06);
-  box-shadow: 0 22px 56px rgba(15, 23, 32, 0.08);
+  border: 1px solid color-mix(in srgb, var(--wv-deep) 17%, transparent);
+  background: var(--wv-page-grad);
+  box-shadow: 0 24px 54px var(--wv-shadow);
   padding: clamp(24px, 4vw, 36px) clamp(20px, 4vw, 40px);
 }
 .l-weather__head {
@@ -1387,8 +1443,9 @@ body {
   color: var(--text3);
 }
 
-/* ── Features ── */
-.l-feat { background: #fff; }
+/* Popüler Geziler arka planı: app/landing-trips-bg.css (#destinations, sayfa import sırasında) */
+
+/* ── Features (landing zemin: app/landing-feat-bg.css, #features) ── */
 .l-feat__grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1536,8 +1593,62 @@ a.l-svc__card--link:focus-visible {
   color: var(--ta-accent-deep);
 }
 
-/* ── Quiz ── */
-.l-quiz { background: #fff; }
+/* ── Landing: Tek platform — deniz → kumsal geçişi (biraz daha belirgin tonlar) ── */
+.l-section.l-svc {
+  --svc-coast-sea-soft: rgba(56, 189, 178, 0.28);
+  padding-top: clamp(52px, 7vw, 84px);
+  padding-bottom: 100px;
+  background:
+    radial-gradient(ellipse 100% 64% at 12% -4%, rgba(8, 145, 178, 0.32) 0%, transparent 52%),
+    radial-gradient(ellipse 86% 58% at 90% 2%, rgba(251, 191, 36, 0.32) 0%, transparent 50%),
+    linear-gradient(
+      188deg,
+      rgba(210, 240, 234, 0.98) 0%,
+      rgba(153, 230, 217, 0.72) 22%,
+      rgba(94, 200, 186, 0.38) 42%,
+      rgba(251, 234, 200, 0.88) 58%,
+      rgba(253, 224, 142, 0.62) 76%,
+      rgba(255, 255, 255, 0.98) 100%
+    );
+  border-top: 1px solid color-mix(in srgb, #0f766e 22%, rgba(251, 191, 36, 0.25) 78%);
+}
+
+.l-section.l-svc .l-section__badge {
+  background: color-mix(in srgb, #ffffff 72%, rgba(167, 243, 229, 0.55));
+  border: 1px solid color-mix(in srgb, #0f766e 28%, transparent);
+  color: #0f625a;
+}
+
+.l-section.l-svc .l-section__title {
+  color: color-mix(in srgb, #134e48 26%, var(--text1));
+}
+
+.l-section.l-svc .l-section__sub {
+  color: color-mix(in srgb, #115e54 14%, var(--text2));
+}
+
+.l-section.l-svc .l-svc__card {
+  background: color-mix(in srgb, #ffffff 90%, rgba(204, 251, 241, 0.4));
+  border: 1px solid color-mix(in srgb, #0f766e 13%, transparent);
+  box-shadow: 0 12px 34px rgba(8, 78, 86, 0.09);
+}
+
+.l-section.l-svc .l-svc__card:hover {
+  box-shadow: 0 18px 42px rgba(8, 70, 82, 0.12);
+}
+
+.l-section.l-svc .l-svc__icon {
+  background: linear-gradient(
+    152deg,
+    var(--svc-coast-sea-soft) 0%,
+    color-mix(in srgb, #ffffff 75%, rgba(153, 246, 228, 0.5)) 40%,
+    color-mix(in srgb, #ffffff 70%, rgba(253, 230, 138, 0.55)) 100%
+  );
+  color: color-mix(in srgb, #0f766e 58%, #0e7490 42%);
+  border-color: color-mix(in srgb, #14b8a6 48%, rgba(245, 158, 11, 0.42) 52%);
+}
+
+/* ── Quiz (landing zemin: app/landing-quiz-bg.css, #quiz) ── */
 .l-quiz__grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1625,19 +1736,17 @@ a.l-svc__card--link:focus-visible {
   text-align: center;
 }
 
-/* ── CTA Section ── */
+/* ── CTA Section (landing zemin / kart: app/landing-cta-bg.css, #cta-newsletter) ── */
 .l-cta-section {
   padding: 60px 24px 100px;
-  background-color: #ffffff;
+  background-color: transparent;
 }
 .l-cta__card {
   max-width: 640px;
   margin: 0 auto;
   padding: 56px 48px;
   border-radius: 28px;
-  background: linear-gradient(135deg, var(--ta-night-a), var(--ta-night-b) 50%, var(--ta-night-c));
   text-align: center;
-  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.18);
 }
 .l-cta__title {
   font-family: var(--font-serif);
@@ -2276,9 +2385,8 @@ body {
   background-color: #ffffff;
 }
 .l-how,
-.l-weather,
-.l-feat,
-.l-quiz,
 .l-footer {
   background-color: #ffffff;
 }
+
+/* .l-weather ve .l-section.l-svc: degrade arka plan (üst bloklarla uyumlu) */

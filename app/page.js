@@ -2,12 +2,17 @@
 
 import './landing-hero.css';
 import './landing-nav.css';
+import './landing-trips-bg.css';
+import './landing-quiz-bg.css';
+import './landing-feat-bg.css';
+import './landing-cta-bg.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Bot,
-  Car,
+  Bus,
+  CarFront,
   Check,
   ChevronDown,
   Gem,
@@ -25,8 +30,8 @@ import {
   Plane,
   Send,
   Shield,
-  Ship,
   Sparkles,
+  Ticket,
   Star,
   UtensilsCrossed,
   Users,
@@ -40,11 +45,11 @@ import NavLocaleCurrency from '@/components/NavLocaleCurrency';
 
 const SVC_ICON_MAP = {
   hotel: Hotel,
-  transfer: Car,
   tours: MapPinned,
-  restaurant: UtensilsCrossed,
+  bus: Bus,
+  carRental: CarFront,
   flights: Plane,
-  boat: Ship,
+  activities: Ticket,
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -159,14 +164,14 @@ const QUIZ_ICON_MAP = {
   luxury: Gem,
 };
 
-/** Sıra: üst satır Turlar–Oteller–Uçuşlar; alt satır Transfer–Restoranlar–Tekne */
+/** Sıra: üst satır Turlar–Oteller–Uçuşlar; alt satır Otobüsler–Araç Kiralama–Aktiviteler */
 const SERVICES = [
-  { icon: 'tours', title: 'Turlar', desc: 'Rehberli ve özel tur deneyimleri', active: true, href: '/inspire' },
+  { icon: 'tours', title: 'Turlar', desc: 'Rehberli ve özel tur deneyimleri', active: true, href: '/turlar' },
   { icon: 'hotel', title: 'Oteller', desc: 'En iyi fiyatlarla otel rezervasyonu', active: true, href: '/stay' },
   { icon: 'flights', title: 'Uçuşlar', desc: 'Uçak bileti karşılaştırması', active: true, href: '/flights' },
-  { icon: 'transfer', title: 'Transfer', desc: 'Havalimanı karşılama ve özel araç', active: true, href: '/cars' },
-  { icon: 'restaurant', title: 'Restoranlar', desc: 'Yerel lezzetler ve fine dining', active: true },
-  { icon: 'boat', title: 'Tekne Turları', desc: 'Mavi tur ve günlük tekne gezileri', active: true, href: '/explore' },
+  { icon: 'bus', title: 'Otobüsler', desc: 'Şehirler arası ve bölgesel otobüs seferleri', active: true, href: '/bus' },
+  { icon: 'carRental', title: 'Araç Kiralama', desc: 'Günlük ve dönemlik araç kiralama seçenekleri', active: true, href: '/cars' },
+  { icon: 'activities', title: 'Aktiviteler', desc: 'Turlar, deneyimler ve yapılacaklar', active: true, href: '/aktiviteler' },
 ];
 
 const QUIZ_TYPES = [
@@ -315,13 +320,12 @@ export default function LandingPage() {
         <div className="l-nav__inner">
           <Link href="/" className="l-nav__brand" onClick={onBrandClick}>
             <span className="l-nav__mark l-nav__mark--logo">
-              <AtlasLogo height={26} />
+              <AtlasLogo height={34} color="#07090d" />
             </span>
             <span className="l-nav__logo">Atlas</span>
           </Link>
 
           <div className="l-nav__links">
-            <a href="#weather" className="l-nav__link">Hızlı Seyahat</a>
             <a href="#destinations" className="l-nav__link">Popüler Geziler</a>
             <a href="#services" className="l-nav__link">Tek Platform</a>
             <a href="#quiz" className="l-nav__link">Gezgin Tipi</a>
@@ -332,7 +336,7 @@ export default function LandingPage() {
             <Link href="/auth/giris" className="l-nav__login">
               Giriş Yap
             </Link>
-            <Link href="/chat" className="l-nav__login">
+            <Link href="/chat" className="l-nav__login l-nav__login--atlas">
               Atlas'a Sor
             </Link>
           </div>
@@ -361,7 +365,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/chat"
-              className="l-nav__login l-nav__login--mobile-bar"
+              className="l-nav__login l-nav__login--atlas l-nav__login--mobile-bar"
               onClick={() => setMobileMenu(false)}
             >
               Atlas'a Sor
@@ -484,10 +488,58 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="l-trips__grid">
-            {POPULAR_TRIPS.map(trip => (
+            {POPULAR_TRIPS.map((trip) => (
               <TripCard key={trip.id} trip={trip} />
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── TRAVEL QUIZ ── */}
+      <section id="quiz" className="l-section l-quiz">
+        <div className="l-section__inner">
+          <div className="l-section__header">
+            <span className="l-section__badge">GEZGİN TİPİNİZ</span>
+            <h2 className="l-section__title">Ne tür bir gezginsiniz?</h2>
+            <p className="l-section__sub">
+              Seyahat stilinize göre özel öneriler alın.
+            </p>
+          </div>
+          <div className="l-quiz__grid">
+            {QUIZ_TYPES.map(q => {
+              const QuizIcon = QUIZ_ICON_MAP[q.icon];
+              return (
+              <button
+                key={q.id}
+                className={`l-quiz__card ${quizSelected === q.id ? 'l-quiz__card--active' : ''}`}
+                onClick={() => setQuizSelected((prev) => (prev === q.id ? null : q.id))}
+              >
+                <span className="l-quiz__icon" aria-hidden>
+                  {QuizIcon ? <QuizIcon size={24} strokeWidth={1.65} /> : null}
+                </span>
+                <strong className="l-quiz__title">{q.title}</strong>
+                <span className="l-quiz__desc">{q.desc}</span>
+                {quizSelected === q.id && (
+                  <span className="l-quiz__check" aria-hidden>
+                    <Check size={14} strokeWidth={3} />
+                  </span>
+                )}
+              </button>
+              );
+            })}
+          </div>
+          {quizSelected && (
+            <div className="l-quiz__result">
+              <p className="l-quiz__result-text">
+                Harika! <strong>{QUIZ_TYPES.find(q => q.id === quizSelected)?.title}</strong> tipine uygun
+                kişiselleştirilmiş öneriler sizi bekliyor.
+              </p>
+              <Link href="/chat" className="l-hero__btn l-hero__btn--primary">
+                <Sparkles size={18} strokeWidth={2} aria-hidden />
+                Kişisel Planımı Oluştur
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -560,56 +612,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TRAVEL QUIZ ── */}
-      <section id="quiz" className="l-section l-quiz">
-        <div className="l-section__inner">
-          <div className="l-section__header">
-            <span className="l-section__badge">GEZGİN TİPİNİZ</span>
-            <h2 className="l-section__title">Ne tür bir gezginsiniz?</h2>
-            <p className="l-section__sub">
-              Seyahat stilinize göre özel öneriler alın.
-            </p>
-          </div>
-          <div className="l-quiz__grid">
-            {QUIZ_TYPES.map(q => {
-              const QuizIcon = QUIZ_ICON_MAP[q.icon];
-              return (
-              <button
-                key={q.id}
-                className={`l-quiz__card ${quizSelected === q.id ? 'l-quiz__card--active' : ''}`}
-                onClick={() => setQuizSelected((prev) => (prev === q.id ? null : q.id))}
-              >
-                <span className="l-quiz__icon" aria-hidden>
-                  {QuizIcon ? <QuizIcon size={24} strokeWidth={1.65} /> : null}
-                </span>
-                <strong className="l-quiz__title">{q.title}</strong>
-                <span className="l-quiz__desc">{q.desc}</span>
-                {quizSelected === q.id && (
-                  <span className="l-quiz__check" aria-hidden>
-                    <Check size={14} strokeWidth={3} />
-                  </span>
-                )}
-              </button>
-              );
-            })}
-          </div>
-          {quizSelected && (
-            <div className="l-quiz__result">
-              <p className="l-quiz__result-text">
-                Harika! <strong>{QUIZ_TYPES.find(q => q.id === quizSelected)?.title}</strong> tipine uygun
-                kişiselleştirilmiş öneriler sizi bekliyor.
-              </p>
-              <Link href="/chat" className="l-hero__btn l-hero__btn--primary">
-                <Sparkles size={18} strokeWidth={2} aria-hidden />
-                Kişisel Planımı Oluştur
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* ── NEWSLETTER / CTA ── */}
-      <section className="l-section l-cta-section">
+      <section id="cta-newsletter" className="l-section l-cta-section">
         <div className="l-section__inner">
           <div className="l-cta__card">
             <h2 className="l-cta__title">Seyahat fırsatlarından haberdar olun</h2>

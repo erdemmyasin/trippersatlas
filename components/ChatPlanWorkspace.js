@@ -540,6 +540,16 @@ export default function ChatPlanWorkspace({
       handledQsRef.current = qs;
       const sp = new URLSearchParams(qs);
       const qp = sp.get('quickPlan');
+      if (qp === 'tour') {
+        router.replace('/turlar', { scroll: false });
+        urlBootRef.current = true;
+        return;
+      }
+      if (qp === 'activities') {
+        router.replace('/aktiviteler', { scroll: false });
+        urlBootRef.current = true;
+        return;
+      }
       if (qp === 'flight') {
         router.replace('/flights', { scroll: false });
         urlBootRef.current = true;
@@ -654,6 +664,14 @@ export default function ChatPlanWorkspace({
   useEffect(() => {
     function onQuickPlan(e) {
       const c = e?.detail?.category;
+      if (c === 'tour') {
+        router.push('/turlar');
+        return;
+      }
+      if (c === 'activities') {
+        router.push('/aktiviteler');
+        return;
+      }
       if (c === 'flight') {
         router.push('/flights');
         return;
