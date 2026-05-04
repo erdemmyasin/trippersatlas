@@ -9,7 +9,8 @@ import {
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Mic, CarFront, Palmtree, Luggage, Sparkles } from 'lucide-react';
+import { X, Mic } from 'lucide-react';
+import { DatesModal } from '@/components/ChipModal';
 import { getCurrentUser } from '@/lib/authStore';
 import { createTrip, saveTrip } from '@/lib/tripStore';
 import { defaultTripWorkspace, saveTripWorkspace } from '@/lib/tripWorkspaceStore';
@@ -94,6 +95,7 @@ function NewTripModal({ open, onClose }) {
   const [endDate, setEndDate] = useState('');
   const [preferences, setPreferences] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [datesPopupOpen, setDatesPopupOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -109,6 +111,7 @@ function NewTripModal({ open, onClose }) {
     setEndDate('');
     setPreferences('');
     setSubmitting(false);
+    setDatesPopupOpen(false);
   }, [open]);
 
   useEffect(() => {
@@ -211,20 +214,6 @@ function NewTripModal({ open, onClose }) {
           </button>
 
           <div style={s.shell}>
-            <div style={s.left}>
-              <div style={s.leftInner}>
-                <div style={s.decoCard}>
-                  <CarFront size={64} strokeWidth={1.4} color="rgba(47,63,82,.35)" style={{ marginBottom: 8 }} />
-                  <div style={s.decoRow}>
-                    <Palmtree size={26} strokeWidth={1.8} color="var(--ta-accent-deep)" />
-                    <Luggage size={26} strokeWidth={1.8} color="var(--ta-accent)" />
-                    <Sparkles size={24} strokeWidth={1.8} color="#7c6cf0" />
-                  </div>
-                  <p style={s.decoTag}>Atlas ile yolculuğa hazır</p>
-                </div>
-              </div>
-            </div>
-
             <div style={s.right}>
               <form style={s.form} onSubmit={handleCreate} noValidate>
                 <h1 id="new-trip-title" style={s.title}>
@@ -247,41 +236,25 @@ function NewTripModal({ open, onClose }) {
                 <div style={s.timingRow}>
                   <button
                     type="button"
-                    onClick={() => setTiming('flex')}
+                    onClick={() => {
+                      setTiming('flex');
+                      setDatesPopupOpen(true);
+                    }}
                     style={{ ...s.pill, ...(timing === 'flex' ? s.pillOn : s.pillOff) }}
                   >
                     Esnek
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTiming('dates')}
+                    onClick={() => {
+                      setTiming('dates');
+                      setDatesPopupOpen(true);
+                    }}
                     style={{ ...s.pill, ...(timing === 'dates' ? s.pillOn : s.pillOff) }}
                   >
                     Tarih seç
                   </button>
                 </div>
-                {timing === 'dates' ? (
-                  <div style={s.dateRow}>
-                    <div style={s.dateCol}>
-                      <span style={s.dateLab}>Başlangıç</span>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        style={s.input}
-                      />
-                    </div>
-                    <div style={s.dateCol}>
-                      <span style={s.dateLab}>Bitiş</span>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        style={s.input}
-                      />
-                    </div>
-                  </div>
-                ) : null}
 
                 <label style={s.label}>Gezi tercihleri</label>
                 <div style={s.taWrap}>
@@ -314,6 +287,43 @@ function NewTripModal({ open, onClose }) {
           </div>
         </div>
       </div>
+
+      {datesPopupOpen ? (
+        <div
+          style={s.datesPopupBackdrop}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tarih seçimi"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDatesPopupOpen(false);
+          }}
+        >
+          <div style={s.datesPopupCard} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              style={s.datesPopupClose}
+              onClick={() => setDatesPopupOpen(false)}
+              aria-label="Kapat"
+            >
+              <X size={18} strokeWidth={2} color="var(--ta-ink)" />
+            </button>
+            <DatesModal
+              onSave={(payload) => {
+                if (payload?.tab === 'dates') {
+                  setTiming('dates');
+                  setStartDate(payload.startDate || '');
+                  setEndDate(payload.endDate || '');
+                } else {
+                  setTiming('flex');
+                  setStartDate('');
+                  setEndDate('');
+                }
+                setDatesPopupOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -349,7 +359,7 @@ const s = {
   },
   card: {
     position: 'relative',
-    width: 'min(960px, calc(100vw - 24px))',
+    width: 'min(560px, calc(100vw - 24px))',
     maxHeight: 'min(92vh, 900px)',
     overflow: 'hidden',
     borderRadius: 22,
@@ -383,45 +393,9 @@ const s = {
     minHeight: 0,
     overflow: 'auto',
   },
-  left: {
-    flex: '1 1 260px',
-    minWidth: 240,
-    maxWidth: 400,
-    background: 'linear-gradient(165deg, #c8e6ff 0%, #e8f4ff 45%, #dcecf8 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '32px 24px',
-    boxSizing: 'border-box',
-  },
-  leftInner: {
-    width: '100%',
-    maxWidth: 320,
-  },
-  decoCard: {
-    background: 'rgba(255,255,255,.55)',
-    borderRadius: 20,
-    padding: '28px 22px',
-    border: '1px solid rgba(255,255,255,.8)',
-    boxShadow: '0 12px 40px rgba(47,63,82,.08)',
-    textAlign: 'center',
-  },
-  decoRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    marginTop: 10,
-  },
-  decoTag: {
-    margin: '14px 0 0',
-    fontSize: 13,
-    fontWeight: 600,
-    color: 'var(--ta-ink-muted)',
-  },
   right: {
-    flex: '1 1 320px',
-    minWidth: 'min(100%, 260px)',
+    flex: '1 1 100%',
+    minWidth: 0,
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'center',
@@ -434,6 +408,70 @@ const s = {
     display: 'flex',
     flexDirection: 'column',
     gap: 0,
+  },
+  timingRow: {
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  pill: {
+    padding: '9px 18px',
+    borderRadius: 999,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'var(--font-sans)',
+    borderWidth: 1.5,
+    borderStyle: 'solid',
+    borderColor: 'rgba(47,63,82,.22)',
+    background: '#fff',
+    color: 'var(--ta-ink)',
+  },
+  pillOn: {
+    borderColor: 'var(--ta-ink)',
+    background: 'rgba(74,98,120,.08)',
+  },
+  pillOff: {
+    opacity: 0.85,
+  },
+  datesPopupBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15,28,42,.5)',
+    zIndex: 12100,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    boxSizing: 'border-box',
+  },
+  datesPopupCard: {
+    width: 'min(720px, 100%)',
+    maxHeight: 'min(92vh, 760px)',
+    overflow: 'auto',
+    background: '#fff',
+    borderRadius: 22,
+    boxShadow: '0 24px 80px rgba(0,0,0,.28)',
+    border: '1px solid rgba(0,0,0,.08)',
+    position: 'relative',
+    padding: '20px 22px',
+    boxSizing: 'border-box',
+  },
+  datesPopupClose: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    background: 'rgba(255,255,255,.95)',
+    border: '1px solid rgba(0,0,0,.08)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 10px rgba(0,0,0,.06)',
+    zIndex: 2,
   },
   title: {
     margin: '0 0 22px',
@@ -463,47 +501,6 @@ const s = {
     outline: 'none',
     background: '#fff',
     color: 'var(--ta-ink)',
-  },
-  timingRow: {
-    display: 'flex',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  pill: {
-    padding: '9px 18px',
-    borderRadius: 999,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'var(--font-sans)',
-    border: '1.5px solid rgba(47,63,82,.22)',
-    background: '#fff',
-    color: 'var(--ta-ink)',
-  },
-  pillOn: {
-    borderColor: 'var(--ta-ink)',
-    background: 'rgba(74,98,120,.08)',
-  },
-  pillOff: {
-    opacity: 0.85,
-  },
-  dateRow: {
-    display: 'flex',
-    gap: 12,
-    marginTop: 10,
-    flexWrap: 'wrap',
-  },
-  dateCol: {
-    flex: '1 1 130px',
-    minWidth: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  dateLab: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: 'var(--ta-ink-muted)',
   },
   taWrap: {
     position: 'relative',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftRight,
@@ -17,6 +17,8 @@ import {
   Share2,
   Bus,
   Sparkles,
+  MapPin,
+  Calendar,
 } from 'lucide-react';
 import {
   useIsPhoneLayout,
@@ -27,6 +29,15 @@ import QuickPlanMap from '@/components/QuickPlanMap';
 import { centerFromMarkers } from '@/lib/airportsGeo';
 import { getMockBusTrips, uniqCompanies, uniqStations } from '@/lib/busSearchMock';
 import { appendRegionalGeocodeContext } from '@/lib/taRegion';
+import { qp } from '@/lib/quickPlanFilterStyles';
+import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
+import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
+import {
+  QuickPlanCalendarPopover,
+  QuickPlanCityTextPanel,
+  QuickPlanBusPaxPanel,
+  formatSingleDateTR,
+} from '@/components/QuickPlanAnchoredWidgets';
 
 function BusRoutePlaceholder({ from, to, fillHeight }) {
   return (
@@ -193,6 +204,86 @@ export default function BusSearchScreen() {
   const [likedIds, setLikedIds] = useState(() => new Set());
   const [busMapMarkers, setBusMapMarkers] = useState([]);
 
+  const busBarRef = useRef(null);
+  const fromBtnRef = useRef(null);
+  const toBtnRef = useRef(null);
+  const dateBtnRef = useRef(null);
+  const paxBtnRef = useRef(null);
+  const busCityPopRef = useRef(null);
+  const busDatePopRef = useRef(null);
+  const busPaxPopRef = useRef(null);
+
+  const [busCityPick, setBusCityPick] = useState(null);
+  const [busCityDraft, setBusCityDraft] = useState('');
+  const [busCityLayout, setBusCityLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
+
+  const [busDateOpen, setBusDateOpen] = useState(false);
+  const [busDateLayout, setBusDateLayout] = useState({ top: 0, left: 10 });
+
+  const [busPaxOpen, setBusPaxOpen] = useState(false);
+  const [busPaxLayout, setBusPaxLayout] = useState({ top: 0, left: 0, width: 'min(320px, calc(100vw - 20px))' });
+  const [busPaxCount, setBusPaxCount] = useState(2);
+
+  const closeBusPanels = useCallback(() => {
+    setBusCityPick(null);
+    setBusDateOpen(false);
+    setBusPaxOpen(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!busCityPick) return undefined;
+    const el = busCityPick === 'from' ? fromBtnRef.current : toBtnRef.current;
+    function u() {
+      setBusCityLayout({ ...popoverCoords(el, 340), width: 'min(340px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [busCityPick]);
+
+  useLayoutEffect(() => {
+    if (!busDateOpen) return undefined;
+    function u() {
+      setBusDateLayout(datePanelCoords(dateBtnRef.current, 504));
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [busDateOpen]);
+
+  useLayoutEffect(() => {
+    if (!busPaxOpen) return undefined;
+    function u() {
+      setBusPaxLayout({ ...popoverCoords(paxBtnRef.current, 300), width: 'min(320px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [busPaxOpen]);
+
+  const busPanelsActive = !!(busCityPick || busDateOpen || busPaxOpen);
+  const ignoreBusPointer = useCallback(
+    (t) =>
+      !!(busBarRef.current?.contains(t)) ||
+      !!(busCityPopRef.current?.contains(t)) ||
+      !!(busDatePopRef.current?.contains(t)) ||
+      !!(busPaxPopRef.current?.contains(t)),
+    []
+  );
+  useQuickPlanBarDismiss(busPanelsActive, ignoreBusPointer, closeBusPanels);
+
   const mapsKey = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY : '';
   const splitBusDesktop = hasSearched && splitWide;
   const useBusGoogleMap = !!mapsKey && busMapMarkers.length > 0;
@@ -265,16 +356,6 @@ export default function BusSearchScreen() {
     setFrom(to);
     setTo(from);
   }, [from, to]);
-
-  const setToday = useCallback(() => {
-    const t = new Date().toISOString().slice(0, 10);
-    setTravelDate(t);
-  }, []);
-
-  const setTomorrow = useCallback(() => {
-    const t = addDays(new Date().toISOString().slice(0, 10), 1);
-    setTravelDate(t);
-  }, []);
 
   const search = useCallback(async () => {
     setLoading(true);
@@ -565,139 +646,215 @@ export default function BusSearchScreen() {
 
   return (
     <div style={st.wrap}>
-      <div style={st.stickyBarTop}>
-        <div style={st.stickyInner}>
-          <div style={{ ...st.topBarRow, ...(isPhone ? st.topBarRowMobile : {}) }}>
+      <div style={qp.stickyTop}>
+        <div style={qp.stickyInner}>
+          <div style={{ ...qp.topBarRow, ...(isPhone ? qp.topBarRowMobile : {}) }}>
             <div
               style={
                 pillBarTabletScroll
-                  ? st.pillScrollOuter
+                  ? qp.pillScrollOuter
                   : { width: '100%', minWidth: 0, display: 'flex', justifyContent: isPhone ? 'stretch' : 'center' }
               }
             >
               <div
+                ref={busBarRef}
                 style={{
-                  ...st.pillBar,
-                  ...(isPhone ? st.pillBarMobile : st.pillBarDesktop),
-                  ...(pillBarTabletScroll ? st.pillBarTabletWide : {}),
+                  ...qp.barCluster,
+                  ...(isPhone ? { justifyContent: 'center' } : {}),
+                  ...(pillBarTabletScroll ? { flexWrap: 'nowrap', width: 'max-content', maxWidth: 'none' } : {}),
                 }}
               >
-              <div
-                style={{
-                  ...st.busBarCluster,
-                  ...(isPhone ? { justifyContent: 'center' } : st.busBarClusterDesktop),
-                  ...(pillBarTabletScroll ? { flexWrap: 'nowrap' } : {}),
-                }}
-              >
-                <div style={{ ...st.titlePill, alignSelf: 'center' }}>
-                  <span style={st.titleStar} aria-hidden>
+                <div style={{ ...qp.titlePill, alignSelf: 'center' }}>
+                  <span style={qp.spark} aria-hidden>
                     <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent)" />
                   </span>
-                  <span style={st.titleText}>Otobüs Ara</span>
+                  <span style={qp.titleTxt}>Otobüs Ara</span>
                 </div>
-                <span style={{ ...st.barSep, ...(isPhone ? {} : st.barSepTall) }} />
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    flexWrap: pillBarTabletScroll ? 'nowrap' : 'wrap',
-                    justifyContent: 'center',
-                    alignSelf: 'center',
-                    ...(isPhone ? { width: '100%' } : {}),
-                  }}
-                >
-                  <div style={st.locFieldCol}>
-                    <span style={st.locFieldLbl}>Nereden</span>
-                    <input
-                      style={{ ...st.chipInp, ...st.busCityInp, ...(isPhone ? st.chipFullWidth : {}) }}
-                      value={from}
-                      onChange={(e) => setFrom(e.target.value)}
-                      placeholder="Şehir"
-                      aria-label="Nereden"
-                    />
+                {!isPhone ? <span style={qp.barSep} /> : null}
+                <div style={qp.linkedRoute}>
+                    <div style={qp.routeShell}>
+                      <button
+                        ref={fromBtnRef}
+                        type="button"
+                        style={qp.routeSegBtn}
+                        aria-expanded={busCityPick === 'from'}
+                        aria-haspopup="dialog"
+                        onClick={() => {
+                          setBusDateOpen(false);
+                          setBusPaxOpen(false);
+                          setBusCityPick((prev) => {
+                            const next = prev === 'from' ? null : 'from';
+                            if (next === 'from') setBusCityDraft(from);
+                            return next;
+                          });
+                        }}
+                      >
+                        <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <span style={qp.fieldLbl}>Nereden</span>
+                          <span style={{ ...(String(from || '').trim() ? qp.fieldVal : qp.fieldPlaceholder) }}>
+                            {String(from || '').trim() || 'Şehir'}
+                          </span>
+                        </span>
+                      </button>
+                      <button type="button" style={qp.swapFab} onClick={swapEnds} aria-label="Kalkış ve varışı değiştir">
+                        <ArrowLeftRight size={15} color="#1a73e8" />
+                      </button>
+                      <button
+                        ref={toBtnRef}
+                        type="button"
+                        style={qp.routeSegBtn}
+                        aria-expanded={busCityPick === 'to'}
+                        aria-haspopup="dialog"
+                        onClick={() => {
+                          setBusDateOpen(false);
+                          setBusPaxOpen(false);
+                          setBusCityPick((prev) => {
+                            const next = prev === 'to' ? null : 'to';
+                            if (next === 'to') setBusCityDraft(to);
+                            return next;
+                          });
+                        }}
+                      >
+                        <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <span style={qp.fieldLbl}>Nereye</span>
+                          <span style={{ ...(String(to || '').trim() ? qp.fieldVal : qp.fieldPlaceholder) }}>
+                            {String(to || '').trim() || 'Şehir'}
+                          </span>
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                  <button type="button" style={st.swapChip} onClick={swapEnds} aria-label="Kalkış ve varışı değiştir">
-                    <ArrowLeftRight size={16} color="var(--ta-ink)" />
+                  <button
+                    ref={dateBtnRef}
+                    type="button"
+                    style={{
+                      ...qp.fieldCard,
+                      ...qp.fieldCardGrow,
+                      ...qp.fieldCardStatic,
+                      flex: '1 1 170px',
+                      ...(isPhone ? { width: '100%', flex: '1 1 100%' } : {}),
+                    }}
+                    aria-expanded={busDateOpen}
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setBusCityPick(null);
+                      setBusPaxOpen(false);
+                      setBusDateOpen((v) => !v);
+                    }}
+                  >
+                    <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={qp.fieldLbl}>Tarih</span>
+                      <span style={qp.fieldVal}>{formatSingleDateTR(travelDate)}</span>
+                    </span>
                   </button>
-                  <div style={st.locFieldCol}>
-                    <span style={st.locFieldLbl}>Nereye</span>
-                    <input
-                      style={{ ...st.chipInp, ...st.busCityInp, ...(isPhone ? st.chipFullWidth : {}) }}
-                      value={to}
-                      onChange={(e) => setTo(e.target.value)}
-                      placeholder="Şehir"
-                      aria-label="Nereye"
-                    />
-                  </div>
-                </div>
-                <span style={{ ...st.barDot, alignSelf: 'center' }}>·</span>
+                  <button
+                    ref={paxBtnRef}
+                    type="button"
+                    style={{
+                      ...qp.fieldCard,
+                      ...qp.fieldCardGrow,
+                      ...qp.fieldCardStatic,
+                      flex: '1 1 150px',
+                      ...(isPhone ? { width: '100%', flex: '1 1 100%' } : {}),
+                    }}
+                    aria-expanded={busPaxOpen}
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setBusCityPick(null);
+                      setBusDateOpen(false);
+                      setBusPaxOpen((v) => !v);
+                    }}
+                  >
+                    <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={qp.fieldLbl}>Yolcular</span>
+                      <span style={qp.fieldVal}>{`${busPaxCount} yolcu`}</span>
+                    </span>
+                  </button>
+                {!isPhone ? <span style={qp.barSep} aria-hidden /> : null}
                 <div
                   style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: isPhone ? 'stretch' : 'center',
-                    gap: 6,
                     alignSelf: 'center',
-                    ...(isPhone ? { width: '100%' } : {}),
+                    flexShrink: 0,
+                    ...(isPhone ? { width: '100%', marginTop: 8 } : {}),
                   }}
                 >
-                  <span style={st.locFieldLbl}>Tarih</span>
-                  <input
-                    style={{ ...st.chipDate, ...(isPhone ? { width: '100%' } : {}) }}
-                    type="date"
-                    value={travelDate}
-                    onChange={(e) => setTravelDate(e.target.value)}
-                    aria-label="Seyahat tarihi"
-                  />
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button
-                      type="button"
-                      style={{ ...st.miniPill, ...(travelDate === todayIso ? st.miniPillOn : {}) }}
-                      onClick={setToday}
-                    >
-                      Bugün
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...st.miniPill, ...(travelDate === tomorrowIso ? st.miniPillOn : {}) }}
-                      onClick={setTomorrow}
-                    >
-                      Yarın
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    style={{
+                      ...qp.searchBtn,
+                      ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
+                      ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
+                    }}
+                    onClick={() => {
+                      closeBusPanels();
+                      search();
+                    }}
+                    disabled={loading}
+                    aria-label={loading ? 'Aranıyor' : 'Ara'}
+                  >
+                    <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
+                    {loading ? 'Aranıyor…' : 'Ara'}
+                  </button>
                 </div>
               </div>
-              {!isPhone ? (
-                <span style={{ ...st.barSep, ...st.barSepTall, marginLeft: 6, marginRight: 8 }} aria-hidden />
-              ) : null}
-              <div
-                style={{
-                  alignSelf: 'center',
-                  flexShrink: 0,
-                  ...(isPhone ? { width: '100%', marginTop: 8 } : {}),
-                }}
-              >
-                <button
-                  type="button"
-                  style={{
-                    ...st.searchBlack,
-                    ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
-                    ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
-                  }}
-                  onClick={search}
-                  disabled={loading}
-                  aria-label={loading ? 'Aranıyor' : 'Ara'}
-                >
-                  <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
-                  {loading ? 'Aranıyor…' : 'Ara'}
-                </button>
-              </div>
-            </div>
             </div>
           </div>
         </div>
       </div>
+
+      {busCityPick ? (
+        <QuickPlanCityTextPanel
+          innerRef={busCityPopRef}
+          layout={busCityLayout}
+          draft={busCityDraft}
+          setDraft={setBusCityDraft}
+          placeholder="Şehir"
+          aria-label={busCityPick === 'from' ? 'Nereden' : 'Nereye'}
+          onDone={() => {
+            if (busCityPick === 'from') setFrom(busCityDraft);
+            else setTo(busCityDraft);
+            setBusCityPick(null);
+          }}
+        />
+      ) : null}
+      <QuickPlanCalendarPopover
+        innerRef={busDatePopRef}
+        open={busDateOpen}
+        mode="single"
+        committedStart={travelDate}
+        committedEnd={travelDate}
+        layout={busDateLayout}
+        aria-label="Seyahat tarihi"
+        onApply={(s, e) => {
+          void e;
+          setTravelDate(s);
+          setBusDateOpen(false);
+        }}
+      >
+        <div style={{ ...qp.miniPillRow, justifyContent: 'flex-start' }}>
+          <button
+            type="button"
+            style={{ ...qp.miniPill, ...(travelDate === todayIso ? qp.miniPillOn : {}) }}
+            onClick={() => setTravelDate(todayIso)}
+          >
+            Bugün
+          </button>
+          <button
+            type="button"
+            style={{ ...qp.miniPill, ...(travelDate === tomorrowIso ? qp.miniPillOn : {}) }}
+            onClick={() => setTravelDate(tomorrowIso)}
+          >
+            Yarın
+          </button>
+        </div>
+      </QuickPlanCalendarPopover>
+      {busPaxOpen ? (
+        <QuickPlanBusPaxPanel innerRef={busPaxPopRef} layout={busPaxLayout} value={busPaxCount} onChange={setBusPaxCount} />
+      ) : null}
 
       <div
         style={{

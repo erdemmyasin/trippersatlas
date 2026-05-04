@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   MessageCircle,
@@ -11,12 +11,12 @@ import {
   Mountain,
   Hotel,
   Plane,
-  Car,
-  Ship,
+  CarFront,
+  Bus,
+  Ticket,
   Calendar,
   ArrowRight,
 } from 'lucide-react';
-import { GLOBE_VIDEO_MASK_PATHS } from '@/lib/globeVideoMaskRegions';
 
 const QUIZ_CHIPS = [
   { id: 'explorer', label: 'Kaşif', Icon: MapPinned },
@@ -28,9 +28,9 @@ const SERVICE_ICONS = [
   { key: 'tours', Icon: MapPinned, label: 'Turlar' },
   { key: 'hotel', Icon: Hotel, label: 'Oteller' },
   { key: 'flights', Icon: Plane, label: 'Uçuşlar' },
-  { key: 'transfer', Icon: Car, label: 'Transfer' },
-  { key: 'restaurant', Icon: UtensilsCrossed, label: 'Restoranlar' },
-  { key: 'boat', Icon: Ship, label: 'Tekne' },
+  { key: 'bus', Icon: Bus, label: 'Otobüsler' },
+  { key: 'carRental', Icon: CarFront, label: 'Araç Kiralama' },
+  { key: 'activities', Icon: Ticket, label: 'Aktiviteler' },
 ];
 
 const MINI_TRIP = {
@@ -47,29 +47,24 @@ const STEPS = [
     icon: MessageCircle,
     title: 'Hedefini anlat',
     body:
-      'Sohbette doğal dilde yaz veya hızlı plandan şehir ve tarih seç. Atlas bağlamı anlar, yurt içi ve yurt dışı için aynı akışta çalışır.',
+      'Sohbette doğal dilde yazın veya hızlı plandan şehir ve tarih seçin. Atlas bağlamı anlar; yurt içi ve yurtdışı aynı akışta.',
     extra: 'chips',
   },
   {
     icon: Sparkles,
-    title: 'Önerileri incele',
+    title: 'Önerileri inceleyin',
     body:
-      'Konaklama, ulaşım ve deneyim özetleri tek ekranda toplanır; istersen detaya geçip fiyat ve müsaitlik tarafını açarsın.',
+      'Konaklama, ulaşım ve deneyim özetleri tek ekranda toplanır. İsterseniz detaya geçip fiyat ve müsaitlik tarafını açarsınız.',
     extra: 'services',
   },
   {
     icon: Map,
-    title: 'Rotayı gör, kaydet, devam et',
+    title: 'Rotayı görün, kaydedin',
     body:
-      'Harita üzerinde güzergâh ve noktalar netleşir. Planını kaydedebilir, seyahat listene ekleyebilir veya sohbetle revize edebilirsin.',
+      'Haritada güzergâh ve duraklar netleşir. Planı kaydedebilir, listene ekleyebilir veya sohbetle güncelleyebilirsin.',
     extra: 'trip',
   },
 ];
-
-/** Yerel kompozit: public/videos/atlas-loop.mp4 (yoksa Pexels'e düşer). */
-const LOCAL_LOOP = '/videos/atlas-loop.mp4';
-const FALLBACK_LOOP =
-  'https://videos.pexels.com/video-files/3044326/3044326-hd_1366_720_25fps.mp4';
 
 function MiniTripCard() {
   const [imgSrc, setImgSrc] = useState(null);
@@ -91,39 +86,34 @@ function MiniTripCard() {
   }, []);
 
   return (
-    <Link href="/#destinations" className="l-how__trip-mini">
-      <div className="l-how__trip-mini-img">
-        {(!imgSrc || imgState === 'loading') && (
-          <div className="l-how__trip-mini-skeleton" />
-        )}
+    <Link href="/#destinations" className="l-how__mini">
+      <div className="l-how__mini-img">
+        {(!imgSrc || imgState === 'loading') && <div className="l-how__mini-skel" aria-hidden />}
         {imgSrc && imgState !== 'error' && (
           <img
             src={imgSrc}
-            alt={MINI_TRIP.title}
+            alt=""
             loading="lazy"
             onLoad={() => setImgState('loaded')}
             onError={() => setImgState('error')}
-            style={{ opacity: imgState === 'loaded' ? 1 : 0 }}
+            className={imgState === 'loaded' ? 'l-how__mini-img-el--on' : 'l-how__mini-img-el'}
           />
         )}
-        <span
-          className="l-how__trip-mini-region"
-          style={{ background: MINI_TRIP.regionColor }}
-        >
+        <span className="l-how__mini-tag" style={{ background: MINI_TRIP.regionColor }}>
           {MINI_TRIP.region}
         </span>
       </div>
-      <div className="l-how__trip-mini-body">
-        <strong className="l-how__trip-mini-title">{MINI_TRIP.title}</strong>
-        <div className="l-how__trip-mini-meta">
+      <div className="l-how__mini-body">
+        <strong className="l-how__mini-title">{MINI_TRIP.title}</strong>
+        <div className="l-how__mini-meta">
           <span>
-            <Calendar size={12} strokeWidth={2} aria-hidden /> {MINI_TRIP.days} Gün
+            <Calendar size={12} strokeWidth={2} aria-hidden /> {MINI_TRIP.days} gün
           </span>
           <span>
-            <MapPinned size={12} strokeWidth={2} aria-hidden /> {MINI_TRIP.locations} Lokasyon
+            <MapPinned size={12} strokeWidth={2} aria-hidden /> {MINI_TRIP.locations} lokasyon
           </span>
         </div>
-        <span className="l-how__trip-mini-cta">
+        <span className="l-how__mini-link">
           Tüm geziler <ArrowRight size={13} strokeWidth={2.2} aria-hidden />
         </span>
       </div>
@@ -132,169 +122,83 @@ function MiniTripCard() {
 }
 
 export default function LandingHowItWorks() {
-  const wrapRef = useRef(null);
-  const videoRef = useRef(null);
-  const [motionOk, setMotionOk] = useState(true);
-  const maskId = `howGlobeVideoMask-${useId().replace(/:/g, '')}`;
-  const maskUrl = `url(#${maskId})`;
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const sync = () => setMotionOk(!mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
-  }, []);
-
-  useEffect(() => {
-    if (!motionOk) return;
-    const el = wrapRef.current;
-    const vid = videoRef.current;
-    if (!el || !vid) return;
-
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!videoRef.current) return;
-        if (e.isIntersecting && e.intersectionRatio > 0.12) {
-          videoRef.current.play().catch(() => {});
-        } else {
-          videoRef.current.pause();
-        }
-      },
-      { root: null, rootMargin: '80px 0px', threshold: [0, 0.12, 0.25] }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [motionOk]);
-
   return (
     <section id="how-it-works" className="l-how" aria-labelledby="l-how-title">
-      <div className="l-how__inner">
-        <div className="l-how__copy">
-          <span className="l-how__badge">Nasıl çalışır?</span>
-          <h2 id="l-how-title" className="l-how__title">
-            Birkaç adımda plana yaklaş
+      <div className="l-how__wrap">
+        <header className="l-how__header">
+          <span className="l-how__eyebrow">Nasıl çalışır</span>
+          <h2 id="l-how-title" className="l-how__heading">
+            Üç adımda netleşen plan
           </h2>
-          <p className="l-how__lead">
-            Atlas; sohbet, harita ve arama ekranlarını aynı akışta birleştirir. Aşağıdaki
-            sıra tipik bir kullanım — metni sonra birlikte sıkılaştırırız.
+          <p className="l-how__sub">
+            Sohbet, özet öneriler ve harita tek akışta. Tipik bir yolculuk için sıra kabaca böyle işler —
+            içeriği siz özelleştirdikçe Atlas güncellenir.
           </p>
-          <ol className="l-how__steps">
-            {STEPS.map(({ icon: Icon, title, body, extra }) => (
-              <li key={title} className="l-how__step">
-                <div className="l-how__step-icon" aria-hidden>
+        </header>
+
+        <ul className="l-how__rail" role="list">
+          {STEPS.map(({ icon: Icon, title, body, extra }, i) => (
+            <li key={title} className="l-how__card">
+              <div className="l-how__card-head">
+                <span className="l-how__card-num" aria-hidden>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <div className="l-how__card-icon-wrap" aria-hidden>
                   <Icon size={22} strokeWidth={1.75} />
                 </div>
-                <div className="l-how__step-content">
-                  <h3 className="l-how__step-title">{title}</h3>
-                  <p className="l-how__step-body">{body}</p>
+              </div>
+              <h3 className="l-how__card-title">{title}</h3>
+              <p className="l-how__card-desc">{body}</p>
 
-                  {extra === 'chips' && (
-                    <div className="l-how__chips" role="list">
-                      {QUIZ_CHIPS.map(({ id, label, Icon: ChipIcon }) => (
-                        <Link
-                          key={id}
-                          href="/#quiz"
-                          className="l-how__chip"
-                          role="listitem"
-                        >
-                          <ChipIcon size={14} strokeWidth={2} aria-hidden />
-                          {label}
-                        </Link>
-                      ))}
-                      <Link href="/#quiz" className="l-how__chip l-how__chip--more">
-                        +3 daha
+              {extra === 'chips' ? (
+                <div className="l-how__embed">
+                  <p className="l-how__embed-label">Örnek gezgin tipi</p>
+                  <div className="l-how__pill-row" role="list">
+                    {QUIZ_CHIPS.map(({ id, label, Icon: Ci }) => (
+                      <Link key={id} href="/#quiz" className="l-how__pill" role="listitem">
+                        <Ci size={14} strokeWidth={2} aria-hidden />
+                        {label}
                       </Link>
-                    </div>
-                  )}
+                    ))}
+                    <Link href="/#quiz" className="l-how__pill l-how__pill--ghost" role="listitem">
+                      +3 daha
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
 
-                  {extra === 'services' && (
-                    <Link href="/#services" className="l-how__svc-row">
-                      {SERVICE_ICONS.map(({ key, Icon: SvcIcon, label }) => (
-                        <span key={key} className="l-how__svc-pill" title={label}>
-                          <SvcIcon size={15} strokeWidth={1.8} aria-hidden />
+              {extra === 'services' ? (
+                <div className="l-how__embed">
+                  <p className="l-how__embed-label">Tek ekranda</p>
+                  <Link href="/#services" className="l-how__icon-strip">
+                    <span className="l-how__icon-strip-inner">
+                      {SERVICE_ICONS.map(({ key, Icon: Si, label }) => (
+                        <span key={key} className="l-how__icon-slot" title={label}>
+                          <Si size={16} strokeWidth={1.8} aria-hidden />
                         </span>
                       ))}
-                      <span className="l-how__svc-caption">
-                        6 hizmet · tek akış
-                      </span>
-                    </Link>
-                  )}
-
-                  {extra === 'trip' && <MiniTripCard />}
+                    </span>
+                    <span className="l-how__icon-strip-cap">6 hizmet bir arada</span>
+                  </Link>
                 </div>
-              </li>
-            ))}
-          </ol>
-          <div className="l-how__cta">
-            <Link href="/chat" className="l-how__btn l-how__btn--primary">
-              Atlas&apos;a sor
-            </Link>
-            <Link href="/explore" className="l-how__btn l-how__btn--ghost">
-              Keşfet
-            </Link>
-          </div>
-        </div>
+              ) : null}
 
-        <div className="l-how__visual">
-          <div ref={wrapRef} className="l-how__globe-stage">
-            <svg className="l-how__svg-defs" aria-hidden focusable="false">
-              <defs>
-                <mask
-                  id={maskId}
-                  maskUnits="objectBoundingBox"
-                  maskContentUnits="objectBoundingBox"
-                  x="0"
-                  y="0"
-                  width="1"
-                  height="1"
-                >
-                  <rect width="1" height="1" fill="black" />
-                  <g fill="white">
-                    {GLOBE_VIDEO_MASK_PATHS.map((d, i) => (
-                      <path key={i} d={d} />
-                    ))}
-                  </g>
-                </mask>
-              </defs>
-            </svg>
-            <div className="l-how__globe-white-fill" aria-hidden />
-            {motionOk ? (
-              <video
-                ref={videoRef}
-                className="l-how__video"
-                style={{ mask: maskUrl, WebkitMask: maskUrl }}
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                aria-label="Destinasyon görüntüsü — örnek döngü"
-              >
-                <source src={LOCAL_LOOP} type="video/mp4" />
-                <source src={FALLBACK_LOOP} type="video/mp4" />
-              </video>
-            ) : (
-              <div
-                className="l-how__video l-how__video--static"
-                style={{ mask: maskUrl, WebkitMask: maskUrl }}
-                aria-hidden
-              />
-            )}
-            <img
-              className="l-how__globe-line"
-              src="/landing-globe-line.png"
-              alt=""
-              width={800}
-              height={800}
-              decoding="async"
-              draggable={false}
-            />
-          </div>
-          <p className="l-how__visual-caption">
-            {motionOk
-              ? 'Deniz, dağ ve şehir kareleri kara parçalarının içinde döner.'
-              : 'Hareket azaltıldı: sabit renk aynı maske ile gösteriliyor.'}
-          </p>
+              {extra === 'trip' ? (
+                <div className="l-how__embed l-how__embed--flush">
+                  <MiniTripCard />
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+
+        <div className="l-how__actions">
+          <Link href="/chat" className="l-how__btn l-how__btn--primary">
+            Atlas&apos;a sor
+          </Link>
+          <Link href="/explore" className="l-how__btn l-how__btn--ghost">
+            Keşfet
+          </Link>
         </div>
       </div>
     </section>

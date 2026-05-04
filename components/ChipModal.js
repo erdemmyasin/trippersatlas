@@ -632,7 +632,7 @@ function DestModal({ onSave, onClose, initialDestinationSummary }) {
 }
 
 /* ── Tarihler ── */
-function DatesModal({ onSave }) {
+export function DatesModal({ onSave }) {
   const dmInit = loadDatesModalState();
   const [tab, setTab] = useState(dmInit.tab);
   const [startDate, setStartDate] = useState(dmInit.startDate);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftRight,
@@ -15,16 +15,31 @@ import {
   Plane,
   Star,
   Sparkles,
+  Hotel,
+  MapPin,
+  Calendar,
+  Users,
 } from 'lucide-react';
 import {
   useIsPhoneLayout,
   useIsCompactSearchLayout,
   useSearchMapSplitWide,
-  CounterMini,
 } from '@/components/SearchScreenPrimitives';
 import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import QuickPlanMap from '@/components/QuickPlanMap';
+import StaySearchScreen from '@/components/StaySearchScreen';
+import TourLodgingToolbar, { tourAirportBoxLine } from '@/components/TourLodgingToolbar';
+import {
+  QuickPlanCalendarPopover,
+  QuickPlanAirportPickerPanel,
+  QuickPlanFlightPaxPanel,
+  formatShortRangeTR,
+  formatSingleDateTR,
+} from '@/components/QuickPlanAnchoredWidgets';
+import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
 import { airportFromStatic, normalizeIata, centerFromMarkers } from '@/lib/airportsGeo';
+import { qp } from '@/lib/quickPlanFilterStyles';
+import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 
 function parseHm(t) {
   if (!t || typeof t !== 'string') return 0;
@@ -75,6 +90,26 @@ function fmtRouteLabel(originCode, destCode) {
   return `${left} → ${right}`;
 }
 
+function cityFromAirportCode(code) {
+  const ap = airportFromStatic(normalizeIata(code));
+  if (!ap?.name) return 'İstanbul';
+  let n = ap.name.replace(/\s*\([^)]+\)\s*$/, '').trim();
+  n = n.replace(/\s*Havalimanı.*$/i, '').trim();
+  n = n.replace(/\s+Airport.*$/i, '').trim();
+  return n || 'İstanbul';
+}
+
+function tourLodgingSeed(origin, destination, dateOut, dateIn) {
+  const s = `${normalizeIata(origin)}|${normalizeIata(destination)}|${dateOut}|${dateIn}`;
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return Math.abs(h) % 2147483646 || 1;
+}
+
+function tourPackageTitle(hotelName, includeCar) {
+  return `${hotelName} + Uçuş${includeCar ? ' + Araç' : ''}`;
+}
+
 const HOTELS = [
   { title: 'Radisson Blu', sub: 'İstanbul · 5★', nights: '3 gece' },
   { title: 'Rixos Premium', sub: 'Antalya · 5★', nights: '5 gece' },
@@ -116,12 +151,20 @@ function SkeletonCards({ compact }) {
   );
 }
 
-export default function FlightSearchScreen() {
+export default function FlightSearchScreen({
+  /** Üst bar başlığı (ör. tur sayfasında "Turlar") */
+  title = 'Uçuş',
+  /** true ise gidiş-dönüş / tek yön seçimi gösterilmez; her zaman gidiş+dönüş aranır */
+  hideTripTypeToggle = false,
+  /** true: üst şerit uçuş filtresi kalır, sonuçlar konaklama (otel) kartlarıdır */
+  lodgingTourResults = false,
+} = {}) {
   const { currency: prefCurrency, locale } = useLocaleCurrency();
   const isPhone = useIsPhoneLayout();
   const isCompact = useIsCompactSearchLayout();
   const splitWide = useSearchMapSplitWide(1100);
   const [tripType, setTripType] = useState('round');
+  const effectiveTripType = hideTripTypeToggle ? 'round' : tripType;
   const [origin, setOrigin] = useState('AYT');
   const [destination, setDestination] = useState('IST');
   const [dateOut, setDateOut] = useState(() => new Date().toISOString().slice(0, 10));
@@ -132,13 +175,21 @@ export default function FlightSearchScreen() {
   });
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
-  const [infants, setInfants] = useState(0);
+  const [infantsLap, setInfantsLap] = useState(0);
+  const [infantsSeat, setInfantsSeat] = useState(0);
+  /** Tur konaklama: her odanın yetişkin/çocuk sayısı */
+  const [lodgingGuestRooms, setLodgingGuestRooms] = useState(() => [
+    { adults: 1, children: 0, infantsLap: 0, infantsSeat: 0 },
+  ]);
   const [cabin, setCabin] = useState('ECONOMY');
 
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [rawFlights, setRawFlights] = useState([]);
+  /** Konaklama aramasını tetikler; seed gidiş gününü tarih seçicideki gün ile eşler (stale browseDate sorunu olmaz) */
+  const [stayTourKick, setStayTourKick] = useState(() => ({ n: 0, seed: 0 }));
   const [mockBanner, setMockBanner] = useState(false);
+  const [includeCarAddon, setIncludeCarAddon] = useState(false);
   const [savedIds, setSavedIds] = useState(() => new Set());
   const [likedIds, setLikedIds] = useState(() => new Set());
 
@@ -162,12 +213,111 @@ export default function FlightSearchScreen() {
   const [flightMapMarkers, setFlightMapMarkers] = useState([]);
   const [browseDate, setBrowseDate] = useState(() => new Date().toISOString().slice(0, 10));
 
+  const flightBarRef = useRef(null);
+  const originBtnRef = useRef(null);
+  const destBtnRef = useRef(null);
+  const dateBtnRef = useRef(null);
+  const paxBtnRef = useRef(null);
+  const origPopoverRef = useRef(null);
+  const destPopoverRef = useRef(null);
+  const datePopoverRef = useRef(null);
+  const paxPopoverRef = useRef(null);
+
+  const [airWhich, setAirWhich] = useState(null);
+  const [airQuery, setAirQuery] = useState('');
+  const [airPopLayout, setAirPopLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
+
+  const [datePopOpen, setDatePopOpen] = useState(false);
+  const [datePopLayout, setDatePopLayout] = useState({ top: 0, left: 10 });
+
+  const [paxPopOpen, setPaxPopOpen] = useState(false);
+  const [paxPopLayout, setPaxPopLayout] = useState({ top: 0, left: 0, width: 'min(380px, calc(100vw - 20px))' });
+
+  const closeQuickFlightPanels = useCallback(() => {
+    setAirWhich(null);
+    setDatePopOpen(false);
+    setPaxPopOpen(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!airWhich) return undefined;
+    const el = airWhich === 'o' ? originBtnRef.current : destBtnRef.current;
+    function u() {
+      setAirPopLayout({ ...popoverCoords(el, 340), width: 'min(340px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [airWhich]);
+
+  useLayoutEffect(() => {
+    if (!datePopOpen) return undefined;
+    const el = dateBtnRef.current;
+    function u() {
+      setDatePopLayout(datePanelCoords(el, 504));
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [datePopOpen]);
+
+  useLayoutEffect(() => {
+    if (!paxPopOpen) return undefined;
+    const el = paxBtnRef.current;
+    function u() {
+      setPaxPopLayout({ ...popoverCoords(el, 380), width: 'min(380px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [paxPopOpen]);
+
+  const quickFlightPanelsOpen =
+    !lodgingTourResults && !!(airWhich || datePopOpen || paxPopOpen);
+
+  const ignoreQuickFlightPointer = useCallback(
+    (t) =>
+      !!(flightBarRef.current?.contains(t)) ||
+      !!(origPopoverRef.current?.contains(t)) ||
+      !!(destPopoverRef.current?.contains(t)) ||
+      !!(datePopoverRef.current?.contains(t)) ||
+      !!(paxPopoverRef.current?.contains(t)),
+    []
+  );
+
+  useQuickPlanBarDismiss(quickFlightPanelsOpen, ignoreQuickFlightPointer, closeQuickFlightPanels);
+
   const flightMapCenter = useMemo(() => centerFromMarkers(flightMapMarkers), [flightMapMarkers]);
 
   const mapsKey = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY : '';
   const showFlightMapUi = !!mapsKey && flightMapMarkers.length > 0;
 
   useEffect(() => {
+    if (!lodgingTourResults) return;
+    const ta = lodgingGuestRooms.reduce((s, r) => s + (Number(r.adults) || 0), 0);
+    const tc = lodgingGuestRooms.reduce((s, r) => s + (Number(r.children) || 0), 0);
+    const til = lodgingGuestRooms.reduce((s, r) => s + (Number(r.infantsLap) || 0), 0);
+    const tis = lodgingGuestRooms.reduce((s, r) => s + (Number(r.infantsSeat) || 0), 0);
+    setAdults(Math.max(1, ta));
+    setChildren(tc);
+    setInfantsLap(til);
+    setInfantsSeat(tis);
+  }, [lodgingTourResults, lodgingGuestRooms]);
+
+  useEffect(() => {
+    if (lodgingTourResults) return;
     if (!hasSearched || !mapsKey) {
       setFlightMapMarkers([]);
       return;
@@ -229,7 +379,7 @@ export default function FlightSearchScreen() {
     return () => {
       cancelled = true;
     };
-  }, [hasSearched, origin, destination, mapsKey]);
+  }, [hasSearched, origin, destination, mapsKey, lodgingTourResults]);
 
   const airlines = useMemo(() => {
     const m = new Map();
@@ -345,11 +495,27 @@ export default function FlightSearchScreen() {
   const splitFlightDesktop =
     hasSearched && splitWide && !loading && filteredSorted.length > 0 && showFlightMapUi;
 
+  const tourStayEmbedConfig = useMemo(
+    () => ({
+      requestId: stayTourKick.n,
+      city: cityFromAirportCode(destination),
+      mockSeed: stayTourKick.seed,
+      listedHotelTitle: (h) => tourPackageTitle(h.name, includeCarAddon),
+    }),
+    [stayTourKick.n, stayTourKick.seed, destination, includeCarAddon]
+  );
+
   const search = useCallback(
     async (outDateOverride) => {
       const outD = outDateOverride != null ? outDateOverride : dateOut;
       setBrowseDate(outD);
       if (outDateOverride != null) setDateOut(outDateOverride);
+      if (lodgingTourResults) {
+        setHasSearched(true);
+        const seed = tourLodgingSeed(origin, destination, outD, dateIn);
+        setStayTourKick((prev) => ({ n: prev.n + 1, seed }));
+        return;
+      }
       setLoading(true);
       setHasSearched(true);
       setMockBanner(false);
@@ -361,10 +527,10 @@ export default function FlightSearchScreen() {
             origin: origin.trim(),
             destination: destination.trim(),
             date: outD,
-            returnDate: tripType === 'round' ? dateIn : null,
+            returnDate: effectiveTripType === 'round' ? dateIn : null,
             adults,
             children,
-            infants,
+            infants: infantsLap + infantsSeat,
             cabinClass: cabin,
             currency: prefCurrency,
           }),
@@ -378,7 +544,20 @@ export default function FlightSearchScreen() {
         setLoading(false);
       }
     },
-    [origin, destination, dateOut, dateIn, tripType, adults, children, infants, cabin, prefCurrency]
+    [
+      lodgingTourResults,
+      origin,
+      destination,
+      dateOut,
+      dateIn,
+      effectiveTripType,
+      adults,
+      children,
+      infantsLap,
+      infantsSeat,
+      cabin,
+      prefCurrency,
+    ]
   );
 
   const shiftFlightBrowseDay = useCallback(
@@ -397,6 +576,13 @@ export default function FlightSearchScreen() {
     const t = origin;
     setOrigin(destination);
     setDestination(t);
+  }
+
+  function openFlightAir(which) {
+    setDatePopOpen(false);
+    setPaxPopOpen(false);
+    setAirWhich((prev) => (prev === which ? null : which));
+    setAirQuery(which === 'o' ? origin : destination);
   }
 
   function toggleAirline(name) {
@@ -426,85 +612,85 @@ export default function FlightSearchScreen() {
         ))}
       </div>
 
-      <div style={st.filterTitle}>Kabin</div>
-      <div style={st.tabs}>
-        <button
-          type="button"
-          onClick={() => setCabin('ECONOMY')}
-          style={{
-            ...st.tabBtn,
-            ...(cabin === 'ECONOMY' ? st.tabBtnOn : {}),
-          }}
-        >
-          Ekonomi
-        </button>
-        <button
-          type="button"
-          onClick={() => setCabin('BUSINESS')}
-          style={{
-            ...st.tabBtn,
-            ...(cabin === 'BUSINESS' ? st.tabBtnOn : {}),
-          }}
-        >
-          Business
-        </button>
-      </div>
+          <div style={st.filterTitle}>Kabin</div>
+          <div style={st.tabs}>
+            <button
+              type="button"
+              onClick={() => setCabin('ECONOMY')}
+              style={{
+                ...st.tabBtn,
+                ...(cabin === 'ECONOMY' ? st.tabBtnOn : {}),
+              }}
+            >
+              Ekonomi
+            </button>
+            <button
+              type="button"
+              onClick={() => setCabin('BUSINESS')}
+              style={{
+                ...st.tabBtn,
+                ...(cabin === 'BUSINESS' ? st.tabBtnOn : {}),
+              }}
+            >
+              Business
+            </button>
+          </div>
 
-      <div style={st.filterTitle}>Aktarma</div>
-      <label style={st.ckRow}>
-        <input type="checkbox" checked={stopDirect} onChange={(e) => setStopDirect(e.target.checked)} />
-        Direkt
-      </label>
-      <label style={st.ckRow}>
-        <input type="checkbox" checked={stopOne} onChange={(e) => setStopOne(e.target.checked)} />
-        1 aktarma
-      </label>
-      <label style={st.ckRow}>
-        <input type="checkbox" checked={stopTwoPlus} onChange={(e) => setStopTwoPlus(e.target.checked)} />
-        2+ aktarma
-      </label>
-
-      <div style={st.filterTitle}>Kalkış saati</div>
-      <RangeDual
-        min={bounds.dep[0]}
-        max={bounds.dep[1]}
-        value={depRange}
-        onChange={setDepRange}
-        format={(v) => {
-          const h = Math.floor(v / 60);
-          const m = v % 60;
-          return `${h}:${String(m).padStart(2, '0')}`;
-        }}
-      />
-
-      <div style={st.filterTitle}>İniş saati</div>
-      <RangeDual
-        min={bounds.arr[0]}
-        max={bounds.arr[1]}
-        value={arrRange}
-        onChange={setArrRange}
-        format={(v) => {
-          const h = Math.floor(v / 60);
-          const m = v % 60;
-          return `${h}:${String(m).padStart(2, '0')}`;
-        }}
-      />
-
-      <div style={st.filterTitle}>Havayolu</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
-        {airlines.map((a) => (
-          <label key={a.name} style={st.ckRow}>
-            <input
-              type="checkbox"
-              checked={airlinePick[a.name] !== false}
-              onChange={() => toggleAirline(a.name)}
-            />
-            <span style={{ marginLeft: 6 }}>{a.name}</span>
-            <span style={{ color: 'var(--ta-ink-subtle)', fontSize: 11, marginLeft: 4 }}>({a.code})</span>
+          <div style={st.filterTitle}>Aktarma</div>
+          <label style={st.ckRow}>
+            <input type="checkbox" checked={stopDirect} onChange={(e) => setStopDirect(e.target.checked)} />
+            Direkt
           </label>
-        ))}
-        {!airlines.length ? <span style={st.mutedSm}>Sonuç yok</span> : null}
-      </div>
+          <label style={st.ckRow}>
+            <input type="checkbox" checked={stopOne} onChange={(e) => setStopOne(e.target.checked)} />
+            1 aktarma
+          </label>
+          <label style={st.ckRow}>
+            <input type="checkbox" checked={stopTwoPlus} onChange={(e) => setStopTwoPlus(e.target.checked)} />
+            2+ aktarma
+          </label>
+
+          <div style={st.filterTitle}>Kalkış saati</div>
+          <RangeDual
+            min={bounds.dep[0]}
+            max={bounds.dep[1]}
+            value={depRange}
+            onChange={setDepRange}
+            format={(v) => {
+              const h = Math.floor(v / 60);
+              const m = v % 60;
+              return `${h}:${String(m).padStart(2, '0')}`;
+            }}
+          />
+
+          <div style={st.filterTitle}>İniş saati</div>
+          <RangeDual
+            min={bounds.arr[0]}
+            max={bounds.arr[1]}
+            value={arrRange}
+            onChange={setArrRange}
+            format={(v) => {
+              const h = Math.floor(v / 60);
+              const m = v % 60;
+              return `${h}:${String(m).padStart(2, '0')}`;
+            }}
+          />
+
+          <div style={st.filterTitle}>Havayolu</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
+            {airlines.map((a) => (
+              <label key={a.name} style={st.ckRow}>
+                <input
+                  type="checkbox"
+                  checked={airlinePick[a.name] !== false}
+                  onChange={() => toggleAirline(a.name)}
+                />
+                <span style={{ marginLeft: 6 }}>{a.name}</span>
+                <span style={{ color: 'var(--ta-ink-subtle)', fontSize: 11, marginLeft: 4 }}>({a.code})</span>
+              </label>
+            ))}
+            {!airlines.length ? <span style={st.mutedSm}>Sonuç yok</span> : null}
+          </div>
 
       <div style={st.filterTitle}>Fiyat</div>
       <RangeDual
@@ -515,14 +701,14 @@ export default function FlightSearchScreen() {
         format={(v) => `₺${Math.round(v).toLocaleString('tr-TR')}`}
       />
 
-      <div style={st.filterTitle}>Süre</div>
-      <RangeDual
-        min={bounds.dur[0]}
-        max={Math.max(bounds.dur[1], bounds.dur[0] + 1)}
-        value={durRange}
-        onChange={setDurRange}
-        format={(v) => fmtDuration(v)}
-      />
+          <div style={st.filterTitle}>Süre</div>
+          <RangeDual
+            min={bounds.dur[0]}
+            max={Math.max(bounds.dur[1], bounds.dur[0] + 1)}
+            value={durRange}
+            onChange={setDurRange}
+            format={(v) => fmtDuration(v)}
+          />
     </>
   );
 
@@ -535,7 +721,7 @@ export default function FlightSearchScreen() {
 
   const flightListBody = (
     <>
-      {isCompact && hasSearched ? (
+      {isCompact && hasSearched && !lodgingTourResults ? (
         <button type="button" style={st.mobileFilterFab} onClick={() => setFilterDrawer(true)}>
           <SlidersHorizontal size={18} />
           Filtreler
@@ -580,9 +766,11 @@ export default function FlightSearchScreen() {
           <span style={st.emptyPlane} aria-hidden>
             <Plane size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
           </span>
-          <p style={st.emptyTitle}>Uçuş</p>
+          <p style={st.emptyTitle}>{title}</p>
           <p style={st.emptySub}>
-            Havalimanı kodlarıyla arayın; gidiş-dönüş veya tek yön seçin, fiyatları karşılaştırın.
+            {hideTripTypeToggle
+              ? 'Havalimanı kodlarıyla arayın, gidiş ve dönüş tarihlerini seçin, fiyatları karşılaştırın.'
+              : 'Havalimanı kodlarıyla arayın; gidiş-dönüş veya tek yön seçin, fiyatları karşılaştırın.'}
           </p>
         </div>
       ) : loading ? (
@@ -593,7 +781,7 @@ export default function FlightSearchScreen() {
             <Plane size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
           </span>
           <p style={st.emptyTitle}>Bu filtrelere uygun uçuş yok</p>
-          <p style={st.emptySub}>Filtreleri genişletmeyi veya sıralamayı değiştirmeyi deneyin.</p>
+          <p style={st.emptySub}>Fiyat aralığını veya sıralamayı yeniden deneyin.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -728,7 +916,7 @@ export default function FlightSearchScreen() {
         </>
       ) : null}
 
-      {isCompact && hasSearched && !loading && showFlightMapUi ? (
+      {isCompact && hasSearched && !loading && showFlightMapUi && !lodgingTourResults ? (
         <div
           style={{
             marginTop: 20,
@@ -754,201 +942,321 @@ export default function FlightSearchScreen() {
 
   return (
     <div style={st.wrap}>
-      <div style={st.stickyBarTop}>
-        <div style={st.stickyInner}>
-          <div style={{ ...st.topBarRow, ...(isPhone ? st.topBarRowMobile : {}) }}>
+      <div style={qp.stickyTop}>
+        <div style={qp.stickyInner}>
+          <div style={{ ...qp.topBarRow, ...(isPhone ? qp.topBarRowMobile : {}) }}>
             <div
               style={
                 pillBarTabletScroll
-                  ? st.pillScrollOuter
+                  ? qp.pillScrollOuter
                   : { width: '100%', minWidth: 0, display: 'flex', justifyContent: isPhone ? 'stretch' : 'center' }
               }
             >
               <div
                 style={{
-                  ...st.pillBar,
-                  ...(isPhone ? st.pillBarMobile : st.pillBarDesktop),
-                  ...(pillBarTabletScroll ? st.pillBarTabletWide : {}),
+                  ...qp.barCluster,
+                  ...(lodgingTourResults
+                    ? { width: '100%', minWidth: 0 }
+                    : {
+                        ...(isPhone ? { justifyContent: 'center' } : {}),
+                        ...(pillBarTabletScroll ? { flexWrap: 'nowrap' } : {}),
+                      }),
                 }}
               >
-              <div
-                style={{
-                  ...st.flightBarCluster,
-                  ...(isPhone ? { justifyContent: 'center' } : {}),
-                  ...(pillBarTabletScroll ? { flexWrap: 'nowrap' } : {}),
-                }}
-              >
-                <div style={{ ...st.titlePill, alignSelf: 'center' }}>
-                  <span style={st.titleStar} aria-hidden>
-                    <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent)" />
-                  </span>
-                  <span style={st.titleText}>Uçuş</span>
-                </div>
-                <span style={{ ...st.barSep, ...(isPhone ? {} : st.barSepTall) }} />
-                <div style={{ ...st.toggleCol, ...(isPhone ? { width: '100%' } : { alignSelf: 'center' }) }}>
-                  <div style={{ ...st.tripToggles, justifyContent: 'center' }}>
+                {lodgingTourResults ? (
+                  <TourLodgingToolbar
+                    title={title}
+                    origin={origin}
+                    destination={destination}
+                    setOrigin={setOrigin}
+                    setDestination={setDestination}
+                    onSwap={swapAirports}
+                    dateOut={dateOut}
+                    dateIn={dateIn}
+                    setDateOut={setDateOut}
+                    setDateIn={setDateIn}
+                    guestRooms={lodgingGuestRooms}
+                    setGuestRooms={setLodgingGuestRooms}
+                    includeCarAddon={includeCarAddon}
+                    setIncludeCarAddon={setIncludeCarAddon}
+                    onSearch={() => search()}
+                  />
+                ) : (
+                  <div ref={flightBarRef} style={{ display: 'contents' }}>
+                    <div style={{ ...qp.titlePill, alignSelf: 'center' }}>
+                      <span style={qp.spark} aria-hidden>
+                        <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent)" />
+                      </span>
+                      <span style={qp.titleTxt}>{title}</span>
+                    </div>
+                    {!hideTripTypeToggle ? (
+                      <>
+                        {!isPhone ? <span style={qp.barSep} /> : null}
+                        <div
+                          style={{
+                            ...qp.toggleRow,
+                            alignSelf: 'center',
+                            ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
+                          }}
+                        >
+                          <button
+                            type="button"
+                            style={{ ...qp.tripMiniPill, ...(tripType === 'round' ? qp.tripMiniPillOn : {}) }}
+                            onClick={() => {
+                              closeQuickFlightPanels();
+                              setTripType('round');
+                            }}
+                          >
+                            Gidiş-Dönüş
+                          </button>
+                          <button
+                            type="button"
+                            style={{ ...qp.tripMiniPill, ...(tripType === 'one' ? qp.tripMiniPillOn : {}) }}
+                            onClick={() => {
+                              closeQuickFlightPanels();
+                              setTripType('one');
+                            }}
+                          >
+                            Tek Yön
+                          </button>
+                        </div>
+                        {!isPhone ? <span style={qp.barSep} /> : null}
+                      </>
+                    ) : null}
+                    <div style={qp.linkedRoute}>
+                      <div style={qp.routeShell}>
+                        <button
+                          ref={originBtnRef}
+                          type="button"
+                          style={qp.routeSegBtn}
+                          onClick={() => openFlightAir('o')}
+                          aria-expanded={airWhich === 'o'}
+                          aria-haspopup="dialog"
+                        >
+                          <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                          <span style={{ minWidth: 0, flex: 1 }}>
+                            <span style={qp.fieldLbl}>Kalkış</span>
+                            <span
+                              style={{
+                                ...qp.fieldVal,
+                                ...(normalizeIata(origin) ? {} : qp.fieldPlaceholder),
+                              }}
+                            >
+                              {normalizeIata(origin) ? tourAirportBoxLine(origin) : 'Kalkış havalimanı'}
+                            </span>
+                          </span>
+                        </button>
+                        <button type="button" style={qp.swapFab} onClick={swapAirports} aria-label="Nereden nereye değiştir">
+                          <ArrowLeftRight size={15} color="#1a73e8" />
+                        </button>
+                        <button
+                          ref={destBtnRef}
+                          type="button"
+                          style={qp.routeSegBtn}
+                          onClick={() => openFlightAir('d')}
+                          aria-expanded={airWhich === 'd'}
+                          aria-haspopup="dialog"
+                        >
+                          <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                          <span style={{ minWidth: 0, flex: 1 }}>
+                            <span style={qp.fieldLbl}>Varış</span>
+                            <span
+                              style={{
+                                ...qp.fieldVal,
+                                ...(normalizeIata(destination) ? {} : qp.fieldPlaceholder),
+                              }}
+                            >
+                              {normalizeIata(destination) ? tourAirportBoxLine(destination) : 'Varış havalimanı'}
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                     <button
+                      ref={dateBtnRef}
                       type="button"
-                      style={{ ...st.miniPill, ...(tripType === 'round' ? st.miniPillOn : {}) }}
-                      onClick={() => setTripType('round')}
-                    >
-                      Gidiş-Dönüş
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...st.miniPill, ...(tripType === 'one' ? st.miniPillOn : {}) }}
-                      onClick={() => setTripType('one')}
-                    >
-                      Tek Yön
-                    </button>
-                  </div>
-                </div>
-                <span style={{ ...st.barSep, ...(isPhone ? {} : st.barSepTall) }} />
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    flexWrap: pillBarTabletScroll ? 'nowrap' : 'wrap',
-                    justifyContent: 'center',
-                    alignSelf: 'center',
-                    ...(isPhone ? { width: '100%' } : {}),
-                  }}
-                >
-                  <div style={st.airportField}>
-                    <span style={st.fieldLbl}>Kalkış</span>
-                    <input
-                      style={st.flightCodeInp}
-                      value={origin}
-                      onChange={(e) => setOrigin(e.target.value.toUpperCase())}
-                      placeholder="AYT"
-                      maxLength={4}
-                      aria-label="Kalkış havalimanı kodu"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    style={st.swapChip}
-                    onClick={swapAirports}
-                    aria-label="Nereden nereye değiştir"
-                  >
-                    <ArrowLeftRight size={16} color="var(--ta-ink)" />
-                  </button>
-                  <div style={st.airportField}>
-                    <span style={st.fieldLbl}>Varış</span>
-                    <input
-                      style={st.flightCodeInp}
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value.toUpperCase())}
-                      placeholder="IST"
-                      maxLength={4}
-                      aria-label="Varış havalimanı kodu"
-                    />
-                  </div>
-                </div>
-                <span style={{ ...st.barDot, alignSelf: 'center' }}>·</span>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    flexWrap: pillBarTabletScroll ? 'nowrap' : 'wrap',
-                    justifyContent: 'center',
-                    alignSelf: 'center',
-                    ...(isPhone ? { width: '100%' } : {}),
-                  }}
-                >
-                  <div style={st.airportField}>
-                    <span style={st.fieldLbl}>Gidiş</span>
-                    <input
-                      style={st.chipDate}
-                      type="date"
-                      value={dateOut}
-                      onChange={(e) => setDateOut(e.target.value)}
-                      aria-label="Gidiş tarihi"
-                    />
-                  </div>
-                  <span style={st.dateArrow}>→</span>
-                  <div style={st.airportField}>
-                    <span style={st.fieldLbl}>Dönüş</span>
-                    <input
                       style={{
-                        ...st.chipDate,
-                        opacity: tripType === 'one' ? 0.4 : 1,
-                        pointerEvents: tripType === 'one' ? 'none' : 'auto',
+                        ...qp.fieldCard,
+                        ...qp.fieldCardGrow,
+                        ...qp.fieldCardStatic,
+                        flex: '1 1 200px',
+                        ...(isPhone ? { width: '100%' } : {}),
                       }}
-                      type="date"
-                      value={dateIn}
-                      disabled={tripType === 'one'}
-                      onChange={(e) => setDateIn(e.target.value)}
-                      aria-label="Dönüş tarihi"
-                    />
+                      onClick={() => {
+                        setAirWhich(null);
+                        setPaxPopOpen(false);
+                        setDatePopOpen((v) => !v);
+                      }}
+                      aria-expanded={datePopOpen}
+                      aria-haspopup="dialog"
+                    >
+                      <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={qp.fieldLbl}>{effectiveTripType === 'round' ? 'Tarihler' : 'Gidiş'}</span>
+                        <span style={qp.fieldVal}>
+                          {effectiveTripType === 'round'
+                            ? formatShortRangeTR(dateOut, dateIn)
+                            : formatSingleDateTR(dateOut)}
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      ref={paxBtnRef}
+                      type="button"
+                      style={{
+                        ...qp.fieldCard,
+                        ...qp.fieldCardGrow,
+                        ...qp.fieldCardStatic,
+                        flex: '1 1 160px',
+                        ...(isPhone ? { width: '100%' } : {}),
+                      }}
+                      onClick={() => {
+                        setAirWhich(null);
+                        setDatePopOpen(false);
+                        setPaxPopOpen((v) => !v);
+                      }}
+                      aria-expanded={paxPopOpen}
+                      aria-haspopup="dialog"
+                    >
+                      <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={qp.fieldLbl}>Yolcular</span>
+                        <span style={qp.fieldVal}>
+                          {`${adults + children + infantsLap + infantsSeat} yolcu`}
+                        </span>
+                      </span>
+                    </button>
+                    {!isPhone ? <span style={qp.barSep} /> : null}
+                    <div
+                      style={{
+                        alignSelf: 'center',
+                        flexShrink: 0,
+                        ...(isPhone ? { width: '100%', marginTop: 8 } : {}),
+                      }}
+                    >
+                      <button
+                        type="button"
+                        style={{
+                          ...qp.searchBtn,
+                          ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
+                          ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
+                        }}
+                        onClick={() => {
+                          closeQuickFlightPanels();
+                          search();
+                        }}
+                        disabled={loading}
+                        aria-label={loading ? 'Aranıyor' : 'Ara'}
+                      >
+                        <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
+                        {loading ? 'Aranıyor…' : 'Ara'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <span style={{ ...st.barDot, alignSelf: 'center' }}>·</span>
-                <div
-                  style={{
-                    ...st.pillGroup,
-                    ...(isPhone ? st.pillGroupMobile : {}),
-                    alignSelf: 'center',
-                  }}
-                >
-                  <span style={st.pillGroupLbl}>Yolcular</span>
-                  <div
-                    style={{
-                      ...st.flightPaxRow,
-                      justifyContent: 'center',
-                      ...(isPhone ? { alignSelf: 'stretch', width: '100%' } : {}),
-                    }}
-                  >
-                    <div style={st.flightPaxSeg}>
-                      <CounterMini compact label="Yet." value={adults} min={1} max={9} onChange={setAdults} />
-                    </div>
-                    <div style={st.flightPaxSeg}>
-                      <CounterMini compact label="Çoc." value={children} min={0} max={8} onChange={setChildren} />
-                    </div>
-                    <div style={{ ...st.flightPaxSeg, ...st.flightPaxSegLast }}>
-                      <CounterMini compact label="Beb." value={infants} min={0} max={8} onChange={setInfants} />
-                    </div>
-                  </div>
-                </div>
-                {!isPhone ? <span style={{ ...st.barSep, ...st.barSepTall }} /> : null}
-                <div
-                  style={{
-                    alignSelf: 'center',
-                    flexShrink: 0,
-                    ...(isPhone ? { width: '100%', marginTop: 8 } : {}),
-                  }}
-                >
-                  <button
-                    type="button"
-                    style={{
-                      ...st.searchBlack,
-                      ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
-                      ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
-                    }}
-                    onClick={() => search()}
-                    disabled={loading}
-                    aria-label={loading ? 'Aranıyor' : 'Ara'}
-                  >
-                    <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
-                    {loading ? 'Aranıyor…' : 'Ara'}
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
-      </div>
+
+      {!lodgingTourResults ? (
+        <>
+          {airWhich === 'o' ? (
+            <QuickPlanAirportPickerPanel
+              innerRef={origPopoverRef}
+              layout={airPopLayout}
+              query={airQuery}
+              setQuery={setAirQuery}
+              onPickIata={(iata) => {
+                setOrigin(normalizeIata(iata));
+                setAirWhich(null);
+              }}
+              aria-label="Kalkış havalimanı"
+            />
+          ) : null}
+          {airWhich === 'd' ? (
+            <QuickPlanAirportPickerPanel
+              innerRef={destPopoverRef}
+              layout={airPopLayout}
+              query={airQuery}
+              setQuery={setAirQuery}
+              onPickIata={(iata) => {
+                setDestination(normalizeIata(iata));
+                setAirWhich(null);
+              }}
+              aria-label="Varış havalimanı"
+            />
+          ) : null}
+          <QuickPlanCalendarPopover
+            innerRef={datePopoverRef}
+            open={datePopOpen}
+            mode={effectiveTripType === 'round' ? 'range' : 'single'}
+            committedStart={dateOut}
+            committedEnd={dateIn}
+            layout={datePopLayout}
+            onApply={(s, e) => {
+              setDateOut(s);
+              setDateIn(effectiveTripType === 'round' ? e : s);
+              setDatePopOpen(false);
+            }}
+            aria-label={effectiveTripType === 'round' ? 'Gidiş ve dönüş tarihleri' : 'Gidiş tarihi'}
+          />
+          {paxPopOpen ? (
+            <QuickPlanFlightPaxPanel
+              innerRef={paxPopoverRef}
+              layout={paxPopLayout}
+              adults={adults}
+              setAdults={setAdults}
+              childrenCount={children}
+              setChildrenCount={setChildren}
+              infantsLap={infantsLap}
+              setInfantsLap={setInfantsLap}
+              infantsSeat={infantsSeat}
+              setInfantsSeat={setInfantsSeat}
+            />
+          ) : null}
+        </>
+      ) : null}
 
       <div
         style={{
           ...st.mainScroll,
-          ...(splitFlightDesktop ? st.mainScrollSplit : {}),
+          ...(splitFlightDesktop && !lodgingTourResults ? st.mainScrollSplit : {}),
+          ...(lodgingTourResults ? { overflow: 'hidden', display: 'flex', flexDirection: 'column' } : {}),
         }}
       >
-        {splitFlightDesktop ? (
+        {lodgingTourResults ? (
+          !hasSearched ? (
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                overflow: 'auto',
+              }}
+            >
+              <div style={st.empty}>
+                <span style={st.emptyPlane} aria-hidden>
+                  <Hotel size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
+                </span>
+                <p style={st.emptyTitle}>{title}</p>
+                <p style={st.emptySub}>
+                  Üstteki Varış koduna göre ({cityFromAirportCode(destination)}) oteller yüklenecek. Ara’ya bastığınızda
+                  Konaklama ekranındaki gibi hızlı filtreler, sonuç listesi ve harita alanı açılır. Kart adları: Otel +
+                  Uçuş
+                  {includeCarAddon ? ' + Araç' : ''} biçimindedir.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {stayTourKick.n > 0 ? <StaySearchScreen tourEmbed={tourStayEmbedConfig} /> : null}
+            </div>
+          )
+        ) : splitFlightDesktop ? (
           <div style={st.bodySplitMap}>
             <aside style={st.filterAsideSplit}>{filterPanel}</aside>
             <div style={st.listScrollColFlight}>{flightListBody}</div>
@@ -995,7 +1303,7 @@ export default function FlightSearchScreen() {
         )}
       </div>
 
-      {isCompact && filterDrawer ? (
+      {isCompact && filterDrawer && !lodgingTourResults ? (
         <div style={st.drawerOverlay} role="presentation" onClick={() => setFilterDrawer(false)}>
           <div style={st.drawer} role="dialog" aria-modal onClick={(e) => e.stopPropagation()}>
             <div style={st.drawerHead}>

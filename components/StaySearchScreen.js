@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import {
   Heart,
@@ -16,6 +16,8 @@ import {
   Sparkles,
   Star,
   Check,
+  Calendar,
+  Users,
 } from 'lucide-react';
 import { getMockHotels } from '@/lib/staySearchMock';
 import { placesToStayHotels } from '@/lib/stayGoogleAdapter';
@@ -24,7 +26,6 @@ import {
   useIsCompactSearchLayout,
   useSearchMapSplitWide,
   RangeDual,
-  CounterMini,
 } from '@/components/SearchScreenPrimitives';
 import { StayFiltersModal } from '@/components/StayFiltersModal';
 import QuickPlanMap from '@/components/QuickPlanMap';
@@ -34,6 +35,15 @@ import {
   defaultMapAnchorPreset,
   defaultHotelTextQueryPrefix,
 } from '@/lib/taRegion';
+import { qp } from '@/lib/quickPlanFilterStyles';
+import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
+import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
+import {
+  QuickPlanCalendarPopover,
+  QuickPlanStayGuestsPanel,
+  QuickPlanCityTextPanel,
+  formatShortRangeTR,
+} from '@/components/QuickPlanAnchoredWidgets';
 
 const STAR_OPTS = [1, 2, 3, 4, 5];
 const TYPE_OPTS = ['Otel', 'Apart', 'Villa', 'Hostel', 'Pansiyon'];
@@ -126,7 +136,8 @@ function StaySkeleton({ narrow }) {
   );
 }
 
-function StayMapPlaceholder({ hotels, hoveredId, setHoveredId, fillHeight = false }) {
+function StayMapPlaceholder({ hotels, hoveredId, setHoveredId, fillHeight = false, formatHotelTitle }) {
+  const fmt = typeof formatHotelTitle === 'function' ? formatHotelTitle : (h) => h.name;
   return (
     <div
       style={{
@@ -189,6 +200,7 @@ function StayMapPlaceholder({ hotels, hoveredId, setHoveredId, fillHeight = fals
       </div>
       {hotels.map((h) => {
         const active = hoveredId === h.id;
+        const disp = fmt(h);
         const priceStr = `₺${Math.round(h.priceNight).toLocaleString('tr-TR')}`;
         return (
           <div
@@ -207,7 +219,7 @@ function StayMapPlaceholder({ hotels, hoveredId, setHoveredId, fillHeight = fals
           >
             <button
               type="button"
-              title={`${h.name} · ${priceStr}/gece`}
+              title={`${disp} · ${priceStr}/gece`}
               onMouseEnter={() => setHoveredId(h.id)}
               onMouseLeave={() => setHoveredId(null)}
               style={{
@@ -223,7 +235,7 @@ function StayMapPlaceholder({ hotels, hoveredId, setHoveredId, fillHeight = fals
                 fontFamily: 'var(--font-sans)',
                 whiteSpace: 'nowrap',
               }}
-              aria-label={h.name}
+              aria-label={disp}
             >
               {priceStr}
             </button>
@@ -262,7 +274,7 @@ function StayMapPlaceholder({ hotels, hoveredId, setHoveredId, fillHeight = fals
             if (!h) return null;
             return (
               <>
-                {h.name}
+                {disp}
                 <span style={{ color: 'var(--ta-accent-deep)', marginLeft: 8 }}>
                   ₺{Math.round(h.priceNight).toLocaleString('tr-TR')}/gece
                 </span>
@@ -301,7 +313,12 @@ function buildDraftFromApplied({
   };
 }
 
-export default function StaySearchScreen() {
+/** @typedef {{ requestId: number, city: string, mockSeed?: number, listedHotelTitle?: (h: { name: string }) => string }} StayTourEmbed */
+
+export default function StaySearchScreen({
+  /** `/turlar`: üst uçuş çubuğu dışında tüm Stay düzeni şehirden tetiklenir */
+  tourEmbed = null,
+} = {}) {
   const isPhone = useIsPhoneLayout();
   const isCompact = useIsCompactSearchLayout();
   const splitWide = useSearchMapSplitWide(1100);
@@ -316,8 +333,8 @@ export default function StaySearchScreen() {
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
 
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(tourEmbed && tourEmbed.requestId > 0));
+  const [hasSearched, setHasSearched] = useState(() => Boolean(tourEmbed && tourEmbed.requestId > 0));
   const [raw, setRaw] = useState([]);
   const [saved, setSaved] = useState(() => new Set());
   const [liked, setLiked] = useState(() => new Set());
@@ -343,6 +360,86 @@ export default function StaySearchScreen() {
   const [modalDraft, setModalDraft] = useState(null);
   const [searchError, setSearchError] = useState(null);
   const searchThrottleRef = useRef(0);
+
+  const stayBarRef = useRef(null);
+  const cityBtnRef = useRef(null);
+  const dateBtnRef = useRef(null);
+  const paxBtnRef = useRef(null);
+  const stayCityPopRef = useRef(null);
+  const stayDatePopRef = useRef(null);
+  const stayPaxPopRef = useRef(null);
+
+  const [stayCityOpen, setStayCityOpen] = useState(false);
+  const [stayCityDraft, setStayCityDraft] = useState('');
+  const [stayCityLayout, setStayCityLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
+
+  const [stayDateOpen, setStayDateOpen] = useState(false);
+  const [stayDateLayout, setStayDateLayout] = useState({ top: 0, left: 10 });
+
+  const [stayPaxOpen, setStayPaxOpen] = useState(false);
+  const [stayPaxLayout, setStayPaxLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
+
+  const closeStayQuickPanels = useCallback(() => {
+    setStayCityOpen(false);
+    setStayDateOpen(false);
+    setStayPaxOpen(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (tourEmbed || !stayCityOpen) return undefined;
+    const el = cityBtnRef.current;
+    function u() {
+      setStayCityLayout({ ...popoverCoords(el, 340), width: 'min(340px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [tourEmbed, stayCityOpen]);
+
+  useLayoutEffect(() => {
+    if (tourEmbed || !stayDateOpen) return undefined;
+    const el = dateBtnRef.current;
+    function u() {
+      setStayDateLayout(datePanelCoords(el, 504));
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [tourEmbed, stayDateOpen]);
+
+  useLayoutEffect(() => {
+    if (tourEmbed || !stayPaxOpen) return undefined;
+    const el = paxBtnRef.current;
+    function u() {
+      setStayPaxLayout({ ...popoverCoords(el, 360), width: 'min(360px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [tourEmbed, stayPaxOpen]);
+
+  const stayQuickPanelsOpen = !tourEmbed && !!(stayCityOpen || stayDateOpen || stayPaxOpen);
+  const ignoreStayQuickPointer = useCallback(
+    (t) =>
+      !!(stayBarRef.current?.contains(t)) ||
+      !!(stayCityPopRef.current?.contains(t)) ||
+      !!(stayDatePopRef.current?.contains(t)) ||
+      !!(stayPaxPopRef.current?.contains(t)),
+    []
+  );
+  useQuickPlanBarDismiss(stayQuickPanelsOpen, ignoreStayQuickPointer, closeStayQuickPanels);
 
   const bounds = useMemo(() => {
     if (!raw.length) return { price: [1500, 8000], dist: [0, 15] };
@@ -457,6 +554,13 @@ export default function StaySearchScreen() {
     neighborhoods,
   ]);
 
+  const resolveListedTitle = useCallback(
+    (h) => (tourEmbed?.listedHotelTitle ? tourEmbed.listedHotelTitle(h) : h.name),
+    // Turda başlık fonksiyonu; turEmbed kimliği her render’da değişebilir, yalnızca formatter’ı izliyoruz
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listedHotelTitle değişince başlık güncellenir
+    [tourEmbed?.listedHotelTitle]
+  );
+
   const applyHotelList = useCallback((data) => {
     let pMin = Infinity;
     let pMax = -Infinity;
@@ -477,17 +581,14 @@ export default function StaySearchScreen() {
     setRaw(data);
   }, []);
 
-  const search = useCallback(async () => {
-    const now = Date.now();
-    if (now - searchThrottleRef.current < 500) return;
-    searchThrottleRef.current = now;
+  const fetchHotelsForCity = useCallback(async (cityStrInput, { mockSeed: seedOpt } = {}) => {
+    const cityStr = (cityStrInput || '').trim() || defaultStayCity();
 
     setLoading(true);
     setHasSearched(true);
     setSearchError(null);
     await new Promise((r) => setTimeout(r, 400));
 
-    const cityStr = city.trim() || defaultStayCity();
     let center = { ...defaultMapAnchorPreset() };
 
     try {
@@ -526,12 +627,29 @@ export default function StaySearchScreen() {
     } catch (e) {
       console.error('Places search failed:', e);
       setSearchError('Sonuç bulunamadı veya bağlantı hatası. Örnek veriler gösteriliyor.');
-      const data = getMockHotels({ city: cityStr, seed: Date.now() });
+      const seed = typeof seedOpt === 'number' ? seedOpt : Date.now();
+      const data = getMockHotels({ city: cityStr, seed });
       applyHotelList(data);
     } finally {
       setLoading(false);
     }
-  }, [city, applyHotelList]);
+  }, [applyHotelList]);
+
+  useEffect(() => {
+    if (!tourEmbed || tourEmbed.requestId < 1) return;
+    const cityStr = (tourEmbed.city || '').trim() || defaultStayCity();
+    setCity(cityStr);
+    void fetchHotelsForCity(cityStr, { mockSeed: tourEmbed.mockSeed });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnızca yeni paket araması (requestId/şehir/seed)
+  }, [tourEmbed?.requestId, tourEmbed?.city, tourEmbed?.mockSeed, fetchHotelsForCity]);
+
+  const search = useCallback(() => {
+    const now = Date.now();
+    if (now - searchThrottleRef.current < 500) return;
+    searchThrottleRef.current = now;
+    const cityStr = city.trim() || defaultStayCity();
+    void fetchHotelsForCity(cityStr, {});
+  }, [city, fetchHotelsForCity]);
 
   const googleMapMarkers = useMemo(() => {
     const out = [];
@@ -542,7 +660,7 @@ export default function StaySearchScreen() {
         id: h.id,
         lat: pos.lat,
         lng: pos.lng,
-        title: h.name,
+        title: resolveListedTitle(h),
         price:
           h.source === 'google' && h.priceLevelLabel && h.priceLevelLabel !== '—'
             ? `${h.priceLevelLabel} · ~₺${h.priceNight.toLocaleString('tr-TR')}`
@@ -552,7 +670,7 @@ export default function StaySearchScreen() {
       });
     }
     return out;
-  }, [filtered, mapAnchor]);
+  }, [filtered, mapAnchor, resolveListedTitle]);
 
   const stayMapCenter = useMemo(() => {
     if (googleMapMarkers.length === 0) return mapAnchor;
@@ -581,19 +699,20 @@ export default function StaySearchScreen() {
 
   const shareHotel = useCallback((h) => {
     if (typeof window === 'undefined') return;
+    const displayName = resolveListedTitle(h);
     const line = `₺${Number(h.priceNight).toLocaleString('tr-TR')}/gece`;
-    const blurb = `${h.name} · ${h.district} — ${line} (Atlas)`;
+    const blurb = `${displayName} · ${h.district} — ${line} (Atlas)`;
     const url = `${window.location.origin}/stay`;
     if (navigator.share) {
       navigator
-        .share({ title: h.name, text: blurb, url })
+        .share({ title: displayName, text: blurb, url })
         .catch(() => {
           navigator.clipboard?.writeText(`${blurb}\n${url}`).catch(() => {});
         });
       return;
     }
     navigator.clipboard?.writeText(`${blurb}\n${url}`).catch(() => {});
-  }, []);
+  }, [resolveListedTitle]);
 
   const openAllFilters = useCallback(() => {
     setModalDraft(
@@ -789,116 +908,185 @@ export default function StaySearchScreen() {
   const pillBarTabletScroll = isCompact && !isPhone;
 
   return (
-    <div style={fp.wrap}>
-      <div style={fp.sticky}>
-        <div style={fp.stickyInner}>
-          <div style={{ ...fp.topBarRow, ...(isPhone ? fp.topBarRowMobile : {}) }}>
-            <div
-              style={
-                pillBarTabletScroll
-                  ? fp.pillScrollOuter
-                  : { width: '100%', minWidth: 0, display: 'flex', justifyContent: isPhone ? 'stretch' : 'center' }
-              }
-            >
-            <div
-              style={{
-                ...fp.stayPillBar,
-                ...(isPhone ? fp.stayPillBarMobile : {}),
-                ...(pillBarTabletScroll ? fp.stayPillBarTabletWide : {}),
-              }}
-            >
-              <div style={{ ...fp.stayTitlePill, alignSelf: 'center' }}>
-                <span style={fp.stayStar} aria-hidden>
-                  <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent)" />
-                </span>
-                <span style={fp.stayTitleText}>Konaklama</span>
-              </div>
-              <span style={{ ...fp.barSep, alignSelf: 'center' }} />
-              <div style={{ ...fp.stayPillGroup, ...(isPhone ? fp.pillGroupMobile : {}) }}>
-                <span style={fp.pillGroupLbl}>Destinasyon</span>
-                <input
-                  type="text"
-                  style={{ ...fp.stayChipInp, ...(isPhone ? fp.stayFullWidth : {}) }}
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Şehir / bölge"
-                  aria-label="Şehir veya bölge"
-                />
-              </div>
-              {!isPhone ? <span style={{ ...fp.barDot, alignSelf: 'center' }}>·</span> : null}
+    <div style={{ ...fp.wrap, ...(tourEmbed ? { flex: 1, minHeight: 0 } : {}) }}>
+      <div style={qp.stickyTop}>
+        <div style={qp.stickyInner}>
+          {!tourEmbed ? (
+            <div style={{ ...qp.topBarRow, ...(isPhone ? qp.topBarRowMobile : {}) }}>
               <div
-                style={{
-                  ...fp.stayDatePair,
-                  ...(isPhone ? { width: '100%', justifyContent: 'center' } : { alignSelf: 'center' }),
-                  ...(pillBarTabletScroll ? { flexWrap: 'nowrap' } : {}),
-                }}
+                style={
+                  pillBarTabletScroll
+                    ? qp.pillScrollOuter
+                    : { width: '100%', minWidth: 0, display: 'flex', justifyContent: isPhone ? 'stretch' : 'center' }
+                }
               >
-                <div style={fp.stayDateField}>
-                  <span style={fp.stayChipFieldLbl}>Giriş</span>
-                  <input
-                    style={fp.stayChipDate}
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                    aria-label="Giriş tarihi"
-                  />
-                </div>
-                <span style={fp.stayDateArrowPair}>→</span>
-                <div style={fp.stayDateField}>
-                  <span style={fp.stayChipFieldLbl}>Çıkış</span>
-                  <input
-                    style={fp.stayChipDate}
-                    type="date"
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    aria-label="Çıkış tarihi"
-                  />
-                </div>
-              </div>
-              {!isPhone ? <span style={{ ...fp.barDot, alignSelf: 'center' }}>·</span> : null}
-              <div style={{ ...fp.stayPillGroup, ...(isPhone ? fp.pillGroupMobile : {}) }}>
-                <span style={fp.pillGroupLbl}>Oda ve misafir</span>
-                <div style={{ ...fp.stayPaxRow, ...(isPhone ? fp.stayFullWidth : {}), alignSelf: 'center' }}>
-                  <div style={fp.stayPaxSegment}>
-                    <CounterMini compact label="Oda" value={rooms} min={1} max={8} onChange={setRooms} />
-                  </div>
-                  <div style={fp.stayPaxSegment}>
-                    <CounterMini compact label="Yet." value={adults} min={1} max={12} onChange={setAdults} />
-                  </div>
-                  <div style={{ ...fp.stayPaxSegment, ...fp.stayPaxSegmentLast }}>
-                    <CounterMini compact label="Çoc." value={children} min={0} max={8} onChange={setChildren} />
-                  </div>
-                </div>
-              </div>
-              {!isPhone ? <span style={{ ...fp.barSep, alignSelf: 'center' }} /> : null}
-              <div
-                style={{
-                  alignSelf: 'center',
-                  ...(isPhone ? { width: '100%', marginTop: 4 } : {}),
-                }}
-              >
-                <button
-                  type="button"
+                <div
+                  ref={stayBarRef}
                   style={{
-                    ...fp.staySearchBlack,
-                    ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
-                    ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
+                    ...qp.barCluster,
+                    ...(pillBarTabletScroll ? { flexWrap: 'nowrap', width: 'max-content', maxWidth: 'none' } : {}),
                   }}
-                  onClick={search}
-                  disabled={loading}
-                  aria-label={loading ? 'Aranıyor' : 'Ara'}
                 >
-                  <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
-                  {loading ? 'Aranıyor…' : 'Ara'}
-                </button>
+                  <div style={{ ...qp.titlePill, alignSelf: 'center' }}>
+                    <span style={qp.spark} aria-hidden>
+                      <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent)" />
+                    </span>
+                    <span style={qp.titleTxt}>Konaklama</span>
+                  </div>
+                  {!isPhone ? <span style={qp.barSep} /> : null}
+                  <button
+                    ref={cityBtnRef}
+                    type="button"
+                    style={{
+                      ...qp.fieldCard,
+                      ...qp.fieldCardGrow,
+                      ...qp.fieldCardStatic,
+                      flex: '1 1 180px',
+                      ...(isPhone ? { width: '100%', flex: '1 1 100%' } : {}),
+                    }}
+                    onClick={() => {
+                      setStayDateOpen(false);
+                      setStayPaxOpen(false);
+                      setStayCityDraft(city);
+                      setStayCityOpen((v) => !v);
+                    }}
+                    aria-expanded={stayCityOpen}
+                    aria-haspopup="dialog"
+                  >
+                    <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={qp.fieldLbl}>Destinasyon</span>
+                      <span style={{ ...(city.trim() ? qp.fieldVal : qp.fieldPlaceholder) }}>
+                        {city.trim() ? city.trim() : 'Şehir / bölge'}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    ref={dateBtnRef}
+                    type="button"
+                    style={{
+                      ...qp.fieldCard,
+                      ...qp.fieldCardGrow,
+                      ...qp.fieldCardStatic,
+                      flex: '1 1 200px',
+                      ...(isPhone ? { width: '100%' } : {}),
+                    }}
+                    onClick={() => {
+                      setStayCityOpen(false);
+                      setStayPaxOpen(false);
+                      setStayDateOpen((v) => !v);
+                    }}
+                    aria-expanded={stayDateOpen}
+                    aria-haspopup="dialog"
+                  >
+                    <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={qp.fieldLbl}>Tarihler</span>
+                      <span style={qp.fieldVal}>{formatShortRangeTR(checkIn, checkOut)}</span>
+                    </span>
+                  </button>
+                  <button
+                    ref={paxBtnRef}
+                    type="button"
+                    style={{
+                      ...qp.fieldCard,
+                      ...qp.fieldCardGrow,
+                      ...qp.fieldCardStatic,
+                      flex: '1 1 170px',
+                      ...(isPhone ? { width: '100%' } : {}),
+                    }}
+                    onClick={() => {
+                      setStayCityOpen(false);
+                      setStayDateOpen(false);
+                      setStayPaxOpen((v) => !v);
+                    }}
+                    aria-expanded={stayPaxOpen}
+                    aria-haspopup="dialog"
+                  >
+                    <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={qp.fieldLbl}>Oda ve misafir</span>
+                      <span style={qp.fieldVal}>
+                        {rooms} oda · {adults + children} kişi
+                      </span>
+                    </span>
+                  </button>
+                  {!isPhone ? <span style={qp.barSep} /> : null}
+                  <div
+                    style={{
+                      alignSelf: 'center',
+                      ...(isPhone ? { width: '100%', marginTop: 4 } : {}),
+                    }}
+                  >
+                    <button
+                      type="button"
+                      style={{
+                        ...qp.searchBtn,
+                        ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
+                        ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
+                      }}
+                      onClick={() => {
+                        closeStayQuickPanels();
+                        search();
+                      }}
+                      disabled={loading}
+                      aria-label={loading ? 'Aranıyor' : 'Ara'}
+                    >
+                      <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
+                      {loading ? 'Aranıyor…' : 'Ara'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-            </div>
-          </div>
+          ) : null}
 
           {resultsToolbar}
         </div>
       </div>
+
+      {!tourEmbed ? (
+        <>
+          <QuickPlanCityTextPanel
+            innerRef={stayCityPopRef}
+            layout={stayCityOpen ? stayCityLayout : null}
+            draft={stayCityDraft}
+            setDraft={setStayCityDraft}
+            placeholder="Şehir / bölge"
+            aria-label="Destinasyon"
+            onDone={() => {
+              setCity(stayCityDraft);
+              setStayCityOpen(false);
+            }}
+          />
+          <QuickPlanCalendarPopover
+            innerRef={stayDatePopRef}
+            open={stayDateOpen}
+            mode="range"
+            committedStart={checkIn}
+            committedEnd={checkOut}
+            layout={stayDateLayout}
+            aria-label="Giriş ve çıkış tarihleri"
+            onApply={(s, e) => {
+              setCheckIn(s);
+              setCheckOut(e);
+              setStayDateOpen(false);
+            }}
+          />
+          {stayPaxOpen ? (
+            <QuickPlanStayGuestsPanel
+              innerRef={stayPaxPopRef}
+              layout={stayPaxLayout}
+              rooms={rooms}
+              setRooms={setRooms}
+              adults={adults}
+              setAdults={setAdults}
+              childrenCount={children}
+              setChildrenCount={setChildren}
+            />
+          ) : null}
+        </>
+      ) : null}
 
       <div
         style={{
@@ -1054,7 +1242,7 @@ export default function StaySearchScreen() {
                     </div>
 
                     <div style={{ minWidth: 0 }}>
-                      <div style={fp.hotelName}>{h.name}</div>
+                      <div style={fp.hotelName}>{resolveListedTitle(h)}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                         <span style={{ display: 'inline-flex', gap: 2 }} aria-hidden>
                           {Array.from({ length: Math.min(5, h.stars || 0) }).map((_, i) => (
@@ -1213,7 +1401,7 @@ export default function StaySearchScreen() {
             </div>
           )}
 
-          {hasSearched && !loading ? (
+          {hasSearched && !loading && !tourEmbed ? (
             <section style={{ marginTop: 36 }}>
               <h2 style={fp.secTitle}>Diğer aramalar</h2>
               <div style={{ ...fp.promoRow, gridTemplateColumns: isPhone ? '1fr' : '1fr 1fr' }}>
@@ -1248,7 +1436,12 @@ export default function StaySearchScreen() {
                   minHeight={280}
                 />
               ) : (
-                <StayMapPlaceholder hotels={filtered} hoveredId={hoverMap} setHoveredId={setHoverMap} />
+                <StayMapPlaceholder
+                  hotels={filtered}
+                  hoveredId={hoverMap}
+                  setHoveredId={setHoverMap}
+                  formatHotelTitle={resolveListedTitle}
+                />
               )}
             </div>
           ) : null}
@@ -1273,6 +1466,7 @@ export default function StaySearchScreen() {
                     hoveredId={hoverMap}
                     setHoveredId={setHoverMap}
                     fillHeight
+                    formatHotelTitle={resolveListedTitle}
                   />
                 )}
               </div>

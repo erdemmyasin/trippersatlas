@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { cookies, headers } from 'next/headers';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 import { normalizeCurrency, normalizeLang } from '@/lib/atlasPrefs';
+import { getRequestRegion } from '@/lib/requestRegion';
 import { fetchRealHotels } from '@/services/hotels';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -19,11 +21,32 @@ const FALLBACK = {
 
 export async function POST(req) {
   try {
-    const { messages = [], planContext: rawCtx = {} } = await req.json();
+    const {
+      messages = [],
+      planContext: rawCtx = {},
+      atlasPrefs: rawAtlasPrefs,
+      userLang: bodyLang,
+    } = await req.json();
     const atlasDest = String(rawCtx?.atlasTripMeta?.destination || '').trim();
+    const atlasPrefs = {
+      lang: normalizeLang(rawAtlasPrefs?.lang),
+      currency: normalizeCurrency(rawAtlasPrefs?.currency),
+    };
+
+    let resolvedLang = normalizeLang(bodyLang);
+    if (!bodyLang) {
+      try {
+        const region = getRequestRegion(await headers(), await cookies());
+        resolvedLang = normalizeLang(region.lang);
+      } catch {
+        /* ignore */
+      }
+    }
+
     const planContext = {
       ...rawCtx,
       destination: String(rawCtx?.destination || '').trim() || atlasDest,
+      userLang: resolvedLang,
     };
 
     const systemPrompt = buildSystemPrompt(planContext);

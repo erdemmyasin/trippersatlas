@@ -1,7 +1,7 @@
 'use client';
 
 import AppSidebar from '@/components/AppSidebar';
-import QuickPlanComingSoonPane from '@/components/QuickPlanComingSoonPane';
+import ActivitySearchScreen from '@/components/ActivitySearchScreen';
 
 export default function AktivitelerPage() {
   return (
@@ -9,10 +9,7 @@ export default function AktivitelerPage() {
       <AppSidebar activeId="quickPlan" />
       <main style={lay.main}>
         <div style={lay.fill}>
-          <QuickPlanComingSoonPane
-            title="Aktiviteler"
-            body="Burada yapılacaklar, giriş biletleri ve deneyim araması için ekranı konumlandıracağız. Tasarıma sonra geçeceğiz."
-          />
+          <ActivitySearchScreen />
         </div>
       </main>
     </div>

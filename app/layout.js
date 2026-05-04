@@ -1,5 +1,7 @@
 import "./globals.css";
+import { headers, cookies } from "next/headers";
 import AppProviders from "@/components/AppProviders";
+import { getRequestRegion } from "@/lib/requestRegion";
 import {
   Fraunces,
   JetBrains_Mono,
@@ -57,10 +59,14 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const hdrs = await headers();
+  const cks = await cookies();
+  const region = getRequestRegion(hdrs, cks);
+  const htmlLang = region.lang === 'EN' ? 'en' : 'tr';
   return (
     <html
-      lang="tr"
+      lang={htmlLang}
       className={`${fraunces.variable} ${jetbrainsMono.variable} ${plusJakarta.variable} ${playfairLanding.variable}`}
     >
       <head>
@@ -71,7 +77,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders initialLang={region.lang} initialRegion={region}>{children}</AppProviders>
       </body>
     </html>
   );

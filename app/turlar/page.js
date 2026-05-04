@@ -1,7 +1,7 @@
 'use client';
 
 import AppSidebar from '@/components/AppSidebar';
-import QuickPlanComingSoonPane from '@/components/QuickPlanComingSoonPane';
+import FlightSearchScreen from '@/components/FlightSearchScreen';
 
 export default function TurlarPage() {
   return (
@@ -9,10 +9,7 @@ export default function TurlarPage() {
       <AppSidebar activeId="quickPlan" />
       <main style={lay.main}>
         <div style={lay.fill}>
-          <QuickPlanComingSoonPane
-            title="Turlar"
-            body="Burada günlük turlar, rehberli geziler ve tur araması için ekranı konumlandıracağız. Tasarıma sonra geçeceğiz."
-          />
+          <FlightSearchScreen title="Turlar" hideTripTypeToggle lodgingTourResults />
         </div>
       </main>
     </div>

@@ -44,19 +44,13 @@ export default function RightPanel({
               : {}),
           }}
         >
-          {!hideMapOverlay ? (
-            <div style={{ ...s.mapHeader, zIndex: 5 }}>
-              <span style={s.mapPill}>{mapHeadline}</span>
-              {mapSubline ? <span style={s.mapPill}>{mapSubline}</span> : null}
-            </div>
-          ) : null}
           <div
             style={{
               position: 'absolute',
               left: 0,
               right: 0,
               bottom: 0,
-              top: hideMapOverlay ? 0 : 48,
+              top: 0,
               borderRadius: 'inherit',
               overflow: 'hidden',
               display: 'flex',
@@ -66,11 +60,11 @@ export default function RightPanel({
           >
             <QuickPlanMap
               showChrome={false}
-              fillHeight={hideMapOverlay}
+              fillHeight
               center={googleMap.center}
               markers={gMarkers}
               zoom={googleMap.zoom ?? 12}
-              minHeight={hideMapOverlay ? 0 : 260}
+              minHeight={0}
               onMarkerClick={googleMap.onMarkerClick}
               focusRequest={googleMap.focusRequest}
             />

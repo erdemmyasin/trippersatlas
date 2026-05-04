@@ -163,6 +163,8 @@ const ChatArea = forwardRef(function ChatArea(
     planContextForApi = null,
     /** Boş başlangıç: varsayılan Atlas karşılama mesajını gösterme (gezi → sohbet bootstrap) */
     noWelcomeWhenEmpty = false,
+    /** Boş ekranda merkezde gösterilecek hero (title/subtitle). messages.length===0 iken görünür. */
+    emptyHero = null,
     /** /chat: sağ üst ⋮ menü (null ise gösterilmez) */
     chatOverflowActions = null,
   },
@@ -316,6 +318,29 @@ const ChatArea = forwardRef(function ChatArea(
         ) : null}
 
         <div style={s.feedWrap}>
+          {emptyHero ? (
+            <div
+              style={{
+                ...s.heroOverlay,
+                opacity: messages.length === 0 && !typing ? 1 : 0,
+                transform:
+                  messages.length === 0 && !typing
+                    ? 'translateY(0)'
+                    : 'translateY(-8px)',
+                visibility:
+                  messages.length === 0 && !typing ? 'visible' : 'hidden',
+              }}
+              aria-hidden={messages.length > 0 || typing}
+            >
+              <div style={s.heroIcon} aria-hidden>
+                <span style={s.heroIconCircle}>✦</span>
+              </div>
+              <h2 style={s.heroTitle}>{emptyHero.title}</h2>
+              {emptyHero.subtitle ? (
+                <p style={s.heroSubtitle}>{emptyHero.subtitle}</p>
+              ) : null}
+            </div>
+          ) : null}
           <div ref={feedRef} style={s.feed}>
             {messages.map((msg, i) => (
               <MessageBubble
@@ -462,6 +487,50 @@ const s = {
     minHeight: 0,
     display: 'flex',
     flexDirection: 'column',
+  },
+  heroOverlay: {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 24px',
+    textAlign: 'center',
+    pointerEvents: 'none',
+    zIndex: 1,
+    transition: 'opacity 280ms ease, transform 280ms ease, visibility 280ms ease',
+  },
+  heroIcon: {
+    marginBottom: 14,
+  },
+  heroIconCircle: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg,#cfe7ff 0%,#e9d6ff 100%)',
+    color: 'var(--ta-ink, #0f2942)',
+    fontSize: 26,
+    fontWeight: 700,
+    boxShadow: '0 8px 24px rgba(15,41,74,.12)',
+  },
+  heroTitle: {
+    margin: '0 0 8px',
+    fontFamily: 'var(--font-serif, var(--font-fraunces))',
+    fontWeight: 700,
+    fontSize: 30,
+    letterSpacing: '-0.02em',
+    color: 'var(--ta-ink, #0f2942)',
+  },
+  heroSubtitle: {
+    margin: 0,
+    fontSize: 14,
+    color: 'var(--ta-ink-muted, #5a6982)',
+    maxWidth: 460,
+    lineHeight: 1.5,
   },
   feedFade: {
     position: 'absolute',

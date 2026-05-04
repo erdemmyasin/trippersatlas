@@ -14,15 +14,20 @@ import { atlasLangToLocale } from '@/lib/atlasIntl';
 
 const LocaleCurrencyContext = createContext(null);
 
-export function LocaleCurrencyProvider({ children }) {
-  const [lang, setLangState] = useState('TR');
-  const [currency, setCurrencyState] = useState('TRY');
+export function LocaleCurrencyProvider({ children, initialLang, initialRegion }) {
+  const seedLang = normalizeLang(initialLang || 'TR');
+  const seedCurrency = normalizeCurrency(seedLang === 'TR' ? 'TRY' : 'EUR');
+  const [lang, setLangState] = useState(seedLang);
+  const [currency, setCurrencyState] = useState(seedCurrency);
   const [ready, setReady] = useState(false);
+  const [region] = useState(() => initialRegion || null);
 
   useLayoutEffect(() => {
-    const p = loadAtlasPrefs();
-    setLangState(p.lang);
-    setCurrencyState(p.currency);
+    const stored = loadAtlasPrefs({ hasUserChoice: true });
+    if (stored) {
+      setLangState(stored.lang);
+      setCurrencyState(stored.currency);
+    }
     setReady(true);
   }, []);
 
@@ -30,14 +35,18 @@ export function LocaleCurrencyProvider({ children }) {
     function onStorage(e) {
       if (e.key === 'atlas_pref_lang' || e.key === 'atlas_pref_currency' || e.key === null) {
         const p = loadAtlasPrefs();
-        setLangState(p.lang);
-        setCurrencyState(p.currency);
+        if (p) {
+          setLangState(p.lang);
+          setCurrencyState(p.currency);
+        }
       }
     }
     function onCustom() {
       const p = loadAtlasPrefs();
-      setLangState(p.lang);
-      setCurrencyState(p.currency);
+      if (p) {
+        setLangState(p.lang);
+        setCurrencyState(p.currency);
+      }
     }
     window.addEventListener('storage', onStorage);
     window.addEventListener('atlas-prefs-change', onCustom);
@@ -75,8 +84,9 @@ export function LocaleCurrencyProvider({ children }) {
       setLang,
       setCurrency,
       ready,
+      region,
     }),
-    [lang, currency, locale, setLang, setCurrency, ready]
+    [lang, currency, locale, setLang, setCurrency, ready, region]
   );
 
   return <LocaleCurrencyContext.Provider value={value}>{children}</LocaleCurrencyContext.Provider>;

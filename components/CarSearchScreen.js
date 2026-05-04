@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import {
   SlidersHorizontal,
@@ -17,6 +17,9 @@ import {
   Sparkles,
   ChevronDown,
   ChevronRight,
+  MapPin,
+  Calendar,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { getMockCars } from '@/lib/carSearchMock';
 import {
@@ -33,6 +36,43 @@ import {
   defaultMapAnchorPreset,
   carRentalSearchQueryFragment,
 } from '@/lib/taRegion';
+import { qp } from '@/lib/quickPlanFilterStyles';
+import { popoverCoords, datePanelCoords } from '@/lib/popoverCoords';
+import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
+import {
+  QuickPlanCityTextPanel,
+  QuickPlanCalendarPopover,
+  QuickPlanTimeListPopover,
+  QuickPlanSelectCommitPanel,
+  formatHm12En,
+} from '@/components/QuickPlanAnchoredWidgets';
+import { formatShortRangeTR } from '@/lib/quickPlanFormatters';
+
+const CAR_DRIVER_AGE_OPTS = [
+  { value: '21-25', label: '21–25 yaş' },
+  { value: '26-35', label: '26–35 yaş' },
+  { value: '36-65', label: '36–65 yaş' },
+  { value: '65+', label: '65+ yaş' },
+];
+
+function splitDateTimeLocal(v) {
+  const s = String(v || '').trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return { date: m[1], time: `${m[2]}:${m[3]}` };
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(10, 0, 0, 0);
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+function joinDateTimeLocal(dateIso, hm) {
+  const t = String(hm || '10:00').length >= 5 ? String(hm).slice(0, 5) : '10:00';
+  return `${dateIso}T${t}`;
+}
 
 const CLASSES = ['Ekonomi', 'Kompakt', 'Orta', 'Büyük', 'SUV', 'Minivan'];
 const SHIFTS = ['Otomatik', 'Manuel'];
@@ -229,7 +269,15 @@ export default function CarSearchScreen() {
   const [filterDrawer, setFilterDrawer] = useState(false);
   const [dropoffPick, setDropoffPick] = useState({});
 
+  const swapCarLocations = useCallback(() => {
+    const p = pickupLocation;
+    setPickupLocation(dropoffLocation);
+    setDropoffLocation(p);
+  }, [pickupLocation, dropoffLocation]);
+
+  /* Sync filter keys when result set changes; Checkbox state merges with incoming keys. */
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- derived keys from fetch results */
     setDropoffPick((prev) => {
       const next = { ...prev };
       for (const c of raw) {
@@ -242,6 +290,135 @@ export default function CarSearchScreen() {
       return next;
     });
   }, [raw]);
+
+  const carBarRef = useRef(null);
+  const pickLocBtnRef = useRef(null);
+  const dropLocBtnRef = useRef(null);
+  const datesBtnRef = useRef(null);
+  const pickTimeBtnRef = useRef(null);
+  const dropTimeBtnRef = useRef(null);
+  const ageBtnRef = useRef(null);
+  const carCityPopRef = useRef(null);
+  const carDateRangePopoverRef = useRef(null);
+  const pickTimePopoverRef = useRef(null);
+  const dropTimePopoverRef = useRef(null);
+  const agePopRef = useRef(null);
+
+  const [carCityPick, setCarCityPick] = useState(null);
+  const [carCityDraft, setCarCityDraft] = useState('');
+  const [carCityLayout, setCarCityLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
+
+  const [carDatesOpen, setCarDatesOpen] = useState(false);
+  const [carDateRangeLayout, setCarDateRangeLayout] = useState({ top: 0, left: 10 });
+
+  const [pickTimeOpen, setPickTimeOpen] = useState(false);
+  const [pickTimeLayout, setPickTimeLayout] = useState({ top: 0, left: 0, width: 'min(220px, calc(100vw - 20px))' });
+
+  const [dropTimeOpen, setDropTimeOpen] = useState(false);
+  const [dropTimeLayout, setDropTimeLayout] = useState({ top: 0, left: 0, width: 'min(220px, calc(100vw - 20px))' });
+
+  const [agePopOpen, setAgePopOpen] = useState(false);
+  const [ageDraft, setAgeDraft] = useState('26-35');
+  const [agePopLayout, setAgePopLayout] = useState({ top: 0, left: 0, width: 'min(300px, calc(100vw - 20px))' });
+
+  const closeCarQuickPanels = useCallback(() => {
+    setCarCityPick(null);
+    setCarDatesOpen(false);
+    setPickTimeOpen(false);
+    setDropTimeOpen(false);
+    setAgePopOpen(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!carCityPick) return undefined;
+    const el = carCityPick === 'pickup' ? pickLocBtnRef.current : dropLocBtnRef.current;
+    function u() {
+      setCarCityLayout({ ...popoverCoords(el, 340), width: 'min(340px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [carCityPick]);
+
+  useLayoutEffect(() => {
+    if (!carDatesOpen) return undefined;
+    function u() {
+      setCarDateRangeLayout(datePanelCoords(datesBtnRef.current, 504));
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [carDatesOpen]);
+
+  useLayoutEffect(() => {
+    if (!pickTimeOpen) return undefined;
+    const el = pickTimeBtnRef.current;
+    function u() {
+      const r = popoverCoords(el, 220);
+      const w = el ? `${Math.min(220, el.getBoundingClientRect().width)}px` : 'min(220px, calc(100vw - 20px))';
+      setPickTimeLayout({ ...r, width: w });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [pickTimeOpen]);
+
+  useLayoutEffect(() => {
+    if (!dropTimeOpen) return undefined;
+    const el = dropTimeBtnRef.current;
+    function u() {
+      const r = popoverCoords(el, 220);
+      const w = el ? `${Math.min(220, el.getBoundingClientRect().width)}px` : 'min(220px, calc(100vw - 20px))';
+      setDropTimeLayout({ ...r, width: w });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [dropTimeOpen]);
+
+  useLayoutEffect(() => {
+    if (!agePopOpen) return undefined;
+    const el = ageBtnRef.current;
+    function u() {
+      setAgePopLayout({ ...popoverCoords(el, 320), width: 'min(300px, calc(100vw - 20px))' });
+    }
+    u();
+    window.addEventListener('resize', u);
+    window.addEventListener('scroll', u, true);
+    return () => {
+      window.removeEventListener('resize', u);
+      window.removeEventListener('scroll', u, true);
+    };
+  }, [agePopOpen]);
+
+  const carQuickPanelsActive = !!(carCityPick || carDatesOpen || pickTimeOpen || dropTimeOpen || agePopOpen);
+  const ignoreCarQuickPointer = useCallback(
+    (t) =>
+      !!(carBarRef.current?.contains(t)) ||
+      !!(carCityPopRef.current?.contains(t)) ||
+      !!(carDateRangePopoverRef.current?.contains(t)) ||
+      !!(pickTimePopoverRef.current?.contains(t)) ||
+      !!(dropTimePopoverRef.current?.contains(t)) ||
+      !!(agePopRef.current?.contains(t)),
+    []
+  );
+  useQuickPlanBarDismiss(carQuickPanelsActive, ignoreCarQuickPointer, closeCarQuickPanels);
 
   const bounds = useMemo(() => {
     if (!raw.length) return { price: [7000, 35000] };
@@ -899,184 +1076,307 @@ export default function CarSearchScreen() {
 
   return (
     <div style={cp.wrap}>
-      <div style={cp.stickyTop}>
-        <div style={cp.stickyInner}>
-          <div style={{ ...cp.topBarRow, ...(isPhone ? cp.topBarRowMobile : {}) }}>
+      <div style={qp.stickyTop}>
+        <div style={qp.stickyInner}>
+          <div style={{ ...qp.topBarRow, ...(isPhone ? qp.topBarRowMobile : {}) }}>
             <div
               style={
                 pillBarTabletScroll
-                  ? cp.pillScrollOuter
+                  ? qp.pillScrollOuter
                   : { width: '100%', minWidth: 0, display: 'flex', justifyContent: isPhone ? 'stretch' : 'center' }
               }
             >
               <div
+                ref={carBarRef}
                 style={{
-                  ...cp.pillBar,
-                  ...(isPhone ? cp.pillBarMobile : cp.pillBarDesktop),
-                  ...(pillBarTabletScroll ? cp.pillBarTabletWide : {}),
+                  ...qp.barCluster,
+                  ...(pillBarTabletScroll ? { flexWrap: 'nowrap', width: 'max-content', maxWidth: 'none' } : {}),
                 }}
               >
-              <div
-                style={
-                  isPhone
-                    ? cp.pillBarMainMobile
-                    : { ...cp.pillBarMain, ...(pillBarTabletScroll ? { flexWrap: 'nowrap' } : {}) }
-                }
-              >
-              <div style={{ ...cp.titlePill, alignSelf: 'center' }}>
-                <span style={cp.titleStar} aria-hidden>
-                  <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent)" />
-                </span>
-                <span style={cp.titleText}>Araç Kiralama</span>
-              </div>
-              <span style={{ ...cp.barSep, ...(!isPhone ? { alignSelf: 'center', height: 40 } : {}) }} />
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    flexWrap: pillBarTabletScroll ? 'nowrap' : 'wrap',
-                    justifyContent: isPhone ? 'center' : 'flex-start',
-                    alignSelf: 'center',
-                    ...(isPhone ? { width: '100%' } : { flex: '0 1 auto' }),
-                  }}
-                >
-                <div
-                  style={{
-                    ...cp.locFieldCol,
-                    alignItems: 'center',
-                    ...(isPhone ? { flex: '1 1 100%', maxWidth: '100%' } : {}),
-                  }}
-                >
-                  <span style={{ ...cp.locFieldLbl, textAlign: 'center' }}>Alış noktası</span>
-                  <input
-                    type="text"
-                    style={{ ...cp.chipInp, ...cp.pickupInp, ...(isPhone ? cp.chipFullWidth : {}) }}
-                    value={pickupLocation}
-                    onChange={(e) => setPickupLocation(e.target.value)}
-                    placeholder="Şehir"
-                    aria-label="Alış lokasyonu"
-                  />
+                <div style={{ ...qp.titlePill, alignSelf: 'center' }}>
+                  <span style={qp.spark} aria-hidden>
+                    <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent)" />
+                  </span>
+                  <span style={qp.titleTxt}>Araç Kiralama</span>
                 </div>
-                {!isPhone ? (
-                  <span style={{ ...cp.barDot, alignSelf: 'center', paddingBottom: 6 }}>·</span>
-                ) : null}
-                <div
-                  style={{
-                    ...cp.locFieldCol,
-                    alignItems: 'center',
-                    ...(isPhone ? { flex: '1 1 100%', maxWidth: '100%' } : {}),
-                  }}
-                >
-                  <span style={{ ...cp.locFieldLbl, textAlign: 'center' }}>Teslim noktası</span>
-                  <input
-                    type="text"
-                    style={{ ...cp.chipInp, ...cp.dropoffInp, ...(isPhone ? cp.chipFullWidth : {}) }}
-                    value={dropoffLocation}
-                    onChange={(e) => setDropoffLocation(e.target.value)}
-                    placeholder="Şehir"
-                    aria-label="Teslim lokasyonu"
-                  />
+                {!isPhone ? <span style={qp.barSep} /> : null}
+                <div style={qp.linkedRoute}>
+                  <div style={qp.routeShell}>
+                    <button
+                      ref={pickLocBtnRef}
+                      type="button"
+                      style={qp.routeSegBtn}
+                      aria-expanded={carCityPick === 'pickup'}
+                      aria-haspopup="dialog"
+                      onClick={() => {
+                        setCarDatesOpen(false);
+                        setPickTimeOpen(false);
+                        setDropTimeOpen(false);
+                        setAgePopOpen(false);
+                        setCarCityPick((prev) => {
+                          const next = prev === 'pickup' ? null : 'pickup';
+                          if (next === 'pickup') setCarCityDraft(pickupLocation);
+                          return next;
+                        });
+                      }}
+                    >
+                      <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={qp.fieldLbl}>Alış noktası</span>
+                        <span
+                          style={{
+                            ...(String(pickupLocation || '').trim() ? qp.fieldVal : qp.fieldPlaceholder),
+                          }}
+                        >
+                          {String(pickupLocation || '').trim() || 'Şehir'}
+                        </span>
+                      </span>
+                    </button>
+                    <button type="button" style={qp.swapFab} onClick={swapCarLocations} aria-label="Alış ve teslim yerini değiştir">
+                      <ArrowLeftRight size={15} color="#1a73e8" />
+                    </button>
+                    <button
+                      ref={dropLocBtnRef}
+                      type="button"
+                      style={qp.routeSegBtn}
+                      aria-expanded={carCityPick === 'dropoff'}
+                      aria-haspopup="dialog"
+                      onClick={() => {
+                        setCarDatesOpen(false);
+                        setPickTimeOpen(false);
+                        setDropTimeOpen(false);
+                        setAgePopOpen(false);
+                        setCarCityPick((prev) => {
+                          const next = prev === 'dropoff' ? null : 'dropoff';
+                          if (next === 'dropoff') setCarCityDraft(dropoffLocation);
+                          return next;
+                        });
+                      }}
+                    >
+                      <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={qp.fieldLbl}>Teslim noktası</span>
+                        <span
+                          style={{
+                            ...(String(dropoffLocation || '').trim() ? qp.fieldVal : qp.fieldPlaceholder),
+                          }}
+                        >
+                          {String(dropoffLocation || '').trim() || 'Şehir'}
+                        </span>
+                      </span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {!isPhone ? <span style={{ ...cp.barDot, alignSelf: 'center' }}>·</span> : null}
-              <div
-                style={{
-                  ...cp.pillGroup,
-                  ...cp.pillGroupDate,
-                  ...(isPhone ? cp.pillGroupMobile : {}),
-                  alignSelf: 'center',
-                }}
-              >
-                <span style={cp.pillGroupLbl}>Alış</span>
-                <input
-                  style={{
-                    ...cp.chipDateTime,
-                    ...(isPhone ? { maxWidth: '100%', width: '100%' } : {}),
-                  }}
-                  type="datetime-local"
-                  value={pickupAt}
-                  onChange={(e) => setPickupAt(e.target.value)}
-                  aria-label="Alış tarihi ve saati"
-                />
-              </div>
-              <span style={{ ...cp.barDot, alignSelf: 'center' }}>·</span>
-              <div
-                style={{
-                  ...cp.pillGroup,
-                  ...cp.pillGroupDate,
-                  ...(isPhone ? cp.pillGroupMobile : {}),
-                  alignSelf: 'center',
-                }}
-              >
-                <span style={cp.pillGroupLbl}>Teslim</span>
-                <input
-                  style={{
-                    ...cp.chipDateTime,
-                    ...(isPhone ? { maxWidth: '100%', width: '100%' } : {}),
-                  }}
-                  type="datetime-local"
-                  value={returnAt}
-                  onChange={(e) => setReturnAt(e.target.value)}
-                  aria-label="Teslim tarihi ve saati"
-                />
-              </div>
-              <span style={{ ...cp.barDot, alignSelf: 'center' }}>·</span>
-              <div
-                style={{
-                  ...cp.pillGroup,
-                  ...cp.pillGroupAge,
-                  ...(isPhone ? cp.pillGroupMobile : {}),
-                  alignSelf: 'center',
-                }}
-              >
-                <span style={cp.pillGroupLbl}>Yaş</span>
-                <select
-                  style={{
-                    ...cp.chipSelect,
-                    ...(isPhone ? { width: '100%', maxWidth: 'none' } : cp.chipSelectAge),
-                  }}
-                  value={ageBracket}
-                  onChange={(e) => setAgeBracket(e.target.value)}
-                  aria-label="Sürücü yaşı"
-                >
-                  <option value="21-25">21–25</option>
-                  <option value="26-35">26–35</option>
-                  <option value="36-65">36–65</option>
-                  <option value="65+">65+</option>
-                </select>
-              </div>
-              </div>
-              {!isPhone ? (
-                <span style={{ ...cp.barSep, alignSelf: 'center', marginLeft: 12, marginRight: 12 }} />
-              ) : null}
-              <div
-                style={{
-                  alignSelf: 'center',
-                  flexShrink: 0,
-                  ...(isPhone ? { width: '100%', marginTop: 6 } : {}),
-                }}
-              >
                 <button
+                  ref={datesBtnRef}
                   type="button"
                   style={{
-                    ...cp.searchBlack,
-                    ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
-                    ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
+                    ...qp.fieldCard,
+                    ...qp.fieldCardGrow,
+                    ...(isPhone ? { width: '100%', flex: '1 1 100%', minWidth: 0 } : { flex: '1 1 180px', minWidth: 0 }),
                   }}
-                  onClick={search}
-                  disabled={loading}
-                  aria-label={loading ? 'Aranıyor' : 'Ara'}
+                  aria-expanded={carDatesOpen}
+                  aria-haspopup="dialog"
+                  onClick={() => {
+                    setCarCityPick(null);
+                    setPickTimeOpen(false);
+                    setDropTimeOpen(false);
+                    setAgePopOpen(false);
+                    setCarDatesOpen((v) => !v);
+                  }}
                 >
-                  <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
-                  {loading ? 'Aranıyor…' : 'Ara'}
+                  <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={qp.fieldLbl}>Tarihler</span>
+                    <span style={qp.fieldVal}>
+                      {formatShortRangeTR(splitDateTimeLocal(pickupAt).date, splitDateTimeLocal(returnAt).date)}
+                    </span>
+                  </span>
                 </button>
+                <button
+                  ref={pickTimeBtnRef}
+                  type="button"
+                  style={{
+                    ...qp.fieldCard,
+                    flex: isPhone ? '1 1 100%' : '0 1 110px',
+                    minWidth: 0,
+                    ...(isPhone ? { width: '100%' } : {}),
+                  }}
+                  aria-expanded={pickTimeOpen}
+                  aria-haspopup="listbox"
+                  onClick={() => {
+                    setCarCityPick(null);
+                    setCarDatesOpen(false);
+                    setDropTimeOpen(false);
+                    setAgePopOpen(false);
+                    setPickTimeOpen((v) => !v);
+                  }}
+                >
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={qp.fieldLbl}>Alış saati</span>
+                    <span style={qp.fieldVal}>{formatHm12En(splitDateTimeLocal(pickupAt).time)}</span>
+                  </span>
+                  <ChevronDown size={16} strokeWidth={2} color="#5a6982" aria-hidden style={{ flexShrink: 0 }} />
+                </button>
+                <button
+                  ref={dropTimeBtnRef}
+                  type="button"
+                  style={{
+                    ...qp.fieldCard,
+                    flex: isPhone ? '1 1 100%' : '0 1 110px',
+                    minWidth: 0,
+                    ...(isPhone ? { width: '100%' } : {}),
+                  }}
+                  aria-expanded={dropTimeOpen}
+                  aria-haspopup="listbox"
+                  onClick={() => {
+                    setCarCityPick(null);
+                    setCarDatesOpen(false);
+                    setPickTimeOpen(false);
+                    setAgePopOpen(false);
+                    setDropTimeOpen((v) => !v);
+                  }}
+                >
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={qp.fieldLbl}>Teslim saati</span>
+                    <span style={qp.fieldVal}>{formatHm12En(splitDateTimeLocal(returnAt).time)}</span>
+                  </span>
+                  <ChevronDown size={16} strokeWidth={2} color="#5a6982" aria-hidden style={{ flexShrink: 0 }} />
+                </button>
+                <button
+                  ref={ageBtnRef}
+                  type="button"
+                  style={{
+                    ...qp.fieldCard,
+                    ...qp.fieldCardStatic,
+                    flex: isPhone ? '1 1 100%' : '0 1 110px',
+                    minWidth: isPhone ? 0 : 100,
+                    ...(isPhone ? { width: '100%' } : {}),
+                  }}
+                  aria-expanded={agePopOpen}
+                  aria-haspopup="dialog"
+                    onClick={() => {
+                      setCarCityPick(null);
+                      setCarDatesOpen(false);
+                      setPickTimeOpen(false);
+                      setDropTimeOpen(false);
+                      setAgePopOpen((v) => {
+                        const next = !v;
+                        if (next) setAgeDraft(ageBracket);
+                        return next;
+                      });
+                    }}
+                >
+                  <User size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={qp.fieldLbl}>Yaş</span>
+                    <span style={qp.fieldVal}>{CAR_DRIVER_AGE_OPTS.find((o) => o.value === ageBracket)?.label ?? ageBracket}</span>
+                  </span>
+                </button>
+                {!isPhone ? <span style={qp.barSep} aria-hidden /> : null}
+                <div
+                  style={{
+                    alignSelf: 'center',
+                    flexShrink: 0,
+                    ...(isPhone ? { width: '100%', marginTop: 6 } : {}),
+                  }}
+                >
+                  <button
+                    type="button"
+                    style={{
+                      ...qp.searchBtn,
+                      ...(isPhone ? { width: '100%', justifyContent: 'center' } : {}),
+                      ...(loading ? { opacity: 0.65, cursor: 'not-allowed' } : {}),
+                    }}
+                    onClick={() => {
+                      closeCarQuickPanels();
+                      search();
+                    }}
+                    disabled={loading}
+                    aria-label={loading ? 'Aranıyor' : 'Ara'}
+                  >
+                    <Search size={16} strokeWidth={2.25} color="#FFFFFF" aria-hidden />
+                    {loading ? 'Aranıyor…' : 'Ara'}
+                  </button>
+                </div>
               </div>
-            </div>
             </div>
           </div>
         </div>
       </div>
+
+      {carCityPick ? (
+        <QuickPlanCityTextPanel
+          innerRef={carCityPopRef}
+          layout={carCityLayout}
+          draft={carCityDraft}
+          setDraft={setCarCityDraft}
+          placeholder="Şehir"
+          aria-label={carCityPick === 'pickup' ? 'Alış lokasyonu' : 'Teslim lokasyonu'}
+          onDone={() => {
+            if (carCityPick === 'pickup') setPickupLocation(carCityDraft);
+            else setDropoffLocation(carCityDraft);
+            setCarCityPick(null);
+          }}
+        />
+      ) : null}
+      <QuickPlanCalendarPopover
+        innerRef={carDateRangePopoverRef}
+        open={carDatesOpen}
+        mode="range"
+        committedStart={splitDateTimeLocal(pickupAt).date}
+        committedEnd={splitDateTimeLocal(returnAt).date}
+        layout={carDateRangeLayout}
+        aria-label="Alış ve teslim tarihleri"
+        onApply={(startD, endD) => {
+          const pu = splitDateTimeLocal(pickupAt);
+          const re = splitDateTimeLocal(returnAt);
+          let s = startD;
+          let e = endD;
+          if (e < s) [s, e] = [e, s];
+          setPickupAt(joinDateTimeLocal(s, pu.time));
+          setReturnAt(joinDateTimeLocal(e, re.time));
+          setCarDatesOpen(false);
+        }}
+      />
+      {pickTimeOpen ? (
+        <QuickPlanTimeListPopover
+          innerRef={pickTimePopoverRef}
+          layout={pickTimeLayout}
+          valueHm={splitDateTimeLocal(pickupAt).time}
+          aria-label="Alış saati seç"
+          onSelect={(hm) => {
+            setPickupAt(joinDateTimeLocal(splitDateTimeLocal(pickupAt).date, hm));
+            setPickTimeOpen(false);
+          }}
+        />
+      ) : null}
+      {dropTimeOpen ? (
+        <QuickPlanTimeListPopover
+          innerRef={dropTimePopoverRef}
+          layout={dropTimeLayout}
+          valueHm={splitDateTimeLocal(returnAt).time}
+          aria-label="Teslim saati seç"
+          onSelect={(hm) => {
+            setReturnAt(joinDateTimeLocal(splitDateTimeLocal(returnAt).date, hm));
+            setDropTimeOpen(false);
+          }}
+        />
+      ) : null}
+      {agePopOpen ? (
+        <QuickPlanSelectCommitPanel
+          innerRef={agePopRef}
+          layout={agePopLayout}
+          aria-label="Sürücü yaşı"
+          value={ageDraft}
+          onChange={setAgeDraft}
+          options={CAR_DRIVER_AGE_OPTS}
+          onDone={() => {
+            setAgeBracket(ageDraft);
+            setAgePopOpen(false);
+          }}
+        />
+      ) : null}
 
       <div
         style={{

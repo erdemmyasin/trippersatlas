@@ -588,6 +588,45 @@ export default function LandingPage() {
 
       <LandingCapitalsWeather />
 
+      {/* ── SERVICES (Popüler Geziler öncesi) ── */}
+      <section id="services" className="l-section l-svc">
+        <div className="l-section__inner">
+          <div className="l-section__header">
+            <span className="l-section__badge">Hepsi Bir Arada</span>
+            <h2 className="l-section__title">Tüm ihtiyaçlarınız tek platformda</h2>
+          </div>
+          <div className="l-svc__grid">
+            {SERVICES.map(svc => {
+              const Icon = SVC_ICON_MAP[svc.icon];
+              const cardClass = `l-svc__card ${!svc.active ? 'l-svc__card--soon' : ''} ${svc.href && svc.active ? 'l-svc__card--link' : ''}`;
+              const cardStyle = { '--ta-card-bg': `url("${svc.bgImage}")` };
+              const body = (
+                <>
+                  <div className="l-svc__icon" aria-hidden>
+                    {Icon ? <Icon size={26} strokeWidth={1.65} /> : null}
+                  </div>
+                  <h3 className="l-svc__title">{svc.title}</h3>
+                  <p className="l-svc__desc">{svc.desc}</p>
+                  {!svc.active && <span className="l-svc__soon">Yakında</span>}
+                </>
+              );
+              if (svc.href && svc.active) {
+                return (
+                  <Link key={svc.title} href={svc.href} className={cardClass} style={cardStyle}>
+                    {body}
+                  </Link>
+                );
+              }
+              return (
+                <div key={svc.title} className={cardClass} style={cardStyle}>
+                  {body}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ── POPULAR TRIPS ── */}
       <section id="destinations" className="l-section l-trips">
         <div className="l-section__inner">

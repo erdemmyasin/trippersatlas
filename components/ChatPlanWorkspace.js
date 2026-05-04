@@ -39,7 +39,8 @@ import {
   seedTripChipsFromTrip,
 } from '@/lib/tripChipStorage';
 import { isChatTripMetaComplete } from '@/lib/chatTripMetaGate';
-import { COLLECT_META_WELCOME } from '@/lib/chatCollectWelcome';
+import { buildEmptyHero } from '@/lib/chatCollectWelcome';
+import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import { findMergedTripById } from '@/lib/tripMerge';
 import { createTrip, saveTrip } from '@/lib/tripStore';
 import { getTripWorkspace, saveTripWorkspace, defaultTripWorkspace } from '@/lib/tripWorkspaceStore';
@@ -156,6 +157,8 @@ export default function ChatPlanWorkspace({
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { lang: activeLang } = useLocaleCurrency();
+  const emptyHero = useMemo(() => buildEmptyHero(activeLang), [activeLang]);
   const lastForcedTripLoadRef = useRef(null);
 
   const [uiMode, setUiMode] = useState('chat');
@@ -388,21 +391,13 @@ export default function ChatPlanWorkspace({
       setFeedKey(`chat-${c.id}`);
       const rawMsgs = c.messages || [];
       const hadStored = rawMsgs.length > 0;
-      const emptyBoot = Boolean(opts.emptyForBootstrap);
-      const msgs = hadStored ? rawMsgs : emptyBoot ? [] : [COLLECT_META_WELCOME];
+      const msgs = hadStored ? rawMsgs : [];
       setFeedMessages(msgs);
       liveMessagesRef.current = msgs;
       setActiveId(c.id);
       setLastUiContext('chat', c.id);
-      setChatFlowPhase(hadStored || emptyBoot ? 'suggesting' : 'collect_meta');
-      if (!hadStored && !emptyBoot) {
-        try {
-          saveChat({ ...c, messages: [COLLECT_META_WELCOME] });
-        } catch {
-          /* ignore */
-        }
-      }
-      if (!hadStored && emptyBoot) {
+      setChatFlowPhase(hadStored ? 'suggesting' : 'collect_meta');
+      if (!hadStored) {
         try {
           saveChat({ ...c, messages: [] });
         } catch {
@@ -450,14 +445,14 @@ export default function ChatPlanWorkspace({
     setTripMeta(DEFAULT_SOBHET_TRIP_META);
     seedTripChipsFromTrip(EMPTY_CHAT_SYNC_TRIP);
     const fresh = createChat();
-    const seeded = { ...fresh, messages: [COLLECT_META_WELCOME] };
+    const seeded = { ...fresh, messages: [] };
     saveChat(seeded);
     setUiMode('chat');
     setActiveTripId(null);
     setActiveChat(seeded);
     setFeedKey(`chat-${fresh.id}`);
-    setFeedMessages([COLLECT_META_WELCOME]);
-    liveMessagesRef.current = [COLLECT_META_WELCOME];
+    setFeedMessages([]);
+    liveMessagesRef.current = [];
     setActiveId(fresh.id);
     setLastUiContext('chat', fresh.id);
     setChatFlowPhase('collect_meta');
@@ -1137,9 +1132,8 @@ export default function ChatPlanWorkspace({
               submitButtonLabel="Gönder"
               submitIconOnly={chatSohbetChrome}
               planContextForApi={planContextForApi}
-              noWelcomeWhenEmpty={Boolean(
-                pendingTripBootstrap && pendingTripBootstrap.chatId === activeChat?.id
-              )}
+              noWelcomeWhenEmpty
+              emptyHero={emptyHero}
               chatOverflowActions={chatOverflowActions}
             />
           </div>
@@ -1167,7 +1161,7 @@ export default function ChatPlanWorkspace({
               mapHeadline={tripMeta.destination ? `Harita · ${tripMeta.destination}` : 'Harita görünümü'}
               mapSubline={resolvedMapPins.length ? `${resolvedMapPins.length} öneri` : ''}
             />
-            {chatSohbetChrome ? <ChatMapSmartInsight /> : null}
+            {chatSohbetChrome ? <ChatMapSmartInsight tripMeta={tripMeta} /> : null}
             {headerVariant === 'tripDetail' ? (
               <div style={{ flexShrink: 0, overflowY: 'auto', minHeight: 0 }}>
                 <TripToolsGrid />

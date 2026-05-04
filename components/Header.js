@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { X, ChevronDown, Briefcase, Plus, Check, Sparkles, ChevronLeft, MessageCircle } from 'lucide-react';
 import ChipModal from './ChipModal';
-import TripFilterChipBar from '@/components/TripFilterChipBar';
+import TripFilterChipBar, { chipLabel, formatChipText, CHIP_IDS } from '@/components/TripFilterChipBar';
 import NavLocaleCurrency from '@/components/NavLocaleCurrency';
 import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import {
@@ -491,6 +491,18 @@ export default function Header({
     setPlanCreateOk(true);
     window.setTimeout(() => setPlanCreateOk(false), 2000);
   }
+
+  /** Sohbet sağ panelindeki "Akıllı öneri" → ilgili chip'i aç */
+  useEffect(() => {
+    function onOpenChip(ev) {
+      const id = ev?.detail?.id;
+      if (!id || !CHIP_IDS.includes(id)) return;
+      const lbl = formatChipText(chipLabel(id, localTripMeta));
+      setOpenModal({ id, label: lbl });
+    }
+    window.addEventListener('atlas-open-chip', onOpenChip);
+    return () => window.removeEventListener('atlas-open-chip', onOpenChip);
+  }, [localTripMeta]);
 
   function handleChipModalSave(data) {
     const id = openModal?.id;
