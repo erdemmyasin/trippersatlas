@@ -6,7 +6,7 @@ nav.l-nav .l-nav__logo {
   color: #0a0a0a !important;
 }
 
-/* Marka işareti — sol paneldeki gibi daha belirgin (dolu siyah çizgi, net görünüm) */
+/* Marka işareti — sol paneldeki gibi daha belirgin */
 nav.l-nav .l-nav__brand .ta-atlas-logo-svg,
 nav.l-nav .l-nav__mark--logo .ta-atlas-logo-svg {
   color: #06080b !important;
@@ -41,12 +41,12 @@ nav.l-nav .l-nav__login {
   padding: 6px 14px !important;
   font-size: 13px !important;
   border-radius: 8px !important;
-  border: 1px solid color-mix(in srgb, #d97706 45%, transparent) !important;
-  background: linear-gradient(180deg, #fef9c3 0%, #fde047 32%, #facc15 70%, #f59e0b 100%) !important;
-  background-color: transparent !important;
-  color: #14110a !important;
-  -webkit-text-fill-color: #14110a !important;
-  box-shadow: 0 1px 2px rgba(146, 90, 10, 0.18) !important;
+  border: 1px solid rgba(15, 23, 32, 0.14) !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+  box-shadow: none !important;
 }
 
 nav.l-nav .l-prefs {
@@ -69,10 +69,11 @@ nav.l-nav .l-prefs__pill--cur {
 
 nav.l-nav a.l-nav__login:hover,
 nav.l-nav .l-nav__login:hover {
-  filter: brightness(1.05);
+  filter: none !important;
+  background: rgba(15, 23, 32, 0.05) !important;
+  border-color: rgba(15, 23, 32, 0.2) !important;
 }
 
-/* Atlas’a Sor — yan ürün aksiyonunu ince mavilerle ayır (Giriş / para birimi amber kalır) */
 nav.l-nav a.l-nav__login.l-nav__login--atlas,
 nav.l-nav .l-nav__login.l-nav__login--atlas {
   border: 1px solid color-mix(in srgb, #94a8c4 52%, rgba(226, 232, 242, 0.9)) !important;
@@ -83,7 +84,13 @@ nav.l-nav .l-nav__login.l-nav__login--atlas {
     #e4eff8 74%,
     #eef6fc 100%
   ) !important;
-  background-color: transparent !important;
+  background-image: linear-gradient(
+    120deg,
+    #f6fbfe 0%,
+    #ebf5fb 42%,
+    #e4eff8 74%,
+    #eef6fc 100%
+  ) !important;
   color: #0f2d4a !important;
   -webkit-text-fill-color: #0f2d4a !important;
   box-shadow: 0 1px 2px rgba(15, 55, 90, 0.11) !important;
@@ -91,23 +98,30 @@ nav.l-nav .l-nav__login.l-nav__login--atlas {
 
 nav.l-nav a.l-nav__login.l-nav__login--atlas:hover,
 nav.l-nav .l-nav__login.l-nav__login--atlas:hover {
-  filter: brightness(1.04) saturate(1.02);
+  filter: brightness(1.04) saturate(1.02) !important;
+  background: linear-gradient(
+    120deg,
+    #f3f9fd 0%,
+    #e6f2fa 42%,
+    #ddebf6 74%,
+    #eaf4fb 100%
+  ) !important;
+  border-color: color-mix(in srgb, #7c92b8 58%, rgba(226, 232, 242, 0.85)) !important;
 }
 
-/* Dil / para — seçili pil (Tailwind button arka planı sıfırla) */
+/* Dil / para — seçili pil: nötr vurgu (sarı degrade yok) */
 nav.l-nav button.l-prefs__pill.l-prefs__pill--on {
-  background: linear-gradient(180deg, #fef9c3 0%, #fde047 35%, #facc15 72%, #f59e0b 100%) !important;
-  background-color: transparent !important;
-  color: #14110a !important;
-  -webkit-text-fill-color: #14110a !important;
+  background: rgba(15, 23, 32, 0.08) !important;
+  background-image: none !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
   font-weight: 700 !important;
-  box-shadow:
-    0 0 0 1px rgba(255, 252, 240, 0.95),
-    0 1px 3px rgba(146, 90, 10, 0.22) !important;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 32, 0.08) !important;
 }
 
 nav.l-nav button.l-prefs__pill.l-prefs__pill--on:hover {
-  color: #14110a !important;
-  -webkit-text-fill-color: #14110a !important;
-  filter: brightness(1.04);
+  filter: none !important;
+  background: rgba(15, 23, 32, 0.11) !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
 }

@@ -1,4 +1,4 @@
-/* Bülten — özelliklerdeki orman yeşili → gökyüzü mavisi tek sürekli degrade; beyaz blok ayrımı yok */
+/* Bülten — orman yeşili → gökyüzü mavisi tek sürekli degrade; beyaz blok ayrımı yok */
 
 #cta-newsletter.l-section.l-cta-section {
   padding-top: clamp(56px, 8vw, 88px);
@@ -21,7 +21,6 @@
     );
 }
 
-/* Tek yüzey: koyu “kart kutusu” yok — hafif cam, arka degrade kesintisiz görünsün */
 #cta-newsletter.l-section.l-cta-section .l-cta__card {
   max-width: 640px;
   margin: 0 auto;

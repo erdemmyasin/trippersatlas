@@ -1,4 +1,4 @@
-/* Gezgin tipi — Popüler Geziler (#destinations) toprak çıkışı → hafif çimen ot yeşiline (landing page.js import) */
+/* Gezgin tipi — Popüler Geziler toprak çıkışı → hafif çimen ot yeşiline (landing page.js import) */
 
 #quiz.l-section.l-quiz {
   padding-top: clamp(56px, 7vw, 100px);
@@ -54,7 +54,6 @@
     0 8px 20px rgba(45, 80, 44, 0.08);
 }
 
-/* Seçili kart — tik rozeti çimen paleti (laciverte yakın nötr yerine doğal yeşil) */
 #quiz.l-section.l-quiz .l-quiz__check {
   background: linear-gradient(158deg, #5fa866 0%, #448a4c 52%, #3a7441 100%);
   border: 1px solid rgba(255, 255, 255, 0.4);
