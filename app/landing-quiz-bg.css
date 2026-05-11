@@ -43,7 +43,7 @@
 }
 
 #quiz.l-section.l-quiz .l-quiz__card:hover {
-  border-color: color-mix(in srgb, #6b9570 42%, rgba(74, 98, 120, 0.2));
+  border-color: color-mix(in srgb, #6b9570 42%, rgba(31, 77, 92, 0.2));
 }
 
 #quiz.l-section.l-quiz .l-quiz__card--active {
@@ -96,7 +96,7 @@
     rgba(218, 234, 214, 0.34) 100%
   );
   color: #1f3f36;
-  border: 1px solid color-mix(in srgb, #8fb892 58%, rgba(74, 98, 120, 0.22));
+  border: 1px solid color-mix(in srgb, #8fb892 58%, rgba(31, 77, 92, 0.22));
   box-shadow:
     0 8px 28px rgba(38, 66, 44, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);

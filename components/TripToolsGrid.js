@@ -25,7 +25,7 @@ export default function TripToolsGrid() {
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
-        gap: 10,
+        gap: 'var(--space-3)',
         flexShrink: 0,
       }}
     >
@@ -37,22 +37,25 @@ export default function TripToolsGrid() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
-            gap: 8,
-            padding: '12px 12px 14px',
-            borderRadius: 16,
-            border: '1px solid rgba(0,0,0,.07)',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-3) var(--space-3) var(--space-3)',
+            borderRadius: 'var(--radius-md)',
+            borderWidth: 'var(--border-thin)',
+            borderStyle: 'solid',
+            borderColor: 'rgba(0,0,0,.07)',
             background: 'rgba(255,255,255,.92)',
             cursor: 'pointer',
             textAlign: 'left',
             fontFamily: 'var(--font-sans)',
             boxShadow: '0 1px 0 rgba(255,255,255,.9) inset',
+            transition: 'background var(--duration-fast) var(--ease-out)',
           }}
         >
           <span
             style={{
               width: 34,
               height: 34,
-              borderRadius: 10,
+              borderRadius: 'var(--radius-sm)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -62,7 +65,7 @@ export default function TripToolsGrid() {
           >
             <Icon size={17} strokeWidth={2} aria-hidden />
           </span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: ta.ink }}>{label}</span>
+          <span style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--fw-semibold)', color: ta.ink }}>{label}</span>
         </button>
       ))}
     </div>

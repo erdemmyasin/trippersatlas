@@ -17,6 +17,8 @@ import { useIsPhoneLayout } from '@/components/SearchScreenPrimitives';
 import { AIRPORTS_BY_IATA, airportFromStatic, normalizeIata } from '@/lib/airportsGeo';
 import { buildCalendarCells, isoFromYMD } from '@/lib/calendarGrid';
 import { qp as qpBar } from '@/lib/quickPlanFilterStyles';
+import FilterField from '@/components/FilterField';
+import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 
 function formatShortRangeTR(start, end) {
   const opts = { day: 'numeric', month: 'short' };
@@ -150,11 +152,15 @@ export default function TourLodgingToolbar({
   const datePopoverRef = useRef(null);
   const paxPopoverRef = useRef(null);
 
-  const [airWhich, setAirWhich] = useState(null); // 'o' | 'd'
+  const tourPanel = useExclusivePopover();
+  const airWhich = tourPanel.openId === 'o' || tourPanel.openId === 'd' ? tourPanel.openId : null;
+  const dateModalOpen = tourPanel.isOpen('date');
+  const paxOpen = tourPanel.isOpen('pax');
+  const setAirWhich = (id) => (id ? tourPanel.open(id) : tourPanel.close());
+  const setDateModalOpen = (v) => (v ? tourPanel.open('date') : tourPanel.close());
+  const setPaxOpen = (v) => (typeof v === 'function' ? (v(paxOpen) ? tourPanel.open('pax') : tourPanel.close()) : v ? tourPanel.open('pax') : tourPanel.close());
   const [airQuery, setAirQuery] = useState('');
   const [airPopPos, setAirPopPos] = useState({ top: 0, left: 0 });
-
-  const [dateModalOpen, setDateModalOpen] = useState(false);
   const [calDraftStart, setCalDraftStart] = useState('');
   const [calDraftEnd, setCalDraftEnd] = useState('');
   const [calMonthCursor, setCalMonthCursor] = useState(() =>
@@ -162,15 +168,9 @@ export default function TourLodgingToolbar({
   );
   const [calSelecting, setCalSelecting] = useState('start');
   const [datePopPos, setDatePopPos] = useState({ top: 0, left: 0 });
-
-  const [paxOpen, setPaxOpen] = useState(false);
   const [paxPopPos, setPaxPopPos] = useState({ top: 0, left: 0 });
 
-  const closeAllPanels = useCallback(() => {
-    setAirWhich(null);
-    setDateModalOpen(false);
-    setPaxOpen(false);
-  }, []);
+  const closeAllPanels = tourPanel.close;
 
   useEffect(() => {
     function onPointerDown(ev) {
@@ -448,10 +448,13 @@ export default function TourLodgingToolbar({
           </div>
         </div>
 
-        <button
+        <FilterField
           ref={dateBtnRef}
-          type="button"
-          style={tb.fieldCard}
+          icon={Calendar}
+          label="Tarihler"
+          value={formatShortRangeTR(dateOut, dateIn)}
+          grow={false}
+          expanded={dateModalOpen}
           onClick={() => {
             setAirWhich(null);
             setPaxOpen(false);
@@ -461,34 +464,21 @@ export default function TourLodgingToolbar({
               setDateModalOpen(true);
             }
           }}
-          aria-expanded={dateModalOpen}
-          aria-haspopup="dialog"
-        >
-          <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-          <span style={{ minWidth: 0, flex: 1 }}>
-            <span style={tb.fieldLbl}>Tarihler</span>
-            <span style={tb.fieldVal}>{formatShortRangeTR(dateOut, dateIn)}</span>
-          </span>
-        </button>
+        />
 
-        <button
+        <FilterField
           ref={paxBtnRef}
-          type="button"
-          style={tb.fieldCard}
+          icon={Users}
+          label="Yolcular"
+          value={paxSummary}
+          grow={false}
+          expanded={paxOpen}
           onClick={() => {
             setAirWhich(null);
             setDateModalOpen(false);
             setPaxOpen((v) => !v);
           }}
-          aria-expanded={paxOpen}
-          aria-haspopup="dialog"
-        >
-          <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-          <span style={{ minWidth: 0, flex: 1 }}>
-            <span style={tb.fieldLbl}>Yolcular</span>
-            <span style={tb.fieldVal}>{paxSummary}</span>
-          </span>
-        </button>
+        />
 
         {!isPhone ? <span style={tb.barSep} /> : null}
         <button

@@ -2,13 +2,9 @@ import "./globals.css";
 import { headers, cookies } from "next/headers";
 import AppProviders from "@/components/AppProviders";
 import { getRequestRegion } from "@/lib/requestRegion";
-import {
-  Fraunces,
-  JetBrains_Mono,
-  Playfair_Display,
-  Plus_Jakarta_Sans,
-} from "next/font/google";
+import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 
+/** UI/Body — Plus Jakarta Sans (tüm metin, butonlar, formlar) */
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin", "latin-ext"],
   variable: "--font-jakarta",
@@ -16,29 +12,13 @@ const plusJakarta = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
-/** Landing hero başlığı — serif (scroll narrative) */
-const playfairLanding = Playfair_Display({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-playfair-landing",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
-
-/** Display / başlıklar — design tool: Fraunces (H1–H2, hero, quote) */
+/** Display / başlıklar — Fraunces (H1–H2, hero, quote, italic) */
 const fraunces = Fraunces({
   subsets: ["latin", "latin-ext"],
   variable: "--font-fraunces",
   display: "swap",
   weight: ["400", "600", "700"],
   style: ["normal", "italic"],
-});
-
-/** Fiyat, koordinat — design tool: JetBrains Mono 500 13px */
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata = {
@@ -67,14 +47,10 @@ export default async function RootLayout({ children }) {
   return (
     <html
       lang={htmlLang}
-      className={`${fraunces.variable} ${jetbrainsMono.variable} ${plusJakarta.variable} ${playfairLanding.variable}`}
+      className={`${fraunces.variable} ${plusJakarta.variable}`}
     >
       <head>
         <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
-        <link
-          rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap"
-        />
       </head>
       <body>
         <AppProviders initialLang={region.lang} initialRegion={region}>{children}</AppProviders>

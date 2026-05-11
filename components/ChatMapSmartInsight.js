@@ -80,26 +80,30 @@ export default function ChatMapSmartInsight({ tripMeta }) {
   return (
     <div style={s.wrap}>
       <div style={s.sectionTitle}>
-        <span>Akıllı öneri</span>
+        <Sparkles size={12} strokeWidth={2.2} color="var(--ta-accent)" aria-hidden />
+        <span>Atlas önerisi</span>
       </div>
       <div style={s.adviceCard}>
-        <div style={s.iconWrap} aria-hidden>
-          <Icon size={18} strokeWidth={1.85} color="var(--ta-accent, #1a73e8)" />
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={s.adviceHead}>{copy.title}</div>
-          <p style={s.adviceText}>{copy.desc}</p>
-          {actionable ? (
-            <button
-              type="button"
-              style={s.ctaBtn}
-              onClick={() => openChip(nextId)}
-              aria-label={copy.cta}
-            >
-              <span>{copy.cta}</span>
-              <ArrowRight size={14} strokeWidth={2.2} aria-hidden />
-            </button>
-          ) : null}
+        <div style={s.accentBar} aria-hidden />
+        <div style={s.adviceBody}>
+          <div style={s.iconWrap} aria-hidden>
+            <Icon size={18} strokeWidth={1.85} color="var(--ta-accent)" />
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={s.adviceHead}>{copy.title}</div>
+            <p style={s.adviceText}>{copy.desc}</p>
+            {actionable ? (
+              <button
+                type="button"
+                style={s.ctaBtn}
+                onClick={() => openChip(nextId)}
+                aria-label={copy.cta}
+              >
+                <span>{copy.cta}</span>
+                <ArrowRight size={14} strokeWidth={2.2} aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -113,64 +117,84 @@ const s = {
     boxSizing: 'border-box',
   },
   sectionTitle: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    fontSize: 12,
-    color: 'var(--muted)',
+    gap: 'var(--space-2)',
+    marginBottom: 'var(--space-3)',
+    fontSize: 'var(--text-xs)',
+    lineHeight: 'var(--text-xs-lh)',
+    color: 'var(--ta-ink-muted)',
     textTransform: 'uppercase',
-    letterSpacing: '.08em',
-    fontWeight: 700,
+    letterSpacing: '.12em',
+    fontWeight: 'var(--fw-bold)',
     fontFamily: 'var(--font-sans)',
   },
   adviceCard: {
-    border: '1px solid var(--line)',
-    background: 'rgba(255,255,255,.72)',
-    borderRadius: 18,
-    padding: 14,
+    position: 'relative',
+    background: 'var(--ta-muted-bg)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.10)',
+    borderRadius: 'var(--radius-lg)',
+    overflow: 'hidden',
+    boxShadow: '0 6px 18px rgba(31,77,92,0.06)',
     boxSizing: 'border-box',
+  },
+  accentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    background: 'var(--ta-accent)',
+  },
+  adviceBody: {
+    padding: 'var(--space-4) var(--space-4) var(--space-4) var(--space-5)',
     display: 'flex',
-    gap: 12,
+    gap: 'var(--space-3)',
     alignItems: 'flex-start',
   },
   iconWrap: {
     flexShrink: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    background: 'rgba(26,115,232,.10)',
+    width: 'var(--space-7)',
+    height: 'var(--space-7)',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(31,77,92,0.10)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   adviceHead: {
     fontFamily: 'var(--font-sans)',
-    fontSize: 13,
-    fontWeight: 700,
-    color: 'var(--ta-ink, #0f2942)',
-    marginBottom: 4,
-    lineHeight: 1.3,
+    fontSize: 'var(--text-base)',
+    lineHeight: 'var(--text-base-lh)',
+    fontWeight: 'var(--fw-bold)',
+    color: 'var(--ta-ink)',
+    marginBottom: 'var(--space-1)',
   },
   adviceText: {
     fontFamily: 'var(--font-sans)',
-    fontSize: 12,
+    fontSize: 'var(--text-sm)',
+    lineHeight: 'var(--text-sm-lh)',
     color: 'var(--ta-ink-muted)',
-    lineHeight: 1.5,
-    margin: '0 0 10px',
+    margin: '0 0 var(--space-3)',
   },
   ctaBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
-    border: '1px solid var(--ta-accent, #1a73e8)',
-    background: 'var(--ta-accent, #1a73e8)',
+    gap: 'var(--space-2)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'var(--ta-accent)',
+    background: 'var(--ta-accent)',
     color: '#fff',
-    borderRadius: 999,
-    padding: '6px 12px',
-    fontSize: 12,
-    fontWeight: 700,
+    borderRadius: 'var(--radius-pill)',
+    padding: 'var(--space-2) var(--space-3)',
+    fontSize: 'var(--text-sm)',
+    lineHeight: 'var(--text-sm-lh)',
+    fontWeight: 'var(--fw-bold)',
     fontFamily: 'var(--font-sans)',
     cursor: 'pointer',
+    transition: 'opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out)',
   },
 };

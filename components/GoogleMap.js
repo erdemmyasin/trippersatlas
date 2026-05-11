@@ -44,19 +44,15 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-/** Atlas — açık, minimal harita */
+/** Atlas — doğal renkli harita ama mekan ikonları (POI/transit) kapalı.
+ * - Sular Google default mavi, parklar yeşil, yollar beyaz, kara doğal krem.
+ * - Restoran/atraksiyon/metro/üniversite gibi Google iconları gösterilmez —
+ *   harita üzerinde sadece bizim marker'larımız (plana eklenen yerler) görünür.
+ */
 const MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#f4f3ef' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#5c574f' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f4f3ef' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#d8d4cc' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e5e2db' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#d0ccc4' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c5d4cc' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
 ];
 
 function buildInfoHtml(m) {
@@ -66,9 +62,9 @@ function buildInfoHtml(m) {
   const price = m.price ? `<div style="font-weight:800;color:#2f3f52;margin-top:4px;">${esc(m.price)}</div>` : '';
   const rating =
     m.rating != null
-      ? `<div style="display:flex;align-items:center;gap:4px;font-size:12px;color:#2e7d32;font-weight:600;margin-top:2px;font-family:General Sans,ui-sans-serif,sans-serif;"><svg width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" stroke-width="1" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg><span>${esc(String(m.rating))}</span></div>`
+      ? `<div style="display:flex;align-items:center;gap:4px;font-size:12px;color:#2e7d32;font-weight:600;margin-top:2px;font-family:var(--font-sans, ui-sans-serif, sans-serif);"><svg width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" stroke-width="1" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg><span>${esc(String(m.rating))}</span></div>`
       : '';
-  return `<div style="font-family:General Sans,ui-sans-serif,sans-serif;max-width:220px;padding:4px;">
+  return `<div style="font-family:var(--font-sans, ui-sans-serif, sans-serif);max-width:220px;padding:4px;">
     ${img}
     <div style="font-weight:700;font-size:14px;color:var(--ta-ink);">${esc(m.title || '')}</div>
     ${rating}

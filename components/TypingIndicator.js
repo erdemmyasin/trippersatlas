@@ -21,11 +21,13 @@ const dotBase = {
 const s = {
   wrap: {
     display: 'inline-flex',
-    gap: '6px',
-    padding: '12px 16px',
+    gap: 'var(--space-2)',
+    padding: 'var(--space-3) var(--space-4)',
     background: 'white',
-    borderRadius: '999px',
-    border: '1px solid rgba(0,0,0,.05)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.05)',
     marginLeft: '46px',
     width: 'fit-content',
     boxShadow: '0 4px 12px rgba(0,0,0,.04)',

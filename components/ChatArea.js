@@ -8,7 +8,7 @@ import {
   useImperativeHandle,
   useCallback,
 } from 'react';
-import { MoreVertical } from 'lucide-react';
+import { Compass, MoreVertical } from 'lucide-react';
 import ChatInput from './ChatInput';
 import TypingIndicator from './TypingIndicator';
 import QuickReplies from './QuickReplies';
@@ -333,11 +333,30 @@ const ChatArea = forwardRef(function ChatArea(
               aria-hidden={messages.length > 0 || typing}
             >
               <div style={s.heroIcon} aria-hidden>
-                <span style={s.heroIconCircle}>✦</span>
+                <span style={s.heroIconCircle}>
+                  <Compass size={26} strokeWidth={1.6} color="var(--ta-accent)" />
+                </span>
               </div>
+              {emptyHero.eyebrow ? (
+                <div style={s.heroEyebrow}>{emptyHero.eyebrow}</div>
+              ) : null}
               <h2 style={s.heroTitle}>{emptyHero.title}</h2>
               {emptyHero.subtitle ? (
                 <p style={s.heroSubtitle}>{emptyHero.subtitle}</p>
+              ) : null}
+              {Array.isArray(emptyHero.prompts) && emptyHero.prompts.length > 0 ? (
+                <div style={s.heroPromptRow}>
+                  {emptyHero.prompts.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      style={s.heroPromptChip}
+                      onClick={() => handleSend(p)}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -495,42 +514,75 @@ const s = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '40px 24px',
+    padding: 'var(--space-8) var(--space-6)',
     textAlign: 'center',
     pointerEvents: 'none',
-    zIndex: 1,
-    transition: 'opacity 280ms ease, transform 280ms ease, visibility 280ms ease',
+    zIndex: 'var(--z-raised)',
+    transition: 'opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out), visibility var(--duration-slow) var(--ease-out)',
   },
   heroIcon: {
-    marginBottom: 14,
+    marginBottom: 'var(--space-4)',
   },
   heroIconCircle: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: '50%',
-    background: 'linear-gradient(135deg,#cfe7ff 0%,#e9d6ff 100%)',
-    color: 'var(--ta-ink, #0f2942)',
-    fontSize: 26,
-    fontWeight: 700,
-    boxShadow: '0 8px 24px rgba(15,41,74,.12)',
+    background: '#fff',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.18)',
+    boxShadow: '0 10px 28px rgba(31,77,92,0.10), inset 0 0 0 4px rgba(31,77,92,0.04)',
+  },
+  heroEyebrow: {
+    margin: '0 0 var(--space-3)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    color: 'var(--ta-accent)',
   },
   heroTitle: {
-    margin: '0 0 8px',
-    fontFamily: 'var(--font-serif, var(--font-fraunces))',
-    fontWeight: 700,
-    fontSize: 30,
-    letterSpacing: '-0.02em',
-    color: 'var(--ta-ink, #0f2942)',
+    margin: '0 0 var(--space-3)',
+    fontFamily: 'var(--font-serif)',
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--text-4xl)',
+    lineHeight: 'var(--text-4xl-lh)',
+    letterSpacing: '-0.025em',
+    color: 'var(--ta-ink)',
   },
   heroSubtitle: {
     margin: 0,
-    fontSize: 14,
-    color: 'var(--ta-ink-muted, #5a6982)',
-    maxWidth: 460,
-    lineHeight: 1.5,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-md)',
+    lineHeight: 'var(--text-md-lh)',
+    color: 'var(--ta-ink-muted)',
+    maxWidth: 440,
+  },
+  heroPromptRow: {
+    marginTop: 'var(--space-5)',
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 'var(--space-2)',
+    pointerEvents: 'auto',
+  },
+  heroPromptChip: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--ta-ink)',
+    background: '#fff',
+    padding: 'var(--space-2) var(--space-4)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.18)',
+    cursor: 'pointer',
+    transition: 'background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out)',
   },
   feedFade: {
     position: 'absolute',
@@ -546,28 +598,30 @@ const s = {
     flex: 1,
     minHeight: 0,
     overflowY: 'auto',
-    padding: '12px 16px 20px',
+    padding: 'var(--space-3) var(--space-4) var(--space-5)',
     display: 'grid',
-    gap: '16px',
+    gap: 'var(--space-4)',
     alignContent: 'start',
   },
 
   composerStrip: {
     flexShrink: 0,
-    borderTop: `1px solid ${ta.border}`,
-    padding: '12px 14px 14px',
+    borderTopWidth: 'var(--border-thin)',
+    borderTopStyle: 'solid',
+    borderTopColor: ta.border,
+    padding: 'var(--space-3) var(--space-3) var(--space-3)',
     background: 'color-mix(in srgb, var(--ta-muted-bg) 22%, var(--panel))',
   },
 
   msgGroup: {
     display: 'grid',
-    gap: '12px',
+    gap: 'var(--space-3)',
   },
 
   /* AI row: avatar-left + bubble */
   rowAI: {
     display: 'flex',
-    gap: '10px',
+    gap: 'var(--space-3)',
     alignItems: 'flex-start',
     maxWidth: '88%',
     alignSelf: 'flex-start',
@@ -575,7 +629,7 @@ const s = {
   /* User row: bubble + avatar-right, right-aligned */
   rowUser: {
     display: 'flex',
-    gap: '10px',
+    gap: 'var(--space-3)',
     alignItems: 'flex-end',
     maxWidth: '72%',
     alignSelf: 'flex-end',
@@ -586,27 +640,31 @@ const s = {
   avatarAI: {
     width: '36px',
     height: '36px',
-    borderRadius: '12px',
+    borderRadius: 'var(--radius-sm)',
     flexShrink: 0,
     display: 'grid',
     placeItems: 'center',
-    fontSize: '13px',
-    fontWeight: 800,
-    border: '1px solid rgba(0,0,0,.06)',
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-extrabold)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.06)',
     background: 'linear-gradient(135deg,#0f1720,#1e3545 55%,#4a6278)',
     color: 'white',
     fontFamily: 'var(--font-sans)',
   },
   avatarUser: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '10px',
+    width: 'var(--space-7)',
+    height: 'var(--space-7)',
+    borderRadius: 'var(--radius-sm)',
     flexShrink: 0,
     display: 'grid',
     placeItems: 'center',
-    fontSize: '12px',
-    fontWeight: 800,
-    border: '1px solid rgba(0,0,0,.06)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-extrabold)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.06)',
     background: 'linear-gradient(135deg,#dce4ed,#5f7a94)',
     color: '#15232f',
     fontFamily: 'var(--font-sans)',
@@ -614,13 +672,15 @@ const s = {
 
   /* Bubble styles */
   bubble: {
-    borderRadius: '18px',
-    padding: '11px 15px',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-3) var(--space-4)',
     lineHeight: 1.65,
-    border: '1px solid rgba(0,0,0,.05)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.05)',
     boxShadow: '0 6px 18px rgba(0,0,0,.04)',
     fontFamily: 'var(--font-sans)',
-    fontSize: '14px',
+    fontSize: 'var(--text-md)',
     wordBreak: 'break-word',
     minWidth: 0,
   },
@@ -632,9 +692,9 @@ const s = {
   bubbleUser: {
     background: '#ffffff',
     color: '#15232f',
-    border: '1px solid rgba(74,98,120,.22)',
+    borderColor: 'rgba(31,77,92,.22)',
     borderRadius: '18px 4px 18px 18px',
-    boxShadow: '0 6px 18px rgba(74,98,120,.12)',
+    boxShadow: '0 6px 18px rgba(31,77,92,.12)',
   },
 
   /* Hotel cards row */
@@ -642,10 +702,10 @@ const s = {
     display: 'grid',
     gridAutoFlow: 'column',
     gridAutoColumns: '248px',
-    gap: '14px',
+    gap: 'var(--space-3)',
     overflowX: 'auto',
     paddingLeft: '46px',
-    paddingBottom: '4px',
+    paddingBottom: 'var(--space-1)',
     scrollbarWidth: 'none',
   },
 
@@ -653,7 +713,7 @@ const s = {
   insightsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
-    gap: '12px',
+    gap: 'var(--space-3)',
     paddingLeft: '46px',
   },
 };

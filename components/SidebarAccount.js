@@ -71,17 +71,26 @@ export default function SidebarAccount({ expanded }) {
       {open ? (
         <div
           style={{
-            position: 'absolute',
-            bottom: '100%',
-            left: 8,
-            right: 8,
-            marginBottom: 8,
+            ...(expanded
+              ? {
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: 8,
+                  right: 8,
+                  marginBottom: 8,
+                }
+              : {
+                  position: 'fixed',
+                  bottom: 12,
+                  left: 64,
+                  width: 240,
+                }),
             background: '#FFFFFF',
             borderRadius: 12,
             boxShadow: '0 8px 32px rgba(35,28,18,.14)',
             border: '1px solid rgba(0,0,0,.08)',
             overflow: 'hidden',
-            zIndex: 50,
+            zIndex: 'var(--z-popover)',
           }}
         >
           {user ? (
@@ -103,8 +112,8 @@ export default function SidebarAccount({ expanded }) {
                     width: 40,
                     height: 40,
                     borderRadius: '50%',
-                    background: 'linear-gradient(145deg,#b8d4f0,#7eb3e8)',
-                    color: '#1a3a5c',
+                    background: 'linear-gradient(145deg, #2f7a8f, #1F4D5C)',
+                    color: '#fff',
                     fontWeight: 800,
                     fontSize: 14,
                     display: 'flex',
@@ -273,8 +282,8 @@ export default function SidebarAccount({ expanded }) {
             width: 32,
             height: 32,
             borderRadius: '50%',
-            background: user ? 'linear-gradient(145deg,#b8d4f0,#7eb3e8)' : 'rgba(0,0,0,.08)',
-            color: user ? '#1a3a5c' : 'var(--ta-ink-muted)',
+            background: user ? 'linear-gradient(145deg, #2f7a8f, #1F4D5C)' : 'rgba(0,0,0,.08)',
+            color: user ? '#fff' : 'var(--ta-ink-muted)',
             fontWeight: 800,
             fontSize: 12,
             display: 'flex',

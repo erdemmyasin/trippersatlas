@@ -30,6 +30,10 @@ import { centerFromMarkers } from '@/lib/airportsGeo';
 import { getMockBusTrips, uniqCompanies, uniqStations } from '@/lib/busSearchMock';
 import { appendRegionalGeocodeContext } from '@/lib/taRegion';
 import { qp } from '@/lib/quickPlanFilterStyles';
+import FilterField from '@/components/FilterField';
+import EmptyState from '@/components/EmptyState';
+import SkeletonList from '@/components/SkeletonList';
+import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
 import {
@@ -138,32 +142,7 @@ function initials(name) {
 }
 
 function BusSkeleton({ narrow }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {[1, 2, 3, 4, 5].map((k) => (
-        <div
-          key={k}
-          className="ta-flight-skel"
-          style={{
-            background: '#fff',
-            border: '1px solid rgba(0,0,0,.08)',
-            borderRadius: 12,
-            padding: 18,
-            display: 'grid',
-            gridTemplateColumns: narrow ? '1fr' : 'minmax(128px,168px) 1fr minmax(158px,188px)',
-            gap: 16,
-          }}
-        >
-          <div style={{ height: 44, width: 44, background: '#eee', borderRadius: 10 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ height: 14, background: '#eee', borderRadius: 4, width: '70%' }} />
-            <div style={{ height: 12, background: '#f0f0f0', borderRadius: 4, width: '50%' }} />
-          </div>
-          <div style={{ height: 40, background: '#eee', borderRadius: 8 }} />
-        </div>
-      ))}
-    </div>
-  );
+  return <SkeletonList rows={5} narrow={narrow} />;
 }
 
 const sideSelect = {
@@ -213,22 +192,17 @@ export default function BusSearchScreen() {
   const busDatePopRef = useRef(null);
   const busPaxPopRef = useRef(null);
 
-  const [busCityPick, setBusCityPick] = useState(null);
+  const busPanel = useExclusivePopover();
+  const busCityPick = busPanel.openId === 'from' || busPanel.openId === 'to' ? busPanel.openId : null;
+  const busDateOpen = busPanel.isOpen('date');
+  const busPaxOpen = busPanel.isOpen('pax');
+  const setBusCityPick = (id) => (id ? busPanel.open(id) : busPanel.close());
   const [busCityDraft, setBusCityDraft] = useState('');
   const [busCityLayout, setBusCityLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
-
-  const [busDateOpen, setBusDateOpen] = useState(false);
   const [busDateLayout, setBusDateLayout] = useState({ top: 0, left: 10 });
-
-  const [busPaxOpen, setBusPaxOpen] = useState(false);
   const [busPaxLayout, setBusPaxLayout] = useState({ top: 0, left: 0, width: 'min(320px, calc(100vw - 20px))' });
   const [busPaxCount, setBusPaxCount] = useState(2);
-
-  const closeBusPanels = useCallback(() => {
-    setBusCityPick(null);
-    setBusDateOpen(false);
-    setBusPaxOpen(false);
-  }, []);
+  const closeBusPanels = busPanel.close;
 
   useLayoutEffect(() => {
     if (!busCityPick) return undefined;
@@ -273,7 +247,7 @@ export default function BusSearchScreen() {
     };
   }, [busPaxOpen]);
 
-  const busPanelsActive = !!(busCityPick || busDateOpen || busPaxOpen);
+  const busPanelsActive = busPanel.anyOpen;
   const ignoreBusPointer = useCallback(
     (t) =>
       !!(busBarRef.current?.contains(t)) ||
@@ -457,23 +431,20 @@ export default function BusSearchScreen() {
       ) : null}
 
       {!hasSearched ? (
-        <div style={st.empty}>
-          <span style={st.emptyPlane} aria-hidden>
-            <Bus size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-          </span>
-          <p style={st.emptyTitle}>Otobüs Ara</p>
-          <p style={st.emptySub}>Kalkış ve varış şehrini seçin, tarihi belirleyin; seferleri listeleyin.</p>
-        </div>
+        <EmptyState
+          icon={Bus}
+          title="Otobüs Ara"
+          description="Kalkış ve varış şehrini seçin, tarihi belirleyin; seferleri listeleyin."
+        />
       ) : loading ? (
         <BusSkeleton narrow={isPhone} />
       ) : filtered.length === 0 ? (
-        <div style={st.empty}>
-          <span style={st.emptyPlane} aria-hidden>
-            <Bus size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-          </span>
-          <p style={st.emptyTitle}>Bu filtrelere uygun sefer yok</p>
-          <p style={st.emptySub}>Filtreleri genişletmeyi veya güzergâhı değiştirmeyi deneyin.</p>
-        </div>
+        <EmptyState
+          icon={Bus}
+          tone="muted"
+          title="Bu filtrelere uygun sefer yok"
+          description="Filtreleri genişletmeyi veya güzergâhı değiştirmeyi deneyin."
+        />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={dateNavWrap}>
@@ -680,13 +651,9 @@ export default function BusSearchScreen() {
                         aria-expanded={busCityPick === 'from'}
                         aria-haspopup="dialog"
                         onClick={() => {
-                          setBusDateOpen(false);
-                          setBusPaxOpen(false);
-                          setBusCityPick((prev) => {
-                            const next = prev === 'from' ? null : 'from';
-                            if (next === 'from') setBusCityDraft(from);
-                            return next;
-                          });
+                          const willOpen = busPanel.openId !== 'from';
+                          busPanel.toggle('from');
+                          if (willOpen) setBusCityDraft(from);
                         }}
                       >
                         <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
@@ -707,13 +674,9 @@ export default function BusSearchScreen() {
                         aria-expanded={busCityPick === 'to'}
                         aria-haspopup="dialog"
                         onClick={() => {
-                          setBusDateOpen(false);
-                          setBusPaxOpen(false);
-                          setBusCityPick((prev) => {
-                            const next = prev === 'to' ? null : 'to';
-                            if (next === 'to') setBusCityDraft(to);
-                            return next;
-                          });
+                          const willOpen = busPanel.openId !== 'to';
+                          busPanel.toggle('to');
+                          if (willOpen) setBusCityDraft(to);
                         }}
                       >
                         <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
@@ -726,54 +689,26 @@ export default function BusSearchScreen() {
                       </button>
                     </div>
                   </div>
-                  <button
+                  <FilterField
                     ref={dateBtnRef}
-                    type="button"
-                    style={{
-                      ...qp.fieldCard,
-                      ...qp.fieldCardGrow,
-                      ...qp.fieldCardStatic,
-                      flex: '1 1 170px',
-                      ...(isPhone ? { width: '100%', flex: '1 1 100%' } : {}),
-                    }}
-                    aria-expanded={busDateOpen}
-                    aria-haspopup="dialog"
-                    onClick={() => {
-                      setBusCityPick(null);
-                      setBusPaxOpen(false);
-                      setBusDateOpen((v) => !v);
-                    }}
-                  >
-                    <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={qp.fieldLbl}>Tarih</span>
-                      <span style={qp.fieldVal}>{formatSingleDateTR(travelDate)}</span>
-                    </span>
-                  </button>
-                  <button
+                    icon={Calendar}
+                    label="Tarih"
+                    value={formatSingleDateTR(travelDate)}
+                    flex="1 1 170px"
+                    isPhone={isPhone}
+                    expanded={busDateOpen}
+                    onClick={() => busPanel.toggle('date')}
+                  />
+                  <FilterField
                     ref={paxBtnRef}
-                    type="button"
-                    style={{
-                      ...qp.fieldCard,
-                      ...qp.fieldCardGrow,
-                      ...qp.fieldCardStatic,
-                      flex: '1 1 150px',
-                      ...(isPhone ? { width: '100%', flex: '1 1 100%' } : {}),
-                    }}
-                    aria-expanded={busPaxOpen}
-                    aria-haspopup="dialog"
-                    onClick={() => {
-                      setBusCityPick(null);
-                      setBusDateOpen(false);
-                      setBusPaxOpen((v) => !v);
-                    }}
-                  >
-                    <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={qp.fieldLbl}>Yolcular</span>
-                      <span style={qp.fieldVal}>{`${busPaxCount} yolcu`}</span>
-                    </span>
-                  </button>
+                    icon={Users}
+                    label="Yolcular"
+                    value={`${busPaxCount} yolcu`}
+                    flex="1 1 150px"
+                    isPhone={isPhone}
+                    expanded={busPaxOpen}
+                    onClick={() => busPanel.toggle('pax')}
+                  />
                 {!isPhone ? <span style={qp.barSep} aria-hidden /> : null}
                 <div
                   style={{
@@ -832,7 +767,7 @@ export default function BusSearchScreen() {
         onApply={(s, e) => {
           void e;
           setTravelDate(s);
-          setBusDateOpen(false);
+          busPanel.close();
         }}
       >
         <div style={{ ...qp.miniPillRow, justifyContent: 'flex-start' }}>
@@ -997,7 +932,7 @@ const flightBanner = {
   padding: '14px 16px',
   borderRadius: 12,
   background: 'var(--ta-accent-soft)',
-  border: '1px solid rgba(74,98,120,.28)',
+  border: '1px solid rgba(31,77,92,.28)',
   marginBottom: 12,
 };
 
@@ -1033,7 +968,7 @@ const tagWarn = {
   fontSize: 11,
   fontWeight: 600,
   color: 'var(--ta-accent-deep)',
-  background: 'rgba(74,98,120,0.12)',
+  background: 'rgba(31,77,92,0.12)',
   padding: '4px 8px',
   borderRadius: 8,
 };
@@ -1049,12 +984,14 @@ const st = {
   },
   stickyBarTop: {
     flexShrink: 0,
-    zIndex: 25,
+    zIndex: 'var(--z-sticky)',
     background: '#fff',
     boxShadow: '0 1px 10px rgba(0,0,0,.05)',
-    borderBottom: '1px solid rgba(0,0,0,.06)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.06)',
   },
-  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: '12px 20px 14px', boxSizing: 'border-box' },
+  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: 'var(--space-3) var(--space-5) var(--space-3)', boxSizing: 'border-box' },
   topBarRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1389,7 +1326,7 @@ const st = {
     fontSize: 13,
     cursor: 'pointer',
     fontFamily: 'inherit',
-    boxShadow: '0 2px 8px rgba(74,98,120,.35)',
+    boxShadow: '0 2px 8px rgba(31,77,92,.35)',
   },
   empty: {
     textAlign: 'center',

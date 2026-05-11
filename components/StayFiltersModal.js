@@ -248,7 +248,7 @@ export function StayFiltersModal({
                   textAlign: 'left',
                   padding: '12px 16px',
                   border: 'none',
-                  background: activeNav === n.id ? 'rgba(74,98,120,.14)' : 'transparent',
+                  background: activeNav === n.id ? 'rgba(31,77,92,.14)' : 'transparent',
                   fontWeight: activeNav === n.id ? 700 : 500,
                   fontSize: 13,
                   color: 'var(--ta-ink)',
@@ -341,7 +341,7 @@ export function StayFiltersModal({
                         padding: '10px 14px',
                         borderRadius: 999,
                         border: active ? '2px solid var(--ta-accent)' : '1px solid rgba(0,0,0,.12)',
-                        background: active ? 'rgba(74,98,120,.12)' : '#fff',
+                        background: active ? 'rgba(31,77,92,.12)' : '#fff',
                         fontSize: 12,
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -501,7 +501,7 @@ export function StayFiltersModal({
               fontSize: 14,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              boxShadow: '0 2px 8px rgba(74,98,120,.35)',
+              boxShadow: '0 2px 8px rgba(31,77,92,.35)',
             }}
           >
             Uygula

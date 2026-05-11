@@ -17,6 +17,23 @@ export function chipLabel(id, meta) {
   return '';
 }
 
+/** Chip'in gerçekten kullanıcı tarafından doldurulup doldurulmadığını söyler. */
+export function isChipFilled(id, meta) {
+  if (!meta || typeof meta !== 'object') return false;
+  if (id === 'dest') return Boolean(String(meta.destination || '').trim());
+  if (id === 'dates') {
+    if (String(meta.datesChipText || '').trim()) return true;
+    if (Number(meta.nights) > 0 && String(meta.month || '').trim()) return true;
+    return false;
+  }
+  if (id === 'pax') {
+    const txt = String(meta.paxChipText || '').trim();
+    return Boolean(txt) && txt !== '1 yetişkin';
+  }
+  if (id === 'budget') return Boolean(String(meta.budget || '').trim());
+  return false;
+}
+
 /** Trip chip satırında gösterim: her kelimenin ilk harfi (tr-TR, i→İ) */
 function capitalizeTurkishWord(word) {
   if (!word) return word;
@@ -69,13 +86,14 @@ export default function TripFilterChipBar({
     const modalOpen = openModal?.id === chipId;
     const stageOn = stageChipId === chipId;
     const highlighted = modalOpen || stageOn;
+    const filled = isChipFilled(chipId, tripMetaForChips);
     const btn = (
       <button
         type="button"
         key={chipId}
         style={{
           ...ts.chip,
-          ...(highlighted ? ts.chipHi : ts.chipLo),
+          ...(highlighted ? ts.chipHi : filled ? ts.chipFilled : ts.chipLo),
         }}
         onClick={() => {
           setNotesModalOpen(false);
@@ -143,8 +161,8 @@ const ts = {
     display: 'flex',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: '8px',
-    rowGap: '8px',
+    gap: 'var(--space-2)',
+    rowGap: 'var(--space-2)',
   },
   chipRow: {
     display: 'inline-flex',
@@ -152,33 +170,42 @@ const ts = {
   },
   dot: {
     color: 'rgba(0,0,0,.25)',
-    fontSize: '14px',
-    padding: '0 2px',
+    fontSize: 'var(--text-md)',
+    padding: '0 var(--space-px)',
     userSelect: 'none',
   },
   chip: {
     display: 'inline-flex',
     alignItems: 'center',
-    padding: '5px 10px',
-    borderRadius: '999px',
+    padding: 'var(--space-1) var(--space-3)',
+    borderRadius: 'var(--radius-pill)',
     boxSizing: 'border-box',
     background: 'transparent',
     color: 'var(--text1)',
-    fontSize: '13px',
-    fontWeight: 600,
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-semibold)',
     fontFamily: 'var(--font-sans)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    transition: 'border-color .15s, color .15s',
+    transition: 'border-color var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out)',
+    borderWidth: 'var(--border-medium)',
+    borderStyle: 'solid',
+    borderColor: 'transparent',
   },
   chipLo: {
-    border: '1.5px solid rgba(0,0,0,.12)',
+    borderColor: 'rgba(0,0,0,.12)',
     color: 'var(--text2)',
-    fontWeight: 500,
+    fontWeight: 'var(--fw-medium)',
+  },
+  chipFilled: {
+    borderColor: 'rgba(31,77,92,0.28)',
+    background: 'var(--ta-muted-bg)',
+    color: 'var(--ta-ink)',
+    fontWeight: 'var(--fw-semibold)',
   },
   chipHi: {
-    border: '1.5px solid var(--ta-ink)',
-    color: 'var(--text1)',
-    fontWeight: 600,
+    borderColor: 'var(--ta-accent)',
+    color: 'var(--ta-ink)',
+    fontWeight: 'var(--fw-semibold)',
   },
 };

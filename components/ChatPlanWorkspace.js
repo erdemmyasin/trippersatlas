@@ -14,6 +14,7 @@ import TripRouteHeader from '@/components/TripRouteHeader';
 import TripToolsGrid from '@/components/TripToolsGrid';
 import LeftPanel from '@/components/LeftPanel';
 import ChatMapSmartInsight from '@/components/ChatMapSmartInsight';
+import RightPanelInspirations from '@/components/RightPanelInspirations';
 import ChatArea from '@/components/ChatArea';
 import QuickPlanForm from '@/components/QuickPlanForm';
 import RightPanel, { DEFAULT_MAP_MARKERS } from '@/components/RightPanel';
@@ -1147,20 +1148,24 @@ export default function ChatPlanWorkspace({
                 : {}),
             }}
           >
-            <RightPanel
-              completedModules={completedModules}
-              markers={mapMarkers}
-              hideMapOverlay={headerVariant === 'tripDetail'}
-              googleMap={{
-                center: geoCenter,
-                markers: chatGoogleMarkers,
-                zoom: 12,
-                focusRequest: mapFocusRequest,
-                onMarkerClick: handleMapMarkerClick,
-              }}
-              mapHeadline={tripMeta.destination ? `Harita · ${tripMeta.destination}` : 'Harita görünümü'}
-              mapSubline={resolvedMapPins.length ? `${resolvedMapPins.length} öneri` : ''}
-            />
+            {chatSohbetChrome && !String(tripMeta.destination || '').trim() ? (
+              <RightPanelInspirations />
+            ) : (
+              <RightPanel
+                completedModules={completedModules}
+                markers={mapMarkers}
+                hideMapOverlay={headerVariant === 'tripDetail'}
+                googleMap={{
+                  center: geoCenter,
+                  markers: chatGoogleMarkers,
+                  zoom: 12,
+                  focusRequest: mapFocusRequest,
+                  onMarkerClick: handleMapMarkerClick,
+                }}
+                mapHeadline={tripMeta.destination ? `Harita · ${tripMeta.destination}` : 'Harita görünümü'}
+                mapSubline={resolvedMapPins.length ? `${resolvedMapPins.length} öneri` : ''}
+              />
+            )}
             {chatSohbetChrome ? <ChatMapSmartInsight tripMeta={tripMeta} /> : null}
             {headerVariant === 'tripDetail' ? (
               <div style={{ flexShrink: 0, overflowY: 'auto', minHeight: 0 }}>
@@ -1204,8 +1209,8 @@ const s = {
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px',
-    padding: '14px',
+    gap: 'var(--space-3)',
+    padding: 'var(--space-3)',
     boxSizing: 'border-box',
     minHeight: 0,
     overflowY: 'auto',

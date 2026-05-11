@@ -1,5 +1,6 @@
 'use client';
 
+import { Compass } from 'lucide-react';
 import QuickPlanMap from '@/components/QuickPlanMap';
 
 export const DEFAULT_MAP_MARKERS = [
@@ -32,9 +33,7 @@ export default function RightPanel({
       <>
         <div
           style={{
-            ...s.map,
-            padding: 0,
-            background: '#e8ebe5',
+            ...s.mapShell,
             ...(hideMapOverlay
               ? {
                   flex: '1 1 0',
@@ -44,20 +43,7 @@ export default function RightPanel({
               : {}),
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              top: 0,
-              borderRadius: 'inherit',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 0,
-            }}
-          >
+          <div style={s.mapInner}>
             <QuickPlanMap
               showChrome={false}
               fillHeight
@@ -69,6 +55,12 @@ export default function RightPanel({
               focusRequest={googleMap.focusRequest}
             />
           </div>
+          {!hideMapOverlay ? (
+            <div style={s.mapBadge} aria-hidden>
+              <Compass size={12} strokeWidth={2.2} color="var(--ta-accent)" />
+              <span>Atlas haritası</span>
+            </div>
+          ) : null}
         </div>
       </>
     );
@@ -103,7 +95,53 @@ export default function RightPanel({
 }
 
 const s = {
-  /* ── Map ── */
+  /* ── Map (Google) ── */
+  mapShell: {
+    position: 'relative',
+    minHeight: 0,
+    flex: 1,
+    borderRadius: 'var(--radius-lg)',
+    overflow: 'hidden',
+    background: '#e8ebe5',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.12)',
+    boxShadow: '0 10px 28px rgba(31,77,92,0.08)',
+  },
+  mapInner: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 'inherit',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+  },
+  mapBadge: {
+    position: 'absolute',
+    top: 'var(--space-3)',
+    left: 'var(--space-3)',
+    zIndex: 2,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 'var(--space-1)',
+    padding: '6px var(--space-3)',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(255,255,255,0.92)',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.12)',
+    boxShadow: '0 4px 12px rgba(31,77,92,0.10)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.04em',
+    color: 'var(--ta-ink)',
+    pointerEvents: 'none',
+  },
+  /* ── CSS Map (fallback) ── */
   map: {
     position: 'relative',
     borderRadius: '24px',

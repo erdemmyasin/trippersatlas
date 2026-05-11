@@ -36,6 +36,10 @@ import {
   defaultHotelTextQueryPrefix,
 } from '@/lib/taRegion';
 import { qp } from '@/lib/quickPlanFilterStyles';
+import FilterField from '@/components/FilterField';
+import EmptyState from '@/components/EmptyState';
+import SkeletonList from '@/components/SkeletonList';
+import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
 import {
@@ -58,7 +62,7 @@ function scoreLabel(s) {
 function scoreColor(s) {
   if (s >= 9) return { bg: 'rgba(34,139,34,.15)', fg: '#1d6b1d' };
   if (s >= 8) return { bg: 'rgba(76,175,80,.18)', fg: '#2e7d32' };
-  return { bg: 'rgba(74,98,120,.2)', fg: 'var(--ta-accent-deep)' };
+  return { bg: 'rgba(31,77,92,.2)', fg: 'var(--ta-accent-deep)' };
 }
 
 /** Mock mapX/mapY (0–100) → yaklaşık koordinat; şehir merkezine göre ~±8 km */
@@ -89,51 +93,7 @@ function percentile(sortedPrices, p) {
 }
 
 function StaySkeleton({ narrow }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {[1, 2, 3, 4, 5].map((k) => (
-        <div
-          key={k}
-          className="ta-flight-skel"
-          style={{
-            background: '#fff',
-            border: '1px solid rgba(0,0,0,.08)',
-            borderRadius: 12,
-            padding: 16,
-            display: 'grid',
-            gridTemplateColumns: narrow ? '1fr' : '70px 1fr 100px',
-            gap: 14,
-          }}
-        >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr',
-              gap: 6,
-              width: narrow ? 72 : 70,
-            }}
-          >
-            {[1, 2, 3].map((s) => (
-              <div
-                key={s}
-                style={{
-                  height: narrow ? 52 : 52,
-                  background: '#eee',
-                  borderRadius: 6,
-                }}
-              />
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ height: 16, background: '#eee', borderRadius: 4, width: '65%' }} />
-            <div style={{ height: 12, background: '#f0f0f0', borderRadius: 4, width: '40%' }} />
-            <div style={{ height: 12, background: '#f0f0f0', borderRadius: 4, width: '85%' }} />
-          </div>
-          <div style={{ height: 56, background: '#eee', borderRadius: 8 }} />
-        </div>
-      ))}
-    </div>
-  );
+  return <SkeletonList rows={5} narrow={narrow} />;
 }
 
 function StayMapPlaceholder({ hotels, hoveredId, setHoveredId, fillHeight = false, formatHotelTitle }) {
@@ -369,21 +329,15 @@ export default function StaySearchScreen({
   const stayDatePopRef = useRef(null);
   const stayPaxPopRef = useRef(null);
 
-  const [stayCityOpen, setStayCityOpen] = useState(false);
+  const stayPanel = useExclusivePopover();
+  const stayCityOpen = stayPanel.isOpen('city');
+  const stayDateOpen = stayPanel.isOpen('date');
+  const stayPaxOpen = stayPanel.isOpen('pax');
   const [stayCityDraft, setStayCityDraft] = useState('');
   const [stayCityLayout, setStayCityLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
-
-  const [stayDateOpen, setStayDateOpen] = useState(false);
   const [stayDateLayout, setStayDateLayout] = useState({ top: 0, left: 10 });
-
-  const [stayPaxOpen, setStayPaxOpen] = useState(false);
   const [stayPaxLayout, setStayPaxLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
-
-  const closeStayQuickPanels = useCallback(() => {
-    setStayCityOpen(false);
-    setStayDateOpen(false);
-    setStayPaxOpen(false);
-  }, []);
+  const closeStayQuickPanels = stayPanel.close;
 
   useLayoutEffect(() => {
     if (tourEmbed || !stayCityOpen) return undefined;
@@ -430,7 +384,7 @@ export default function StaySearchScreen({
     };
   }, [tourEmbed, stayPaxOpen]);
 
-  const stayQuickPanelsOpen = !tourEmbed && !!(stayCityOpen || stayDateOpen || stayPaxOpen);
+  const stayQuickPanelsOpen = !tourEmbed && stayPanel.anyOpen;
   const ignoreStayQuickPointer = useCallback(
     (t) =>
       !!(stayBarRef.current?.contains(t)) ||
@@ -934,83 +888,40 @@ export default function StaySearchScreen({
                     <span style={qp.titleTxt}>Konaklama</span>
                   </div>
                   {!isPhone ? <span style={qp.barSep} /> : null}
-                  <button
+                  <FilterField
                     ref={cityBtnRef}
-                    type="button"
-                    style={{
-                      ...qp.fieldCard,
-                      ...qp.fieldCardGrow,
-                      ...qp.fieldCardStatic,
-                      flex: '1 1 180px',
-                      ...(isPhone ? { width: '100%', flex: '1 1 100%' } : {}),
-                    }}
+                    icon={MapPin}
+                    label="Destinasyon"
+                    value={city}
+                    placeholder="Şehir / bölge"
+                    flex="1 1 180px"
+                    isPhone={isPhone}
+                    expanded={stayCityOpen}
                     onClick={() => {
-                      setStayDateOpen(false);
-                      setStayPaxOpen(false);
                       setStayCityDraft(city);
-                      setStayCityOpen((v) => !v);
+                      stayPanel.toggle('city');
                     }}
-                    aria-expanded={stayCityOpen}
-                    aria-haspopup="dialog"
-                  >
-                    <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={qp.fieldLbl}>Destinasyon</span>
-                      <span style={{ ...(city.trim() ? qp.fieldVal : qp.fieldPlaceholder) }}>
-                        {city.trim() ? city.trim() : 'Şehir / bölge'}
-                      </span>
-                    </span>
-                  </button>
-                  <button
+                  />
+                  <FilterField
                     ref={dateBtnRef}
-                    type="button"
-                    style={{
-                      ...qp.fieldCard,
-                      ...qp.fieldCardGrow,
-                      ...qp.fieldCardStatic,
-                      flex: '1 1 200px',
-                      ...(isPhone ? { width: '100%' } : {}),
-                    }}
-                    onClick={() => {
-                      setStayCityOpen(false);
-                      setStayPaxOpen(false);
-                      setStayDateOpen((v) => !v);
-                    }}
-                    aria-expanded={stayDateOpen}
-                    aria-haspopup="dialog"
-                  >
-                    <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={qp.fieldLbl}>Tarihler</span>
-                      <span style={qp.fieldVal}>{formatShortRangeTR(checkIn, checkOut)}</span>
-                    </span>
-                  </button>
-                  <button
+                    icon={Calendar}
+                    label="Tarihler"
+                    value={formatShortRangeTR(checkIn, checkOut)}
+                    flex="1 1 200px"
+                    isPhone={isPhone}
+                    expanded={stayDateOpen}
+                    onClick={() => stayPanel.toggle('date')}
+                  />
+                  <FilterField
                     ref={paxBtnRef}
-                    type="button"
-                    style={{
-                      ...qp.fieldCard,
-                      ...qp.fieldCardGrow,
-                      ...qp.fieldCardStatic,
-                      flex: '1 1 170px',
-                      ...(isPhone ? { width: '100%' } : {}),
-                    }}
-                    onClick={() => {
-                      setStayCityOpen(false);
-                      setStayDateOpen(false);
-                      setStayPaxOpen((v) => !v);
-                    }}
-                    aria-expanded={stayPaxOpen}
-                    aria-haspopup="dialog"
-                  >
-                    <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={qp.fieldLbl}>Oda ve misafir</span>
-                      <span style={qp.fieldVal}>
-                        {rooms} oda · {adults + children} kişi
-                      </span>
-                    </span>
-                  </button>
+                    icon={Users}
+                    label="Oda ve misafir"
+                    value={`${rooms} oda · ${adults + children} kişi`}
+                    flex="1 1 170px"
+                    isPhone={isPhone}
+                    expanded={stayPaxOpen}
+                    onClick={() => stayPanel.toggle('pax')}
+                  />
                   {!isPhone ? <span style={qp.barSep} /> : null}
                   <div
                     style={{
@@ -1056,7 +967,7 @@ export default function StaySearchScreen({
             aria-label="Destinasyon"
             onDone={() => {
               setCity(stayCityDraft);
-              setStayCityOpen(false);
+              stayPanel.close();
             }}
           />
           <QuickPlanCalendarPopover
@@ -1070,7 +981,7 @@ export default function StaySearchScreen({
             onApply={(s, e) => {
               setCheckIn(s);
               setCheckOut(e);
-              setStayDateOpen(false);
+              stayPanel.close();
             }}
           />
           {stayPaxOpen ? (
@@ -1154,8 +1065,8 @@ export default function StaySearchScreen({
                 marginBottom: 12,
                 padding: '10px 14px',
                 borderRadius: 10,
-                background: 'rgba(74,98,120,.12)',
-                border: '1px solid rgba(74,98,120,.28)',
+                background: 'rgba(31,77,92,.12)',
+                border: '1px solid rgba(31,77,92,.28)',
                 fontSize: 13,
                 color: '#5c4a2a',
                 fontWeight: 600,
@@ -1166,23 +1077,20 @@ export default function StaySearchScreen({
           ) : null}
 
           {!hasSearched ? (
-            <div style={fp.empty}>
-              <span style={fp.emptyIcon} aria-hidden>
-                <Hotel size={48} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-              </span>
-              <p style={fp.emptyTitle}>Konaklama</p>
-              <p style={fp.emptySub}>Otel ve diğer konaklama seçeneklerini filtreleyin, fiyatları karşılaştırın.</p>
-            </div>
+            <EmptyState
+              icon={Hotel}
+              title="Konaklama"
+              description="Otel ve diğer konaklama seçeneklerini filtreleyin, fiyatları karşılaştırın."
+            />
           ) : loading ? (
             <StaySkeleton narrow={isPhone} />
           ) : filtered.length === 0 ? (
-            <div style={fp.empty}>
-              <span style={fp.emptyIcon} aria-hidden>
-                <Hotel size={48} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-              </span>
-              <p style={fp.emptyTitle}>Sonuç bulunamadı</p>
-              <p style={fp.emptySub}>Filtreleri genişletmeyi veya &quot;Tüm filtreler&quot;den sıfırlamayı deneyin.</p>
-            </div>
+            <EmptyState
+              icon={Hotel}
+              tone="muted"
+              title="Sonuç bulunamadı"
+              description={'Filtreleri genişletmeyi veya "Tüm filtreler"den sıfırlamayı deneyin.'}
+            />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {filtered.map((h) => {
@@ -1380,7 +1288,7 @@ export default function StaySearchScreen({
                           <Bookmark
                             size={17}
                             color={saved.has(h.id) ? 'var(--ta-accent-deep)' : 'var(--ta-ink-muted)'}
-                            fill={saved.has(h.id) ? 'rgba(74,98,120,.2)' : 'transparent'}
+                            fill={saved.has(h.id) ? 'rgba(31,77,92,.2)' : 'transparent'}
                             strokeWidth={2.2}
                           />
                         </button>
@@ -1517,7 +1425,7 @@ const fp = {
     width: '100%',
     maxWidth: 'none',
     margin: 0,
-    gap: 14,
+    gap: 'var(--space-3)',
     padding: 0,
     boxSizing: 'border-box',
   },
@@ -1530,8 +1438,8 @@ const fp = {
     overflowY: 'auto',
     overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
-    marginLeft: 12,
-    padding: '12px 12px 28px 10px',
+    marginLeft: 'var(--space-3)',
+    padding: 'var(--space-3) var(--space-3) var(--space-7) var(--space-3)',
     boxSizing: 'border-box',
   },
   mapAsideSplit: {
@@ -1541,7 +1449,7 @@ const fp = {
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
-    padding: '12px 20px 22px 0',
+    padding: 'var(--space-3) var(--space-5) var(--space-5) 0',
     boxSizing: 'border-box',
   },
   mapSplitInner: {
@@ -1555,18 +1463,20 @@ const fp = {
     minHeight: 0,
     display: 'flex',
     flexDirection: 'column',
-    borderRadius: 18,
+    borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
     boxShadow: '0 10px 32px rgba(35,28,18,.12)',
   },
   sticky: {
     flexShrink: 0,
-    zIndex: 25,
+    zIndex: 'var(--z-sticky)',
     background: '#fff',
     boxShadow: '0 1px 10px rgba(0,0,0,.05)',
-    borderBottom: '1px solid rgba(0,0,0,.06)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.06)',
   },
-  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: '12px 20px 14px', boxSizing: 'border-box' },
+  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: 'var(--space-3) var(--space-5) var(--space-3)', boxSizing: 'border-box' },
   topBarRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1585,7 +1495,7 @@ const fp = {
     flexDirection: 'column',
     alignItems: 'flex-start',
     justifyContent: 'flex-end',
-    gap: 4,
+    gap: 'var(--space-1)',
     flexShrink: 0,
     minWidth: 0,
   },
@@ -1594,7 +1504,7 @@ const fp = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 'var(--space-1)',
     flexShrink: 0,
     minWidth: 0,
   },
@@ -1604,7 +1514,7 @@ const fp = {
   },
   pillGroupLbl: {
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 'var(--fw-bold)',
     color: 'var(--ta-ink-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -1617,10 +1527,12 @@ const fp = {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: '4px 8px',
-    padding: '8px 5px 8px 8px',
-    border: '1px solid var(--line)',
-    borderRadius: 999,
+    gap: 'var(--space-1) var(--space-2)',
+    padding: 'var(--space-2) var(--space-2) var(--space-2) var(--space-2)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'var(--line)',
+    borderRadius: 'var(--radius-pill)',
     background: 'var(--surface2)',
     boxShadow: 'var(--shadow-sm)',
     width: 'max-content',
@@ -1629,8 +1541,8 @@ const fp = {
     boxSizing: 'border-box',
   },
   stayPillBarMobile: {
-    borderRadius: 20,
-    padding: '10px 12px',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-3) var(--space-3)',
     width: '100%',
     maxWidth: '100%',
     alignSelf: 'stretch',
@@ -1644,7 +1556,7 @@ const fp = {
     overflowY: 'hidden',
     WebkitOverflowScrolling: 'touch',
     boxSizing: 'border-box',
-    paddingBottom: 4,
+    paddingBottom: 'var(--space-1)',
     scrollbarGutter: 'stable',
   },
   stayPillBarTabletWide: {
@@ -1656,37 +1568,37 @@ const fp = {
   stayTitlePill: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 7,
-    padding: '4px 10px',
-    borderRadius: 999,
+    gap: 'var(--space-2)',
+    padding: 'var(--space-1) var(--space-3)',
+    borderRadius: 'var(--radius-pill)',
     flexShrink: 0,
   },
   stayStar: { display: 'inline-flex', alignItems: 'center', flexShrink: 0 },
-  stayTitleText: { fontSize: 13, fontWeight: 700, color: 'var(--text1)', whiteSpace: 'nowrap' },
+  stayTitleText: { fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', color: 'var(--text1)', whiteSpace: 'nowrap' },
   barSep: {
-    width: 1,
-    height: 16,
+    width: 'var(--border-thin)',
+    height: 'var(--space-4)',
     background: 'rgba(0,0,0,.10)',
-    margin: '0 6px',
+    margin: '0 var(--space-2)',
     flexShrink: 0,
   },
   barDot: {
     color: 'rgba(0,0,0,.25)',
-    fontSize: 14,
-    padding: '0 2px',
+    fontSize: 'var(--text-md)',
+    padding: '0 var(--space-px)',
     userSelect: 'none',
     flexShrink: 0,
   },
   stayChipInp: {
     border: 'none',
     background: 'transparent',
-    fontSize: 13,
-    fontWeight: 600,
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-semibold)',
     fontFamily: 'inherit',
     color: 'var(--ta-ink)',
     minWidth: 96,
     maxWidth: 220,
-    padding: '6px 8px',
+    padding: 'var(--space-2) var(--space-2)',
     outline: 'none',
     textAlign: 'center',
   },
@@ -1699,7 +1611,7 @@ const fp = {
   stayDatePair: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 'var(--space-2)',
     flexWrap: 'wrap',
     justifyContent: 'center',
     flexShrink: 0,
@@ -1709,13 +1621,13 @@ const fp = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 3,
+    gap: 'var(--space-px)',
     flexShrink: 0,
     minWidth: 0,
   },
   stayChipFieldLbl: {
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 'var(--fw-bold)',
     color: 'var(--ta-ink-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -1724,20 +1636,20 @@ const fp = {
   },
   stayDateArrowPair: {
     color: 'var(--ta-ink-subtle)',
-    fontSize: 13,
+    fontSize: 'var(--text-base)',
     userSelect: 'none',
     flexShrink: 0,
     lineHeight: 1,
-    paddingBottom: 2,
+    paddingBottom: 'var(--space-px)',
   },
   stayChipDate: {
     border: 'none',
     background: 'transparent',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
     fontFamily: 'inherit',
     color: 'var(--ta-ink)',
-    padding: '3px 3px',
+    padding: 'var(--space-px) var(--space-px)',
     minWidth: 0,
   },
   stayPaxRow: {
@@ -1745,9 +1657,11 @@ const fp = {
     alignItems: 'stretch',
     flexWrap: 'wrap',
     gap: 0,
-    padding: '4px 6px 4px 8px',
-    borderRadius: 999,
-    border: '1px solid var(--ta-border-strong)',
+    padding: 'var(--space-1) var(--space-2) var(--space-1) var(--space-2)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'var(--ta-border-strong)',
     background: 'linear-gradient(180deg, var(--ta-elevated) 0%, var(--ta-muted-bg) 100%)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,.85), 0 1px 2px rgba(15, 23, 32, 0.04)',
   },
@@ -1756,23 +1670,27 @@ const fp = {
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    padding: '2px 12px',
-    borderRight: '1px solid var(--ta-border)',
+    padding: 'var(--space-px) var(--space-3)',
+    borderRightWidth: 'var(--border-thin)',
+    borderRightStyle: 'solid',
+    borderRightColor: 'var(--ta-border)',
   },
-  stayPaxSegmentLast: { borderRight: 'none' },
+  stayPaxSegmentLast: { borderRightWidth: 0 },
   staySearchBlack: {
     display: 'inline-flex',
     alignItems: 'center',
     alignSelf: 'center',
-    gap: 6,
+    gap: 'var(--space-2)',
     flexShrink: 0,
-    padding: '7px 14px',
-    fontSize: 13,
-    fontWeight: 600,
+    padding: 'var(--space-2) var(--space-4)',
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-semibold)',
     fontFamily: 'inherit',
     lineHeight: 1.2,
-    border: '1px solid rgba(0,0,0,.15)',
-    borderRadius: 999,
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.15)',
+    borderRadius: 'var(--radius-pill)',
     background: 'var(--ta-ink)',
     color: '#FFFFFF',
     cursor: 'pointer',
@@ -1781,33 +1699,35 @@ const fp = {
     minHeight: 34,
   },
   toolbar: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTop: '1px solid rgba(0,0,0,.06)',
+    marginTop: 'var(--space-3)',
+    paddingTop: 'var(--space-3)',
+    borderTopWidth: 'var(--border-thin)',
+    borderTopStyle: 'solid',
+    borderTopColor: 'rgba(0,0,0,.06)',
   },
   toolbarHeadRow: {
     display: 'flex',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: '10px 16px',
+    gap: 'var(--space-3) var(--space-4)',
     width: '100%',
   },
   toolbarBlockTitle: {
-    fontSize: 12,
-    fontWeight: 800,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-extrabold)',
     color: 'var(--ta-ink)',
     marginBottom: 0,
     letterSpacing: '0.02em',
     fontFamily: 'var(--font-sans)',
     flexShrink: 0,
     lineHeight: 1.2,
-    paddingTop: 2,
+    paddingTop: 'var(--space-px)',
   },
   toolbarRow: {
     display: 'flex',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 10,
+    gap: 'var(--space-3)',
     flex: '1 1 0',
     minWidth: 200,
   },
@@ -1815,32 +1735,32 @@ const fp = {
     flexWrap: 'nowrap',
     overflowX: 'auto',
     WebkitOverflowScrolling: 'touch',
-    paddingBottom: 6,
+    paddingBottom: 'var(--space-2)',
     scrollbarGutter: 'stable',
   },
   allFiltersBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '10px 16px',
-    borderRadius: 10,
+    gap: 'var(--space-2)',
+    padding: 'var(--space-3) var(--space-4)',
+    borderRadius: 'var(--radius-sm)',
     border: 'none',
     background: 'var(--ta-ink)',
     color: '#fff',
-    fontWeight: 700,
-    fontSize: 13,
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--text-base)',
     cursor: 'pointer',
     fontFamily: 'inherit',
   },
   badge: {
     minWidth: 22,
     height: 22,
-    padding: '0 6px',
-    borderRadius: 999,
+    padding: '0 var(--space-2)',
+    borderRadius: 'var(--radius-pill)',
     background: 'var(--ta-accent)',
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 800,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-extrabold)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1848,13 +1768,15 @@ const fp = {
   chipGhost: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
-    padding: '9px 14px',
-    borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.12)',
+    gap: 'var(--space-2)',
+    padding: 'var(--space-2) var(--space-4)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.12)',
     background: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     color: 'var(--ta-ink)',
@@ -1865,41 +1787,47 @@ const fp = {
     borderColor: 'var(--ta-ink)',
   },
   chip: {
-    padding: '8px 14px',
-    borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.12)',
+    padding: 'var(--space-2) var(--space-4)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.12)',
     background: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     color: 'var(--ta-ink)',
   },
   chipOn: {
     borderColor: 'var(--ta-accent)',
-    background: 'rgba(74,98,120,.12)',
+    background: 'rgba(31,77,92,.12)',
     color: 'var(--ta-accent-deep)',
   },
   smartMenuTitle: {
-    fontSize: 11,
-    fontWeight: 800,
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-extrabold)',
     color: 'var(--ta-ink-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
-    padding: '10px 12px 6px',
-    borderBottom: '1px solid rgba(0,0,0,.06)',
+    padding: 'var(--space-3) var(--space-3) var(--space-2)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.06)',
   },
   smartMenu: {
     position: 'absolute',
     top: '100%',
     left: 0,
-    marginTop: 6,
+    marginTop: 'var(--space-2)',
     minWidth: 280,
     background: '#fff',
-    borderRadius: 12,
-    border: '1px solid rgba(0,0,0,.1)',
+    borderRadius: 'var(--radius-md)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.1)',
     boxShadow: '0 12px 40px rgba(0,0,0,.12)',
-    zIndex: 40,
+    zIndex: 'var(--z-dropdown)',
     padding: 0,
     overflow: 'hidden',
   },
@@ -1907,12 +1835,12 @@ const fp = {
     display: 'block',
     width: '100%',
     textAlign: 'left',
-    padding: '10px 14px',
+    padding: 'var(--space-3) var(--space-4)',
     border: 'none',
-    borderRadius: 8,
+    borderRadius: 'var(--radius-xs)',
     background: 'transparent',
-    fontSize: 13,
-    fontWeight: 600,
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-semibold)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     color: 'var(--ta-ink)',
@@ -1921,12 +1849,12 @@ const fp = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: 8,
-    marginBottom: 14,
+    gap: 'var(--space-2)',
+    marginBottom: 'var(--space-3)',
   },
   resultsHeadTitle: {
-    fontSize: 12,
-    fontWeight: 800,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-extrabold)',
     color: 'var(--ta-ink)',
     letterSpacing: '0.02em',
     fontFamily: 'var(--font-sans)',
@@ -1935,48 +1863,50 @@ const fp = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 'var(--space-3)',
     flexWrap: 'wrap',
   },
-  resultsCount: { fontSize: 15, color: 'var(--ta-ink-muted)' },
+  resultsCount: { fontSize: 'var(--text-lg)', color: 'var(--ta-ink-muted)' },
   sortLab: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 8,
-    fontSize: 13,
-    fontWeight: 600,
+    gap: 'var(--space-2)',
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--ta-ink-muted)',
   },
   sortSel: {
-    padding: '8px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(0,0,0,.12)',
-    fontSize: 13,
+    padding: 'var(--space-2) var(--space-3)',
+    borderRadius: 'var(--radius-sm)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.12)',
+    fontSize: 'var(--text-base)',
     fontFamily: 'inherit',
-    fontWeight: 600,
+    fontWeight: 'var(--fw-semibold)',
     background: '#fff',
     cursor: 'pointer',
   },
   btn: {
-    padding: '12px 20px',
-    borderRadius: 10,
+    padding: 'var(--space-3) var(--space-5)',
+    borderRadius: 'var(--radius-sm)',
     border: 'none',
     background: 'var(--ta-accent)',
     color: '#fff',
-    fontWeight: 700,
-    fontSize: 14,
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--text-md)',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    boxShadow: '0 2px 8px rgba(74,98,120,.35)',
+    boxShadow: '0 2px 8px rgba(31,77,92,.35)',
   },
   btnDeal: {
-    padding: '8px 14px',
-    borderRadius: 8,
-    fontSize: 12,
-    fontWeight: 700,
+    padding: 'var(--space-2) var(--space-4)',
+    borderRadius: 'var(--radius-xs)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-bold)',
     width: 'auto',
     alignSelf: 'flex-end',
-    boxShadow: '0 1px 6px rgba(74,98,120,.3)',
+    boxShadow: '0 1px 6px rgba(31,77,92,.3)',
   },
   body: {
     flex: 1,
@@ -1985,8 +1915,8 @@ const fp = {
     margin: '0 auto',
     width: '100%',
     boxSizing: 'border-box',
-    padding: '18px 20px 40px',
-    gap: 16,
+    padding: 'var(--space-5) var(--space-5) var(--space-8)',
+    gap: 'var(--space-4)',
     alignItems: 'flex-start',
   },
   /** Arama sonrası: dar sol şerit + geniş liste (1320 merkez boşluğu yok) */
@@ -1997,8 +1927,8 @@ const fp = {
     margin: 0,
     width: '100%',
     boxSizing: 'border-box',
-    padding: '18px 20px 40px 12px',
-    gap: 16,
+    padding: 'var(--space-5) var(--space-5) var(--space-8) var(--space-3)',
+    gap: 'var(--space-4)',
     alignItems: 'flex-start',
   },
   center: {
@@ -2016,29 +1946,33 @@ const fp = {
   fab: {
     display: 'inline-flex',
     alignItems: 'center',
-    marginBottom: 12,
-    padding: '10px 16px',
-    borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.1)',
+    marginBottom: 'var(--space-3)',
+    padding: 'var(--space-3) var(--space-4)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.1)',
     background: '#fff',
-    fontWeight: 600,
-    fontSize: 13,
+    fontWeight: 'var(--fw-semibold)',
+    fontSize: 'var(--text-base)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     boxShadow: '0 2px 10px rgba(0,0,0,.08)',
   },
-  empty: { textAlign: 'center', padding: '40px 16px', color: 'var(--muted)' },
-  emptyIcon: { display: 'flex', justifyContent: 'center', marginBottom: 12 },
-  emptyTitle: { fontSize: 17, fontWeight: 600, color: 'var(--ta-ink-muted)', margin: '0 0 6px' },
-  emptySub: { fontSize: 14, color: 'var(--ta-ink-subtle)', margin: 0 },
+  empty: { textAlign: 'center', padding: 'var(--space-8) var(--space-4)', color: 'var(--muted)' },
+  emptyIcon: { display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-3)' },
+  emptyTitle: { fontSize: 'var(--text-xl)', fontWeight: 'var(--fw-semibold)', color: 'var(--ta-ink-muted)', margin: '0 0 var(--space-2)' },
+  emptySub: { fontSize: 'var(--text-md)', color: 'var(--ta-ink-subtle)', margin: 0 },
   card: {
     display: 'grid',
     gridTemplateColumns: 'minmax(64px,72px) 1fr minmax(172px, 210px)',
-    gap: 16,
+    gap: 'var(--space-4)',
     background: '#fff',
-    border: '1px solid rgba(0,0,0,.08)',
-    borderRadius: 12,
-    padding: '16px 18px',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-4) var(--space-5)',
     boxSizing: 'border-box',
   },
   priceColWrap: {
@@ -2046,7 +1980,7 @@ const fp = {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 'var(--space-3)',
     width: '100%',
     minWidth: 0,
   },
@@ -2054,15 +1988,17 @@ const fp = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 6,
+    gap: 'var(--space-2)',
     flexShrink: 0,
-    paddingTop: 2,
+    paddingTop: 'var(--space-px)',
   },
   cardIconBtn: {
-    border: '1px solid rgba(0,0,0,.08)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
     background: 'rgba(255,255,255,.98)',
-    borderRadius: 999,
-    padding: 7,
+    borderRadius: 'var(--radius-pill)',
+    padding: 'var(--space-2)',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -2070,39 +2006,41 @@ const fp = {
     boxShadow: '0 1px 4px rgba(0,0,0,.06)',
     lineHeight: 0,
   },
-  hotelName: { fontSize: 17, fontWeight: 800, color: 'var(--ta-ink)', paddingRight: 8 },
-  loc: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--ta-ink-muted)', marginTop: 8 },
-  badges: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+  hotelName: { fontSize: 'var(--text-xl)', fontWeight: 'var(--fw-extrabold)', color: 'var(--ta-ink)', paddingRight: 'var(--space-2)' },
+  loc: { display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-base)', color: 'var(--ta-ink-muted)', marginTop: 'var(--space-2)' },
+  badges: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-3)' },
   badge: {
-    fontSize: 11,
-    fontWeight: 600,
-    padding: '4px 8px',
-    borderRadius: 6,
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-semibold)',
+    padding: 'var(--space-1) var(--space-2)',
+    borderRadius: 'var(--radius-xs)',
     background: 'var(--ta-accent-soft)',
     color: 'var(--ta-accent-deep)',
   },
-  room: { fontSize: 13, color: 'var(--ta-ink)', marginTop: 10, fontWeight: 500 },
-  policies: { display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: '#2e7d32', marginTop: 8, fontWeight: 600 },
-  priceCol: { display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'right' },
+  room: { fontSize: 'var(--text-base)', color: 'var(--ta-ink)', marginTop: 'var(--space-3)', fontWeight: 'var(--fw-medium)' },
+  policies: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', fontSize: 'var(--text-sm)', color: '#2e7d32', marginTop: 'var(--space-2)', fontWeight: 'var(--fw-semibold)' },
+  priceCol: { display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', textAlign: 'right' },
   priceMainRow: {
     display: 'inline-flex',
     flexWrap: 'wrap',
     alignItems: 'baseline',
-    gap: '4px 10px',
+    gap: 'var(--space-1) var(--space-3)',
   },
-  oldPrice: { fontSize: 13, color: 'var(--ta-ink-subtle)', textDecoration: 'line-through' },
-  bigPrice: { fontSize: 22, fontWeight: 800, color: 'var(--ta-ink)' },
-  secTitle: { fontSize: 18, fontWeight: 700, color: 'var(--ta-ink)', margin: '0 0 12px' },
-  promoRow: { display: 'grid', gap: 12 },
+  oldPrice: { fontSize: 'var(--text-base)', color: 'var(--ta-ink-subtle)', textDecoration: 'line-through' },
+  bigPrice: { fontSize: 'var(--text-2xl)', fontWeight: 'var(--fw-extrabold)', color: 'var(--ta-ink)' },
+  secTitle: { fontSize: 'var(--text-xl)', fontWeight: 'var(--fw-bold)', color: 'var(--ta-ink)', margin: '0 0 var(--space-3)' },
+  promoRow: { display: 'grid', gap: 'var(--space-3)' },
   promo: {
     background: '#fff',
-    border: '1px solid rgba(0,0,0,.08)',
-    borderRadius: 12,
-    padding: 16,
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-4)',
     textDecoration: 'none',
     color: 'inherit',
     display: 'block',
   },
-  promoT: { fontWeight: 700, fontSize: 15, color: 'var(--ta-ink)' },
-  promoS: { fontSize: 12, color: 'var(--ta-ink-muted)', marginTop: 4 },
+  promoT: { fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-lg)', color: 'var(--ta-ink)' },
+  promoS: { fontSize: 'var(--text-sm)', color: 'var(--ta-ink-muted)', marginTop: 'var(--space-1)' },
 };

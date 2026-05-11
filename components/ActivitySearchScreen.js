@@ -18,10 +18,14 @@ import {
   Calendar,
   Building2,
   Users,
+  Ticket,
 } from 'lucide-react';
 import { useIsPhoneLayout, useIsCompactSearchLayout } from '@/components/SearchScreenPrimitives';
 import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import { qp } from '@/lib/quickPlanFilterStyles';
+import FilterField from '@/components/FilterField';
+import EmptyState from '@/components/EmptyState';
+import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
 import {
@@ -192,10 +196,14 @@ export default function ActivitySearchScreen() {
   const [dateStart, setDateStart] = useState(() => new Date().toISOString().slice(0, 10));
   const [dateEnd, setDateEnd] = useState(() => addDaysIso(new Date().toISOString().slice(0, 10), 1));
 
-  const [destPopoverOpen, setDestPopoverOpen] = useState(false);
+  const activityPanel = useExclusivePopover();
+  const destPopoverOpen = activityPanel.isOpen('dest');
+  const dateModalOpen = activityPanel.isOpen('date');
+  const paxModalOpen = activityPanel.isOpen('pax');
+  const setDestPopoverOpen = (v) => (typeof v === 'function' ? (v(destPopoverOpen) ? activityPanel.open('dest') : activityPanel.close()) : v ? activityPanel.open('dest') : activityPanel.close());
+  const setDateModalOpen = (v) => (typeof v === 'function' ? (v(dateModalOpen) ? activityPanel.open('date') : activityPanel.close()) : v ? activityPanel.open('date') : activityPanel.close());
+  const setPaxModalOpen = (v) => (typeof v === 'function' ? (v(paxModalOpen) ? activityPanel.open('pax') : activityPanel.close()) : v ? activityPanel.open('pax') : activityPanel.close());
   const [placeQuery, setPlaceQuery] = useState('');
-  const [dateModalOpen, setDateModalOpen] = useState(false);
-  const [paxModalOpen, setPaxModalOpen] = useState(false);
   const [participantCount, setParticipantCount] = useState(2);
   const barRef = useRef(null);
   const destPopoverRef = useRef(null);
@@ -250,7 +258,7 @@ export default function ActivitySearchScreen() {
     setPaxModalOpen(false);
   }, []);
 
-  const activityPanelsActive = !!(destPopoverOpen || dateModalOpen || paxModalOpen);
+  const activityPanelsActive = activityPanel.anyOpen;
   const ignoreActivityPointer = useCallback(
     (t) =>
       !!(barRef.current?.contains(t)) ||
@@ -525,24 +533,21 @@ export default function ActivitySearchScreen() {
                   {!isPhone ? <span style={qp.barSep} /> : null}
                   <div style={qp.clusterFieldsRow}>
                     <div style={qp.clusterFieldWrap}>
-                      <button
-                        type="button"
-                        style={{ ...qp.fieldCard, width: '100%', flex: '1 1 auto' }}
+                      <FilterField
+                        icon={MapPin}
+                        label="Destinasyon"
+                        value={destinationLine}
+                        flex="1 1 auto"
+                        extraStyle={{ width: '100%' }}
+                        grow={false}
+                        expanded={destPopoverOpen}
                         onClick={() => {
                           setPlaceQuery(destinationDraft);
                           setDestPopoverOpen((v) => !v);
                           setDateModalOpen(false);
                           setPaxModalOpen(false);
                         }}
-                        aria-expanded={destPopoverOpen}
-                        aria-haspopup="dialog"
-                      >
-                        <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                        <span style={{ minWidth: 0, flex: '1 1 auto', display: 'block', textAlign: 'left' }}>
-                          <span style={qp.fieldLbl}>Destinasyon</span>
-                          <span style={qp.fieldVal}>{destinationLine}</span>
-                        </span>
-                      </button>
+                      />
                       {destPopoverOpen ? (
                         <div ref={destPopoverRef} role="dialog" aria-label="Destinasyon ara" style={sx.destPopoverPanel}>
                         <div style={{ position: 'relative' }}>
@@ -587,44 +592,38 @@ export default function ActivitySearchScreen() {
                     ) : null}
                     </div>
                     <div style={{ ...qp.clusterFieldWrap, flex: '0 1 170px' }}>
-                      <button
+                      <FilterField
                         ref={dateBtnRef}
-                        type="button"
-                        style={{ ...qp.fieldCard, width: '100%', flex: '1 1 auto' }}
+                        icon={Calendar}
+                        label="Tarih"
+                        value={formatShortRangeTR(dateStart, dateEnd)}
+                        flex="1 1 auto"
+                        extraStyle={{ width: '100%' }}
+                        grow={false}
+                        expanded={dateModalOpen}
                         onClick={() => {
                           setDestPopoverOpen(false);
                           setPaxModalOpen(false);
                           setDateModalOpen((v) => !v);
                         }}
-                        aria-expanded={dateModalOpen}
-                        aria-haspopup="dialog"
-                      >
-                        <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                        <span style={{ minWidth: 0, flex: '1 1 auto', display: 'block', textAlign: 'left' }}>
-                          <span style={qp.fieldLbl}>Tarih</span>
-                          <span style={qp.fieldVal}>{formatShortRangeTR(dateStart, dateEnd)}</span>
-                        </span>
-                      </button>
+                      />
                     </div>
                     <div style={{ ...qp.clusterFieldWrap, flex: '0 1 150px' }}>
-                      <button
+                      <FilterField
                         ref={paxBtnRef}
-                        type="button"
-                        style={{ ...qp.fieldCard, width: '100%', flex: '1 1 auto' }}
+                        icon={Users}
+                        label="Katılımcılar"
+                        value={`${participantCount} kişi`}
+                        flex="1 1 auto"
+                        extraStyle={{ width: '100%' }}
+                        grow={false}
+                        expanded={paxModalOpen}
                         onClick={() => {
                           setDestPopoverOpen(false);
                           setDateModalOpen(false);
                           setPaxModalOpen((v) => !v);
                         }}
-                        aria-expanded={paxModalOpen}
-                        aria-haspopup="dialog"
-                      >
-                        <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                        <span style={{ minWidth: 0, flex: '1 1 auto', display: 'block', textAlign: 'left' }}>
-                          <span style={qp.fieldLbl}>Katılımcılar</span>
-                          <span style={qp.fieldVal}>{`${participantCount} kişi`}</span>
-                        </span>
-                      </button>
+                      />
                     </div>
                   </div>
                   {!isPhone ? <span style={qp.barSep} /> : null}
@@ -672,10 +671,11 @@ export default function ActivitySearchScreen() {
       <div style={sx.mainScroll}>
         {!hasSearched ? (
           <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={sx.empty}>
-              <p style={sx.emptyTitle}>Şehir ve tarih seçerek başlayın</p>
-              <p style={sx.emptySub}>Arama öncesi yalnızca destinasyon ve tarih gereklidir. Sonrasında yan filtreler ve kategori bölümleri açılır.</p>
-            </div>
+            <EmptyState
+              icon={Ticket}
+              title="Şehir ve tarih seçerek başlayın"
+              description="Arama öncesi yalnızca destinasyon ve tarih gereklidir. Sonrasında yan filtreler ve kategori bölümleri açılır."
+            />
           </div>
         ) : (
           <div
@@ -757,10 +757,12 @@ export default function ActivitySearchScreen() {
                   ))}
                 </div>
               ) : filteredSorted.length === 0 ? (
-                <div style={sx.empty}>
-                  <p style={sx.emptyTitle}>Uygun aktivite bulunamadı</p>
-                  <p style={sx.emptySub}>Sol filtreleri gevşetmeyi veya kategori sekmelerini sıfırlamayı deneyin.</p>
-                </div>
+                <EmptyState
+                  icon={Ticket}
+                  tone="muted"
+                  title="Uygun aktivite bulunamadı"
+                  description="Sol filtreleri gevşetmeyi veya kategori sekmelerini sıfırlamayı deneyin."
+                />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 36, paddingBottom: 40 }}>
                   {sectionsForRender.map((sec) => (
@@ -874,13 +876,15 @@ const sx = {
   wrap: { minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', fontFamily: 'var(--font-sans)' },
   stickyTop: {
     flexShrink: 0,
-    zIndex: 25,
+    zIndex: 'var(--z-sticky)',
     background: '#fff',
     boxShadow: '0 1px 10px rgba(0,0,0,.05)',
-    borderBottom: '1px solid rgba(0,0,0,.06)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.06)',
     overflow: 'visible',
   },
-  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: '10px 16px 12px', boxSizing: 'border-box' },
+  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: 'var(--space-3) var(--space-4) var(--space-3)', boxSizing: 'border-box' },
   topRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' },
   pillScrollOuter: {
     width: '100%',

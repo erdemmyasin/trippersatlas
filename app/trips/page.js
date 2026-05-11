@@ -389,7 +389,7 @@ const lay = {
   emptyBookedSecondary: {
     padding: '12px 18px',
     borderRadius: 12,
-    border: '1px solid rgba(47, 63, 82, 0.22)',
+    border: '1px solid rgba(14, 47, 58, 0.22)',
     background: 'transparent',
     fontFamily: 'var(--font-sans)',
     fontWeight: 600,
@@ -416,7 +416,7 @@ const lay = {
     padding: '14px 28px', borderRadius: 14, marginTop: 8,
     background: 'linear-gradient(180deg,#5f7a94,#3d5266)', color: 'white',
     border: '1px solid var(--ta-accent-border)',
-    boxShadow: '0 8px 20px rgba(47, 63, 82, 0.24)',
+    boxShadow: '0 8px 20px rgba(14, 47, 58, 0.24)',
     fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15,
     cursor: 'pointer',
   },

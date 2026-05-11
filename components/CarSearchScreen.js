@@ -37,6 +37,10 @@ import {
   carRentalSearchQueryFragment,
 } from '@/lib/taRegion';
 import { qp } from '@/lib/quickPlanFilterStyles';
+import FilterField from '@/components/FilterField';
+import EmptyState from '@/components/EmptyState';
+import SkeletonList from '@/components/SkeletonList';
+import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { popoverCoords, datePanelCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
 import {
@@ -86,33 +90,7 @@ const PAX_OPTS = [
 ];
 
 function CarSkeleton({ narrow }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {[1, 2, 3, 4, 5].map((k) => (
-        <div
-          key={k}
-          className="ta-flight-skel"
-          style={{
-            background: '#fff',
-            border: '1px solid rgba(0,0,0,.08)',
-            borderRadius: 12,
-            padding: 16,
-            display: 'grid',
-            gridTemplateColumns: narrow ? '1fr' : 'minmax(168px,210px) 1fr minmax(200px,248px)',
-            gap: 14,
-          }}
-        >
-          <div style={{ height: 100, background: '#eee', borderRadius: 10 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ height: 16, background: '#eee', width: '55%', borderRadius: 4 }} />
-            <div style={{ height: 12, background: '#f0f0f0', width: '70%', borderRadius: 4 }} />
-            <div style={{ height: 12, background: '#f0f0f0', width: '90%', borderRadius: 4 }} />
-          </div>
-          <div style={{ height: 72, background: '#eee', borderRadius: 8 }} />
-        </div>
-      ))}
-    </div>
-  );
+  return <SkeletonList rows={5} narrow={narrow} />;
 }
 
 function CarMapPlaceholder({ cars, hoveredId, setHoveredId, onPinClick, fillHeight = false }) {
@@ -304,30 +282,21 @@ export default function CarSearchScreen() {
   const dropTimePopoverRef = useRef(null);
   const agePopRef = useRef(null);
 
-  const [carCityPick, setCarCityPick] = useState(null);
+  const carPanel = useExclusivePopover();
+  const carCityPick = carPanel.openId === 'pickup' || carPanel.openId === 'dropoff' ? carPanel.openId : null;
+  const carDatesOpen = carPanel.isOpen('dates');
+  const pickTimeOpen = carPanel.isOpen('pickTime');
+  const dropTimeOpen = carPanel.isOpen('dropTime');
+  const agePopOpen = carPanel.isOpen('age');
+  const setCarCityPick = (id) => (id ? carPanel.open(id) : carPanel.close());
   const [carCityDraft, setCarCityDraft] = useState('');
   const [carCityLayout, setCarCityLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
-
-  const [carDatesOpen, setCarDatesOpen] = useState(false);
   const [carDateRangeLayout, setCarDateRangeLayout] = useState({ top: 0, left: 10 });
-
-  const [pickTimeOpen, setPickTimeOpen] = useState(false);
   const [pickTimeLayout, setPickTimeLayout] = useState({ top: 0, left: 0, width: 'min(220px, calc(100vw - 20px))' });
-
-  const [dropTimeOpen, setDropTimeOpen] = useState(false);
   const [dropTimeLayout, setDropTimeLayout] = useState({ top: 0, left: 0, width: 'min(220px, calc(100vw - 20px))' });
-
-  const [agePopOpen, setAgePopOpen] = useState(false);
   const [ageDraft, setAgeDraft] = useState('26-35');
   const [agePopLayout, setAgePopLayout] = useState({ top: 0, left: 0, width: 'min(300px, calc(100vw - 20px))' });
-
-  const closeCarQuickPanels = useCallback(() => {
-    setCarCityPick(null);
-    setCarDatesOpen(false);
-    setPickTimeOpen(false);
-    setDropTimeOpen(false);
-    setAgePopOpen(false);
-  }, []);
+  const closeCarQuickPanels = carPanel.close;
 
   useLayoutEffect(() => {
     if (!carCityPick) return undefined;
@@ -407,7 +376,7 @@ export default function CarSearchScreen() {
     };
   }, [agePopOpen]);
 
-  const carQuickPanelsActive = !!(carCityPick || carDatesOpen || pickTimeOpen || dropTimeOpen || agePopOpen);
+  const carQuickPanelsActive = carPanel.anyOpen;
   const ignoreCarQuickPointer = useCallback(
     (t) =>
       !!(carBarRef.current?.contains(t)) ||
@@ -804,25 +773,20 @@ export default function CarSearchScreen() {
       ) : null}
 
       {!hasSearched ? (
-        <div style={cp.empty}>
-          <span style={cp.emptyIcon} aria-hidden>
-            <Car size={48} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-          </span>
-          <p style={cp.emptyTitle}>Araç Kiralama</p>
-          <p style={cp.emptySub}>
-            Lokasyon ve alış-teslim tarihlerini seçin; sınıfa göre filtreleyip fiyatları karşılaştırın.
-          </p>
-        </div>
+        <EmptyState
+          icon={Car}
+          title="Araç Kiralama"
+          description="Lokasyon ve alış-teslim tarihlerini seçin; sınıfa göre filtreleyip fiyatları karşılaştırın."
+        />
       ) : loading ? (
         <CarSkeleton narrow={isPhone} />
       ) : filtered.length === 0 ? (
-        <div style={cp.empty}>
-          <span style={cp.emptyIcon} aria-hidden>
-            <Car size={48} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-          </span>
-          <p style={cp.emptyTitle}>Sonuç yok</p>
-          <p style={cp.emptySub}>Filtreleri veya fiyat aralığını güncelleyin.</p>
-        </div>
+        <EmptyState
+          icon={Car}
+          tone="muted"
+          title="Sonuç yok"
+          description="Filtreleri veya fiyat aralığını güncelleyin."
+        />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {filtered.map((c) => (
@@ -1109,15 +1073,9 @@ export default function CarSearchScreen() {
                       aria-expanded={carCityPick === 'pickup'}
                       aria-haspopup="dialog"
                       onClick={() => {
-                        setCarDatesOpen(false);
-                        setPickTimeOpen(false);
-                        setDropTimeOpen(false);
-                        setAgePopOpen(false);
-                        setCarCityPick((prev) => {
-                          const next = prev === 'pickup' ? null : 'pickup';
-                          if (next === 'pickup') setCarCityDraft(pickupLocation);
-                          return next;
-                        });
+                        const willOpen = carPanel.openId !== 'pickup';
+                        carPanel.toggle('pickup');
+                        if (willOpen) setCarCityDraft(pickupLocation);
                       }}
                     >
                       <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
@@ -1142,15 +1100,9 @@ export default function CarSearchScreen() {
                       aria-expanded={carCityPick === 'dropoff'}
                       aria-haspopup="dialog"
                       onClick={() => {
-                        setCarDatesOpen(false);
-                        setPickTimeOpen(false);
-                        setDropTimeOpen(false);
-                        setAgePopOpen(false);
-                        setCarCityPick((prev) => {
-                          const next = prev === 'dropoff' ? null : 'dropoff';
-                          if (next === 'dropoff') setCarCityDraft(dropoffLocation);
-                          return next;
-                        });
+                        const willOpen = carPanel.openId !== 'dropoff';
+                        carPanel.toggle('dropoff');
+                        if (willOpen) setCarCityDraft(dropoffLocation);
                       }}
                     >
                       <MapPin size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
@@ -1167,112 +1119,60 @@ export default function CarSearchScreen() {
                     </button>
                   </div>
                 </div>
-                <button
+                <FilterField
                   ref={datesBtnRef}
-                  type="button"
-                  style={{
-                    ...qp.fieldCard,
-                    ...qp.fieldCardGrow,
-                    ...(isPhone ? { width: '100%', flex: '1 1 100%', minWidth: 0 } : { flex: '1 1 180px', minWidth: 0 }),
-                  }}
-                  aria-expanded={carDatesOpen}
-                  aria-haspopup="dialog"
-                  onClick={() => {
-                    setCarCityPick(null);
-                    setPickTimeOpen(false);
-                    setDropTimeOpen(false);
-                    setAgePopOpen(false);
-                    setCarDatesOpen((v) => !v);
-                  }}
-                >
-                  <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={qp.fieldLbl}>Tarihler</span>
-                    <span style={qp.fieldVal}>
-                      {formatShortRangeTR(splitDateTimeLocal(pickupAt).date, splitDateTimeLocal(returnAt).date)}
-                    </span>
-                  </span>
-                </button>
-                <button
+                  icon={Calendar}
+                  label="Tarihler"
+                  value={formatShortRangeTR(splitDateTimeLocal(pickupAt).date, splitDateTimeLocal(returnAt).date)}
+                  flex={isPhone ? undefined : '1 1 180px'}
+                  minWidth={0}
+                  isPhone={isPhone}
+                  expanded={carDatesOpen}
+                  onClick={() => carPanel.toggle('dates')}
+                />
+                <FilterField
                   ref={pickTimeBtnRef}
-                  type="button"
-                  style={{
-                    ...qp.fieldCard,
-                    flex: isPhone ? '1 1 100%' : '0 1 110px',
-                    minWidth: 0,
-                    ...(isPhone ? { width: '100%' } : {}),
-                  }}
-                  aria-expanded={pickTimeOpen}
+                  label="Alış saati"
+                  value={formatHm12En(splitDateTimeLocal(pickupAt).time)}
+                  flex={isPhone ? '1 1 100%' : '0 1 110px'}
+                  minWidth={0}
+                  isPhone={isPhone}
+                  grow={false}
+                  expanded={pickTimeOpen}
                   aria-haspopup="listbox"
-                  onClick={() => {
-                    setCarCityPick(null);
-                    setCarDatesOpen(false);
-                    setDropTimeOpen(false);
-                    setAgePopOpen(false);
-                    setPickTimeOpen((v) => !v);
-                  }}
-                >
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={qp.fieldLbl}>Alış saati</span>
-                    <span style={qp.fieldVal}>{formatHm12En(splitDateTimeLocal(pickupAt).time)}</span>
-                  </span>
-                  <ChevronDown size={16} strokeWidth={2} color="#5a6982" aria-hidden style={{ flexShrink: 0 }} />
-                </button>
-                <button
+                  right={<ChevronDown size={16} strokeWidth={2} color="#5a6982" aria-hidden style={{ flexShrink: 0 }} />}
+                  onClick={() => carPanel.toggle('pickTime')}
+                />
+                <FilterField
                   ref={dropTimeBtnRef}
-                  type="button"
-                  style={{
-                    ...qp.fieldCard,
-                    flex: isPhone ? '1 1 100%' : '0 1 110px',
-                    minWidth: 0,
-                    ...(isPhone ? { width: '100%' } : {}),
-                  }}
-                  aria-expanded={dropTimeOpen}
+                  label="Teslim saati"
+                  value={formatHm12En(splitDateTimeLocal(returnAt).time)}
+                  flex={isPhone ? '1 1 100%' : '0 1 110px'}
+                  minWidth={0}
+                  isPhone={isPhone}
+                  grow={false}
+                  expanded={dropTimeOpen}
                   aria-haspopup="listbox"
-                  onClick={() => {
-                    setCarCityPick(null);
-                    setCarDatesOpen(false);
-                    setPickTimeOpen(false);
-                    setAgePopOpen(false);
-                    setDropTimeOpen((v) => !v);
-                  }}
-                >
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={qp.fieldLbl}>Teslim saati</span>
-                    <span style={qp.fieldVal}>{formatHm12En(splitDateTimeLocal(returnAt).time)}</span>
-                  </span>
-                  <ChevronDown size={16} strokeWidth={2} color="#5a6982" aria-hidden style={{ flexShrink: 0 }} />
-                </button>
-                <button
+                  right={<ChevronDown size={16} strokeWidth={2} color="#5a6982" aria-hidden style={{ flexShrink: 0 }} />}
+                  onClick={() => carPanel.toggle('dropTime')}
+                />
+                <FilterField
                   ref={ageBtnRef}
-                  type="button"
-                  style={{
-                    ...qp.fieldCard,
-                    ...qp.fieldCardStatic,
-                    flex: isPhone ? '1 1 100%' : '0 1 110px',
-                    minWidth: isPhone ? 0 : 100,
-                    ...(isPhone ? { width: '100%' } : {}),
+                  icon={User}
+                  label="Yaş"
+                  value={CAR_DRIVER_AGE_OPTS.find((o) => o.value === ageBracket)?.label ?? ageBracket}
+                  flex={isPhone ? '1 1 100%' : '0 1 110px'}
+                  minWidth={isPhone ? 0 : 100}
+                  isPhone={isPhone}
+                  grow={false}
+                  static
+                  expanded={agePopOpen}
+                  onClick={() => {
+                    const willOpen = !agePopOpen;
+                    carPanel.toggle('age');
+                    if (willOpen) setAgeDraft(ageBracket);
                   }}
-                  aria-expanded={agePopOpen}
-                  aria-haspopup="dialog"
-                    onClick={() => {
-                      setCarCityPick(null);
-                      setCarDatesOpen(false);
-                      setPickTimeOpen(false);
-                      setDropTimeOpen(false);
-                      setAgePopOpen((v) => {
-                        const next = !v;
-                        if (next) setAgeDraft(ageBracket);
-                        return next;
-                      });
-                    }}
-                >
-                  <User size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={qp.fieldLbl}>Yaş</span>
-                    <span style={qp.fieldVal}>{CAR_DRIVER_AGE_OPTS.find((o) => o.value === ageBracket)?.label ?? ageBracket}</span>
-                  </span>
-                </button>
+                />
                 {!isPhone ? <span style={qp.barSep} aria-hidden /> : null}
                 <div
                   style={{
@@ -1336,7 +1236,7 @@ export default function CarSearchScreen() {
           if (e < s) [s, e] = [e, s];
           setPickupAt(joinDateTimeLocal(s, pu.time));
           setReturnAt(joinDateTimeLocal(e, re.time));
-          setCarDatesOpen(false);
+          carPanel.close();
         }}
       />
       {pickTimeOpen ? (
@@ -1347,7 +1247,7 @@ export default function CarSearchScreen() {
           aria-label="Alış saati seç"
           onSelect={(hm) => {
             setPickupAt(joinDateTimeLocal(splitDateTimeLocal(pickupAt).date, hm));
-            setPickTimeOpen(false);
+            carPanel.close();
           }}
         />
       ) : null}
@@ -1359,7 +1259,7 @@ export default function CarSearchScreen() {
           aria-label="Teslim saati seç"
           onSelect={(hm) => {
             setReturnAt(joinDateTimeLocal(splitDateTimeLocal(returnAt).date, hm));
-            setDropTimeOpen(false);
+            carPanel.close();
           }}
         />
       ) : null}
@@ -1373,7 +1273,7 @@ export default function CarSearchScreen() {
           options={CAR_DRIVER_AGE_OPTS}
           onDone={() => {
             setAgeBracket(ageDraft);
-            setAgePopOpen(false);
+            carPanel.close();
           }}
         />
       ) : null}
@@ -1493,12 +1393,14 @@ const cp = {
   wrap: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)' },
   stickyTop: {
     flexShrink: 0,
-    zIndex: 25,
+    zIndex: 'var(--z-sticky)',
     background: '#fff',
     boxShadow: '0 1px 10px rgba(0,0,0,.05)',
-    borderBottom: '1px solid rgba(0,0,0,.06)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.06)',
   },
-  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: '12px 20px 14px', boxSizing: 'border-box' },
+  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: 'var(--space-3) var(--space-5) var(--space-3)', boxSizing: 'border-box' },
   topBarRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1822,7 +1724,7 @@ const cp = {
     fontSize: 14,
     cursor: 'pointer',
     fontFamily: 'inherit',
-    boxShadow: '0 2px 8px rgba(74,98,120,.35)',
+    boxShadow: '0 2px 8px rgba(31,77,92,.35)',
   },
   body: {
     flex: 1,

@@ -263,7 +263,7 @@ export default function QuickPlanForm({ mode, onClose, onSubmit }) {
               borderRadius: 12,
               display: 'grid',
               placeItems: 'center',
-              background: 'linear-gradient(135deg,rgba(74,98,120,.2),rgba(74,98,120,.08))',
+              background: 'linear-gradient(135deg,rgba(31,77,92,.2),rgba(31,77,92,.08))',
               flexShrink: 0,
             }}
           >

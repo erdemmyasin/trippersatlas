@@ -569,7 +569,7 @@ const st = {
   avatarOfficial: {
     background: 'linear-gradient(135deg,#dce4ed,#4a6278)',
     color: '#fff',
-    border: '1px solid rgba(74,98,120,.4)',
+    border: '1px solid rgba(31,77,92,.4)',
   },
   authorName: {
     flex: 1,

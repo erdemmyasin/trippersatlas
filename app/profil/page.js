@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Bookmark,
+  Briefcase,
   Copy,
   Heart,
   ListOrdered,
@@ -13,7 +14,9 @@ import {
   Star,
 } from 'lucide-react';
 import AppSidebar from '@/components/AppSidebar';
+import ProfileTripsGrid from '@/components/ProfileTripsGrid';
 import { AUTH_CHANGED, getCurrentUser } from '@/lib/authStore';
+import { getTrips } from '@/lib/tripStore';
 
 function initials(name) {
   if (!name || typeof name !== 'string') return '?';
@@ -30,6 +33,7 @@ function handleFromEmail(email) {
 }
 
 const TABS = [
+  { id: 'trips', label: 'Geziler', icon: Briefcase, count: 0 },
   { id: 'collections', label: 'Koleksiyonlar', icon: Heart, count: 0 },
   { id: 'reviews', label: 'Değerlendirmeler', icon: Star, count: 0 },
   { id: 'guides', label: 'Rehberler', icon: ListOrdered, count: 0 },
@@ -37,13 +41,19 @@ const TABS = [
 
 export default function ProfilPage() {
   const [user, setUser] = useState(null);
-  const [tab, setTab] = useState('collections');
+  const [tab, setTab] = useState('trips');
+  const [tripCount, setTripCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
   const menuRef = useRef(null);
 
   function refresh() {
     setUser(getCurrentUser());
+    try {
+      setTripCount(getTrips().length);
+    } catch {
+      setTripCount(0);
+    }
   }
 
   useEffect(() => {
@@ -329,11 +339,16 @@ export default function ProfilPage() {
                     >
                       <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
                       {t.label}{' '}
-                      <span style={{ opacity: 0.75 }}>{t.count}</span>
+                      <span style={{ opacity: 0.75 }}>
+                        {t.id === 'trips' ? tripCount : t.count}
+                      </span>
                     </button>
                   );
                 })}
               </div>
+
+              {/* Geziler */}
+              {tab === 'trips' && <ProfileTripsGrid />}
 
               {/* Boş durumlar */}
               {tab === 'collections' && (

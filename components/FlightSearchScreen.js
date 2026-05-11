@@ -39,6 +39,10 @@ import {
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
 import { airportFromStatic, normalizeIata, centerFromMarkers } from '@/lib/airportsGeo';
 import { qp } from '@/lib/quickPlanFilterStyles';
+import FilterField from '@/components/FilterField';
+import EmptyState from '@/components/EmptyState';
+import SkeletonList from '@/components/SkeletonList';
+import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 
 function parseHm(t) {
@@ -123,32 +127,7 @@ const CARS = [
 ];
 
 function SkeletonCards({ compact }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {[1, 2, 3, 4, 5].map((k) => (
-        <div
-          key={k}
-          className="ta-flight-skel"
-          style={{
-            background: '#fff',
-            border: '1px solid rgba(0,0,0,.08)',
-            borderRadius: 12,
-            padding: 18,
-            display: 'grid',
-            gridTemplateColumns: compact ? '1fr' : '140px 1fr 120px',
-            gap: 16,
-          }}
-        >
-          <div style={{ height: 48, background: '#eee', borderRadius: 8 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ height: 14, background: '#eee', borderRadius: 4, width: '70%' }} />
-            <div style={{ height: 12, background: '#f0f0f0', borderRadius: 4, width: '50%' }} />
-          </div>
-          <div style={{ height: 40, background: '#eee', borderRadius: 8 }} />
-        </div>
-      ))}
-    </div>
-  );
+  return <SkeletonList rows={5} narrow={compact} />;
 }
 
 export default function FlightSearchScreen({
@@ -223,21 +202,16 @@ export default function FlightSearchScreen({
   const datePopoverRef = useRef(null);
   const paxPopoverRef = useRef(null);
 
-  const [airWhich, setAirWhich] = useState(null);
+  const flightPanel = useExclusivePopover();
+  const airWhich = flightPanel.openId === 'o' || flightPanel.openId === 'd' ? flightPanel.openId : null;
+  const datePopOpen = flightPanel.isOpen('date');
+  const paxPopOpen = flightPanel.isOpen('pax');
+  const setAirWhich = (id) => (id ? flightPanel.open(id) : flightPanel.close());
   const [airQuery, setAirQuery] = useState('');
   const [airPopLayout, setAirPopLayout] = useState({ top: 0, left: 0, width: 'min(340px, calc(100vw - 20px))' });
-
-  const [datePopOpen, setDatePopOpen] = useState(false);
   const [datePopLayout, setDatePopLayout] = useState({ top: 0, left: 10 });
-
-  const [paxPopOpen, setPaxPopOpen] = useState(false);
   const [paxPopLayout, setPaxPopLayout] = useState({ top: 0, left: 0, width: 'min(380px, calc(100vw - 20px))' });
-
-  const closeQuickFlightPanels = useCallback(() => {
-    setAirWhich(null);
-    setDatePopOpen(false);
-    setPaxPopOpen(false);
-  }, []);
+  const closeQuickFlightPanels = flightPanel.close;
 
   useLayoutEffect(() => {
     if (!airWhich) return undefined;
@@ -284,8 +258,7 @@ export default function FlightSearchScreen({
     };
   }, [paxPopOpen]);
 
-  const quickFlightPanelsOpen =
-    !lodgingTourResults && !!(airWhich || datePopOpen || paxPopOpen);
+  const quickFlightPanelsOpen = !lodgingTourResults && flightPanel.anyOpen;
 
   const ignoreQuickFlightPointer = useCallback(
     (t) =>
@@ -579,9 +552,7 @@ export default function FlightSearchScreen({
   }
 
   function openFlightAir(which) {
-    setDatePopOpen(false);
-    setPaxPopOpen(false);
-    setAirWhich((prev) => (prev === which ? null : which));
+    flightPanel.toggle(which);
     setAirQuery(which === 'o' ? origin : destination);
   }
 
@@ -762,27 +733,24 @@ export default function FlightSearchScreen({
       ) : null}
 
       {!hasSearched ? (
-        <div style={st.empty}>
-          <span style={st.emptyPlane} aria-hidden>
-            <Plane size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-          </span>
-          <p style={st.emptyTitle}>{title}</p>
-          <p style={st.emptySub}>
-            {hideTripTypeToggle
+        <EmptyState
+          icon={Plane}
+          title={title}
+          description={
+            hideTripTypeToggle
               ? 'Havalimanı kodlarıyla arayın, gidiş ve dönüş tarihlerini seçin, fiyatları karşılaştırın.'
-              : 'Havalimanı kodlarıyla arayın; gidiş-dönüş veya tek yön seçin, fiyatları karşılaştırın.'}
-          </p>
-        </div>
+              : 'Havalimanı kodlarıyla arayın; gidiş-dönüş veya tek yön seçin, fiyatları karşılaştırın.'
+          }
+        />
       ) : loading ? (
         <SkeletonCards compact={isPhone} />
       ) : filteredSorted.length === 0 ? (
-        <div style={st.empty}>
-          <span style={st.emptyPlane} aria-hidden>
-            <Plane size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-          </span>
-          <p style={st.emptyTitle}>Bu filtrelere uygun uçuş yok</p>
-          <p style={st.emptySub}>Fiyat aralığını veya sıralamayı yeniden deneyin.</p>
-        </div>
+        <EmptyState
+          icon={Plane}
+          tone="muted"
+          title="Bu filtrelere uygun uçuş yok"
+          description="Fiyat aralığını veya sıralamayı yeniden deneyin."
+        />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filteredSorted.map((f) => (
@@ -1072,60 +1040,28 @@ export default function FlightSearchScreen({
                         </button>
                       </div>
                     </div>
-                    <button
+                    <FilterField
                       ref={dateBtnRef}
-                      type="button"
-                      style={{
-                        ...qp.fieldCard,
-                        ...qp.fieldCardGrow,
-                        ...qp.fieldCardStatic,
-                        flex: '1 1 200px',
-                        ...(isPhone ? { width: '100%' } : {}),
-                      }}
-                      onClick={() => {
-                        setAirWhich(null);
-                        setPaxPopOpen(false);
-                        setDatePopOpen((v) => !v);
-                      }}
-                      aria-expanded={datePopOpen}
-                      aria-haspopup="dialog"
-                    >
-                      <Calendar size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                      <span style={{ minWidth: 0, flex: 1 }}>
-                        <span style={qp.fieldLbl}>{effectiveTripType === 'round' ? 'Tarihler' : 'Gidiş'}</span>
-                        <span style={qp.fieldVal}>
-                          {effectiveTripType === 'round'
-                            ? formatShortRangeTR(dateOut, dateIn)
-                            : formatSingleDateTR(dateOut)}
-                        </span>
-                      </span>
-                    </button>
-                    <button
+                      icon={Calendar}
+                      label={effectiveTripType === 'round' ? 'Tarihler' : 'Gidiş'}
+                      value={effectiveTripType === 'round'
+                        ? formatShortRangeTR(dateOut, dateIn)
+                        : formatSingleDateTR(dateOut)}
+                      flex="1 1 200px"
+                      isPhone={isPhone}
+                      expanded={datePopOpen}
+                      onClick={() => flightPanel.toggle('date')}
+                    />
+                    <FilterField
                       ref={paxBtnRef}
-                      type="button"
-                      style={{
-                        ...qp.fieldCard,
-                        ...qp.fieldCardGrow,
-                        ...qp.fieldCardStatic,
-                        flex: '1 1 160px',
-                        ...(isPhone ? { width: '100%' } : {}),
-                      }}
-                      onClick={() => {
-                        setAirWhich(null);
-                        setDatePopOpen(false);
-                        setPaxPopOpen((v) => !v);
-                      }}
-                      aria-expanded={paxPopOpen}
-                      aria-haspopup="dialog"
-                    >
-                      <Users size={18} strokeWidth={1.85} color="#1a3764" aria-hidden />
-                      <span style={{ minWidth: 0, flex: 1 }}>
-                        <span style={qp.fieldLbl}>Yolcular</span>
-                        <span style={qp.fieldVal}>
-                          {`${adults + children + infantsLap + infantsSeat} yolcu`}
-                        </span>
-                      </span>
-                    </button>
+                      icon={Users}
+                      label="Yolcular"
+                      value={`${adults + children + infantsLap + infantsSeat} yolcu`}
+                      flex="1 1 160px"
+                      isPhone={isPhone}
+                      expanded={paxPopOpen}
+                      onClick={() => flightPanel.toggle('pax')}
+                    />
                     {!isPhone ? <span style={qp.barSep} /> : null}
                     <div
                       style={{
@@ -1198,7 +1134,7 @@ export default function FlightSearchScreen({
             onApply={(s, e) => {
               setDateOut(s);
               setDateIn(effectiveTripType === 'round' ? e : s);
-              setDatePopOpen(false);
+              flightPanel.close();
             }}
             aria-label={effectiveTripType === 'round' ? 'Gidiş ve dönüş tarihleri' : 'Gidiş tarihi'}
           />
@@ -1238,18 +1174,11 @@ export default function FlightSearchScreen({
                 overflow: 'auto',
               }}
             >
-              <div style={st.empty}>
-                <span style={st.emptyPlane} aria-hidden>
-                  <Hotel size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
-                </span>
-                <p style={st.emptyTitle}>{title}</p>
-                <p style={st.emptySub}>
-                  Üstteki Varış koduna göre ({cityFromAirportCode(destination)}) oteller yüklenecek. Ara’ya bastığınızda
-                  Konaklama ekranındaki gibi hızlı filtreler, sonuç listesi ve harita alanı açılır. Kart adları: Otel +
-                  Uçuş
-                  {includeCarAddon ? ' + Araç' : ''} biçimindedir.
-                </p>
-              </div>
+              <EmptyState
+                icon={Hotel}
+                title={title}
+                description={`Üstteki Varış koduna göre (${cityFromAirportCode(destination)}) oteller yüklenecek. Ara'ya bastığınızda Konaklama ekranındaki gibi hızlı filtreler, sonuç listesi ve harita alanı açılır. Kart adları: Otel + Uçuş${includeCarAddon ? ' + Araç' : ''} biçimindedir.`}
+              />
             </div>
           ) : (
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1376,12 +1305,14 @@ const st = {
   },
   stickyBarTop: {
     flexShrink: 0,
-    zIndex: 25,
+    zIndex: 'var(--z-sticky)',
     background: '#fff',
     boxShadow: '0 1px 10px rgba(0,0,0,.05)',
-    borderBottom: '1px solid rgba(0,0,0,.06)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.06)',
   },
-  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: '12px 20px 14px', boxSizing: 'border-box' },
+  stickyInner: { maxWidth: 1320, margin: '0 auto', padding: 'var(--space-3) var(--space-5) var(--space-3)', boxSizing: 'border-box' },
   topBarRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1399,10 +1330,12 @@ const st = {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: '4px 8px',
-    padding: '6px 5px 6px 8px',
-    border: '1px solid var(--line)',
-    borderRadius: 999,
+    gap: 'var(--space-1) var(--space-2)',
+    padding: 'var(--space-2) var(--space-2) var(--space-2) var(--space-2)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'var(--line)',
+    borderRadius: 'var(--radius-pill)',
     background: 'var(--surface2)',
     boxShadow: 'var(--shadow-sm)',
     width: 'max-content',
@@ -1411,8 +1344,8 @@ const st = {
     boxSizing: 'border-box',
   },
   pillBarMobile: {
-    borderRadius: 20,
-    padding: '10px 12px',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--space-3) var(--space-3)',
     width: '100%',
     maxWidth: '100%',
     alignSelf: 'stretch',
@@ -1422,7 +1355,7 @@ const st = {
   pillBarDesktop: {
     width: '100%',
     maxWidth: '100%',
-    padding: '10px 12px 10px 14px',
+    padding: 'var(--space-3) var(--space-3) var(--space-3) var(--space-4)',
     minHeight: 56,
     flexWrap: 'nowrap',
     alignItems: 'center',
@@ -1435,7 +1368,7 @@ const st = {
     overflowY: 'hidden',
     WebkitOverflowScrolling: 'touch',
     boxSizing: 'border-box',
-    paddingBottom: 4,
+    paddingBottom: 'var(--space-1)',
     scrollbarGutter: 'stable',
   },
   pillBarTabletWide: {
@@ -1448,14 +1381,14 @@ const st = {
     display: 'flex',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: '4px 8px',
+    gap: 'var(--space-1) var(--space-2)',
   },
   pillGroup: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 'var(--space-1)',
     flexShrink: 0,
     minWidth: 0,
   },
@@ -1465,7 +1398,7 @@ const st = {
   },
   pillGroupLbl: {
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 'var(--fw-bold)',
     color: 'var(--ta-ink-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -1478,7 +1411,7 @@ const st = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 'var(--space-2)',
     flexShrink: 0,
   },
   barSepTall: {
@@ -1489,12 +1422,12 @@ const st = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 3,
+    gap: 'var(--space-px)',
     flexShrink: 0,
   },
   fieldLbl: {
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 'var(--fw-bold)',
     color: 'var(--ta-ink-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -1504,35 +1437,37 @@ const st = {
   titlePill: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 7,
-    padding: '4px 10px',
-    borderRadius: 999,
+    gap: 'var(--space-2)',
+    padding: 'var(--space-1) var(--space-3)',
+    borderRadius: 'var(--radius-pill)',
     flexShrink: 0,
   },
   titleStar: { display: 'inline-flex', alignItems: 'center', flexShrink: 0 },
-  titleText: { fontSize: 13, fontWeight: 700, color: 'var(--text1)', whiteSpace: 'nowrap' },
+  titleText: { fontSize: 'var(--text-base)', fontWeight: 'var(--fw-bold)', color: 'var(--text1)', whiteSpace: 'nowrap' },
   barSep: {
-    width: 1,
-    height: 16,
+    width: 'var(--border-thin)',
+    height: 'var(--space-4)',
     background: 'rgba(0,0,0,.10)',
-    margin: '0 6px',
+    margin: '0 var(--space-2)',
     flexShrink: 0,
   },
   barDot: {
     color: 'rgba(0,0,0,.25)',
-    fontSize: 14,
-    padding: '0 2px',
+    fontSize: 'var(--text-md)',
+    padding: '0 var(--space-px)',
     userSelect: 'none',
     flexShrink: 0,
   },
-  tripToggles: { display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 },
+  tripToggles: { display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 },
   miniPill: {
-    padding: '5px 10px',
-    borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.12)',
+    padding: 'var(--space-1) var(--space-3)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.12)',
     background: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--ta-ink-muted)',
     cursor: 'pointer',
     fontFamily: 'inherit',
@@ -1545,23 +1480,25 @@ const st = {
   flightCodeInp: {
     border: 'none',
     background: 'transparent',
-    fontSize: 13,
-    fontWeight: 700,
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-bold)',
     fontFamily: 'inherit',
     color: 'var(--ta-ink)',
     width: 56,
     maxWidth: 64,
-    padding: '6px 4px',
+    padding: 'var(--space-1) var(--space-1)',
     outline: 'none',
     textAlign: 'center',
     letterSpacing: '0.04em',
     boxSizing: 'border-box',
   },
   swapChip: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.1)',
+    width: 'var(--space-7)',
+    height: 'var(--space-7)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.1)',
     background: 'var(--ta-muted-bg)',
     cursor: 'pointer',
     display: 'flex',
@@ -1573,24 +1510,24 @@ const st = {
   dateRow: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 'var(--space-2)',
     flexShrink: 0,
     minWidth: 0,
   },
   chipDate: {
     border: 'none',
     background: 'transparent',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
     fontFamily: 'inherit',
     color: 'var(--ta-ink)',
-    padding: '3px 2px',
+    padding: 'var(--space-px) var(--space-px)',
     minWidth: 0,
     flex: '0 1 auto',
   },
   dateArrow: {
     color: 'var(--ta-ink-subtle)',
-    fontSize: 13,
+    fontSize: 'var(--text-base)',
     userSelect: 'none',
     flexShrink: 0,
     lineHeight: 1,
@@ -1601,9 +1538,11 @@ const st = {
     alignItems: 'stretch',
     flexWrap: 'wrap',
     gap: 0,
-    padding: '4px 6px 4px 8px',
-    borderRadius: 999,
-    border: '1px solid var(--ta-border-strong)',
+    padding: 'var(--space-1) var(--space-2) var(--space-1) var(--space-2)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'var(--ta-border-strong)',
     background: 'linear-gradient(180deg, var(--ta-elevated) 0%, var(--ta-muted-bg) 100%)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,.85), 0 1px 2px rgba(15, 23, 32, 0.04)',
     flexShrink: 0,
@@ -1613,23 +1552,27 @@ const st = {
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    padding: '2px 10px',
-    borderRight: '1px solid var(--ta-border)',
+    padding: 'var(--space-px) var(--space-3)',
+    borderRightWidth: 'var(--border-thin)',
+    borderRightStyle: 'solid',
+    borderRightColor: 'var(--ta-border)',
   },
-  flightPaxSegLast: { borderRight: 'none' },
+  flightPaxSegLast: { borderRightWidth: 0 },
   searchBlack: {
     display: 'inline-flex',
     alignItems: 'center',
     alignSelf: 'center',
-    gap: 6,
+    gap: 'var(--space-2)',
     flexShrink: 0,
-    padding: '7px 14px',
-    fontSize: 13,
-    fontWeight: 600,
+    padding: 'var(--space-2) var(--space-4)',
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-semibold)',
     fontFamily: 'inherit',
     lineHeight: 1.2,
-    border: '1px solid rgba(0,0,0,.15)',
-    borderRadius: 999,
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.15)',
+    borderRadius: 'var(--radius-pill)',
     background: 'var(--ta-ink)',
     color: '#FFFFFF',
     cursor: 'pointer',
@@ -1656,7 +1599,7 @@ const st = {
     width: '100%',
     maxWidth: 'none',
     margin: 0,
-    gap: 14,
+    gap: 'var(--space-3)',
     padding: 0,
     boxSizing: 'border-box',
   },
@@ -1668,11 +1611,13 @@ const st = {
     WebkitOverflowScrolling: 'touch',
     alignSelf: 'stretch',
     background: '#fff',
-    border: '1px solid rgba(0,0,0,.08)',
-    borderRadius: 12,
-    padding: '16px 14px',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-4) var(--space-3)',
     boxSizing: 'border-box',
-    marginLeft: 12,
+    marginLeft: 'var(--space-3)',
   },
   listScrollColFlight: {
     position: 'relative',
@@ -1683,7 +1628,7 @@ const st = {
     overflowY: 'auto',
     overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
-    padding: '12px 12px 28px 10px',
+    padding: 'var(--space-3) var(--space-3) var(--space-7) var(--space-3)',
     boxSizing: 'border-box',
   },
   mapAsideSplit: {
@@ -1693,7 +1638,7 @@ const st = {
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
-    padding: '12px 20px 22px 0',
+    padding: 'var(--space-3) var(--space-5) var(--space-5) 0',
     boxSizing: 'border-box',
   },
   mapSplitInner: {
@@ -1708,22 +1653,22 @@ const st = {
     minHeight: 0,
     display: 'flex',
     flexDirection: 'column',
-    borderRadius: 18,
+    borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
     boxShadow: '0 10px 32px rgba(35,28,18,.12)',
   },
   searchBtn: {
-    padding: '12px 22px',
-    borderRadius: 10,
+    padding: 'var(--space-3) var(--space-5)',
+    borderRadius: 'var(--radius-sm)',
     border: 'none',
     background: 'var(--ta-accent)',
     color: '#fff',
-    fontWeight: 700,
-    fontSize: 14,
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--text-md)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     whiteSpace: 'nowrap',
-    boxShadow: '0 2px 8px rgba(74,98,120,.35)',
+    boxShadow: '0 2px 8px rgba(31,77,92,.35)',
   },
   bodyRow: {
     flex: 1,
@@ -1733,8 +1678,8 @@ const st = {
     margin: 0,
     width: '100%',
     boxSizing: 'border-box',
-    padding: '20px 20px 40px 12px',
-    gap: 20,
+    padding: 'var(--space-5) var(--space-5) var(--space-8) var(--space-3)',
+    gap: 'var(--space-5)',
     alignItems: 'flex-start',
   },
   aside: {
@@ -1746,38 +1691,44 @@ const st = {
     maxHeight: 'calc(100vh - 170px)',
     overflowY: 'auto',
     background: '#fff',
-    border: '1px solid rgba(0,0,0,.08)',
-    borderRadius: 12,
-    padding: '16px 14px',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-4) var(--space-3)',
     boxSizing: 'border-box',
   },
   main: { flex: 1, minWidth: 0, position: 'relative' },
   mapAside: { width: 300, flexShrink: 0, position: 'relative' },
   filterCol: {},
   filterPanelHeading: {
-    fontSize: 14,
-    fontWeight: 800,
+    fontSize: 'var(--text-md)',
+    fontWeight: 'var(--fw-extrabold)',
     color: 'var(--ta-ink)',
-    margin: '0 0 14px',
-    paddingBottom: 10,
-    borderBottom: '1px solid rgba(0,0,0,.08)',
+    margin: '0 0 var(--space-3)',
+    paddingBottom: 'var(--space-3)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.08)',
     fontFamily: 'var(--font-sans)',
   },
   filterTitle: {
-    fontSize: 12,
-    fontWeight: 700,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-bold)',
     color: 'var(--ta-ink)',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 'var(--space-3)',
+    marginBottom: 'var(--space-2)',
   },
-  tabs: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  tabs: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' },
   tabBtn: {
-    padding: '6px 10px',
-    borderRadius: 8,
-    border: '1px solid rgba(0,0,0,.1)',
+    padding: 'var(--space-2) var(--space-3)',
+    borderRadius: 'var(--radius-xs)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.1)',
     background: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     color: 'var(--ta-ink-muted)',
@@ -1787,36 +1738,40 @@ const st = {
     color: '#fff',
     borderColor: 'var(--ta-accent)',
   },
-  ckRow: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ta-ink)', cursor: 'pointer' },
-  mutedSm: { fontSize: 12, color: 'var(--ta-ink-subtle)' },
+  ckRow: { display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-base)', color: 'var(--ta-ink)', cursor: 'pointer' },
+  mutedSm: { fontSize: 'var(--text-sm)', color: 'var(--ta-ink-subtle)' },
   range: { width: '100%', accentColor: 'var(--ta-accent)' },
   empty: {
     textAlign: 'center',
-    padding: '48px 24px',
+    padding: 'var(--space-9) var(--space-6)',
     color: 'var(--muted)',
   },
-  emptyPlane: { display: 'flex', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: 600, color: 'var(--ta-ink-muted)', margin: '0 0 8px' },
-  emptySub: { fontSize: 14, color: 'var(--ta-ink-subtle)', margin: 0 },
+  emptyPlane: { display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-4)' },
+  emptyTitle: { fontSize: 'var(--text-xl)', fontWeight: 'var(--fw-semibold)', color: 'var(--ta-ink-muted)', margin: '0 0 var(--space-2)' },
+  emptySub: { fontSize: 'var(--text-md)', color: 'var(--ta-ink-subtle)', margin: 0 },
   mockNote: {
-    fontSize: 12,
+    fontSize: 'var(--text-sm)',
     color: 'var(--ta-ink-muted)',
     background: 'var(--ta-accent-soft)',
-    padding: '8px 12px',
-    borderRadius: 8,
-    marginBottom: 12,
-    border: '1px solid rgba(74,98,120,.25)',
+    padding: 'var(--space-2) var(--space-3)',
+    borderRadius: 'var(--radius-xs)',
+    marginBottom: 'var(--space-3)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,.25)',
   },
   card: {
     display: 'grid',
     gridTemplateColumns: 'minmax(128px,168px) 1fr minmax(158px,188px)',
-    gap: 16,
+    gap: 'var(--space-4)',
     background: '#fff',
-    border: '1px solid rgba(0,0,0,.08)',
-    borderRadius: 12,
-    padding: '18px 20px',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-5) var(--space-5)',
     alignItems: 'center',
-    transition: 'box-shadow .2s',
+    transition: 'box-shadow var(--duration-base) var(--ease-out)',
     boxSizing: 'border-box',
   },
   cardMobile: {
@@ -1824,39 +1779,39 @@ const st = {
     justifyItems: 'stretch',
     textAlign: 'left',
   },
-  cardLeft: { display: 'flex', alignItems: 'center', gap: 12 },
+  cardLeft: { display: 'flex', alignItems: 'center', gap: 'var(--space-3)' },
   logoCircle: {
     width: 44,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 'var(--radius-sm)',
     background: 'var(--ta-muted-bg)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: 13,
+    fontWeight: 'var(--fw-extrabold)',
+    fontSize: 'var(--text-base)',
     color: 'var(--ta-accent-deep)',
   },
-  airlineName: { fontWeight: 700, fontSize: 14, color: 'var(--ta-ink)' },
-  airlineCode: { fontSize: 11, color: 'var(--ta-ink-subtle)', marginTop: 2 },
+  airlineName: { fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-md)', color: 'var(--ta-ink)' },
+  airlineCode: { fontSize: 'var(--text-xs)', color: 'var(--ta-ink-subtle)', marginTop: 'var(--space-px)' },
   cardMid: { minWidth: 0 },
-  timeRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  timeBig: { fontSize: 22, fontWeight: 800, color: 'var(--ta-ink)', fontVariantNumeric: 'tabular-nums' },
-  timeSep: { color: 'var(--ta-ink-subtle)', fontWeight: 600 },
-  metaRow: { fontSize: 13, color: 'var(--ta-ink-muted)', marginTop: 6 },
-  dot: { margin: '0 4px', color: '#ccc' },
-  cabinFoot: { fontSize: 12, color: 'var(--ta-ink-subtle)', marginTop: 8 },
+  timeRow: { display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' },
+  timeBig: { fontSize: 'var(--text-2xl)', fontWeight: 'var(--fw-extrabold)', color: 'var(--ta-ink)', fontVariantNumeric: 'tabular-nums' },
+  timeSep: { color: 'var(--ta-ink-subtle)', fontWeight: 'var(--fw-semibold)' },
+  metaRow: { fontSize: 'var(--text-base)', color: 'var(--ta-ink-muted)', marginTop: 'var(--space-2)' },
+  dot: { margin: '0 var(--space-1)', color: '#ccc' },
+  cabinFoot: { fontSize: 'var(--text-sm)', color: 'var(--ta-ink-subtle)', marginTop: 'var(--space-2)' },
   cardRight: { textAlign: 'right' },
-  price: { fontSize: 24, fontWeight: 800, color: 'var(--ta-ink)', fontVariantNumeric: 'tabular-nums' },
+  price: { fontSize: 'var(--text-3xl)', fontWeight: 'var(--fw-extrabold)', color: 'var(--ta-ink)', fontVariantNumeric: 'tabular-nums' },
   selectBtn: {
-    marginTop: 10,
-    padding: '10px 18px',
-    borderRadius: 10,
+    marginTop: 'var(--space-3)',
+    padding: 'var(--space-3) var(--space-5)',
+    borderRadius: 'var(--radius-sm)',
     border: 'none',
     background: 'var(--ta-accent)',
     color: '#fff',
-    fontWeight: 700,
-    fontSize: 13,
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--text-base)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     width: '100%',
@@ -1866,9 +1821,9 @@ const st = {
     display: 'flex',
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    gap: 6,
+    gap: 'var(--space-2)',
     justifyContent: 'flex-end',
-    marginTop: 10,
+    marginTop: 'var(--space-3)',
     alignItems: 'center',
     width: '100%',
     minWidth: 0,
@@ -1876,67 +1831,71 @@ const st = {
   iconAct: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 3,
-    fontSize: 11,
-    fontWeight: 600,
+    gap: 'var(--space-px)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--ta-ink-muted)',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '4px 2px',
+    padding: 'var(--space-1) var(--space-px)',
     fontFamily: 'inherit',
     whiteSpace: 'nowrap',
     flexShrink: 0,
   },
-  section: { marginTop: 36 },
-  sectionTitle: { fontSize: 18, fontWeight: 700, color: 'var(--ta-ink)', margin: '0 0 14px' },
-  cardRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 },
+  section: { marginTop: 'var(--space-7)' },
+  sectionTitle: { fontSize: 'var(--text-xl)', fontWeight: 'var(--fw-bold)', color: 'var(--ta-ink)', margin: '0 0 var(--space-3)' },
+  cardRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)' },
   promoCard: {
     background: '#fff',
-    border: '1px solid rgba(0,0,0,.08)',
-    borderRadius: 12,
-    padding: 16,
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
+    borderRadius: 'var(--radius-md)',
+    padding: 'var(--space-4)',
     textDecoration: 'none',
     color: 'inherit',
-    transition: 'box-shadow .2s',
+    transition: 'box-shadow var(--duration-base) var(--ease-out)',
     display: 'block',
   },
-  promoStars: { display: 'flex', gap: 2, marginBottom: 6 },
-  promoTitle: { fontWeight: 700, fontSize: 15, color: 'var(--ta-ink)' },
-  promoSub: { fontSize: 12, color: 'var(--ta-ink-muted)', marginTop: 4 },
-  promoTag: { fontSize: 11, color: 'var(--ta-accent-deep)', marginTop: 10, fontWeight: 600 },
+  promoStars: { display: 'flex', gap: 'var(--space-px)', marginBottom: 'var(--space-2)' },
+  promoTitle: { fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-lg)', color: 'var(--ta-ink)' },
+  promoSub: { fontSize: 'var(--text-sm)', color: 'var(--ta-ink-muted)', marginTop: 'var(--space-1)' },
+  promoTag: { fontSize: 'var(--text-xs)', color: 'var(--ta-accent-deep)', marginTop: 'var(--space-3)', fontWeight: 'var(--fw-semibold)' },
   dateNavWrap: {
     display: 'flex',
     justifyContent: 'center',
     width: '100%',
-    padding: '0 8px 14px',
-    marginBottom: 2,
+    padding: '0 var(--space-2) var(--space-3)',
+    marginBottom: 'var(--space-px)',
     boxSizing: 'border-box',
   },
   dateNavPanel: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 'var(--space-3)',
     width: '100%',
     maxWidth: 720,
-    padding: '10px 16px',
+    padding: 'var(--space-3) var(--space-4)',
     background: '#fff',
-    borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.08)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.08)',
     boxShadow: '0 6px 24px rgba(35,28,18,.08)',
     boxSizing: 'border-box',
   },
   dateNavBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
-    padding: '8px 12px',
-    borderRadius: 12,
+    gap: 'var(--space-2)',
+    padding: 'var(--space-2) var(--space-3)',
+    borderRadius: 'var(--radius-md)',
     border: 'none',
     background: '#F2F0EB',
-    fontSize: 12,
-    fontWeight: 600,
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
     color: 'var(--ta-ink)',
     cursor: 'pointer',
     fontFamily: 'inherit',
@@ -1949,33 +1908,35 @@ const st = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 'var(--space-px)',
     minWidth: 0,
-    padding: '0 6px',
+    padding: '0 var(--space-2)',
     textAlign: 'center',
   },
   dateNavRoute: {
-    fontSize: 14,
-    fontWeight: 800,
+    fontSize: 'var(--text-md)',
+    fontWeight: 'var(--fw-extrabold)',
     color: 'var(--ta-ink)',
     lineHeight: 1.25,
     wordBreak: 'break-word',
   },
-  dateNavDay: { fontSize: 12, fontWeight: 500, color: 'var(--ta-ink-muted)' },
+  dateNavDay: { fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)', color: 'var(--ta-ink-muted)' },
   mobileFilterFab: {
     position: 'sticky',
-    top: 8,
-    zIndex: 5,
+    top: 'var(--space-2)',
+    zIndex: 'var(--z-raised)',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-    padding: '10px 16px',
-    borderRadius: 999,
-    border: '1px solid rgba(0,0,0,.1)',
+    gap: 'var(--space-2)',
+    marginBottom: 'var(--space-3)',
+    padding: 'var(--space-3) var(--space-4)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(0,0,0,.1)',
     background: '#fff',
-    fontWeight: 600,
-    fontSize: 13,
+    fontWeight: 'var(--fw-semibold)',
+    fontSize: 'var(--text-base)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     boxShadow: '0 2px 10px rgba(0,0,0,.08)',
@@ -1984,7 +1945,7 @@ const st = {
     position: 'fixed',
     inset: 0,
     background: 'rgba(0,0,0,.35)',
-    zIndex: 100,
+    zIndex: 'var(--z-dropdown)',
     display: 'flex',
     justifyContent: 'flex-end',
   },
@@ -2000,10 +1961,12 @@ const st = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px 16px 8px',
-    borderBottom: '1px solid rgba(0,0,0,.06)',
+    padding: 'var(--space-4) var(--space-4) var(--space-2)',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(0,0,0,.06)',
   },
-  drawerTitle: { fontWeight: 700, fontSize: 16 },
-  drawerClose: { border: 'none', background: 'var(--ta-muted-bg)', borderRadius: 8, padding: 8, cursor: 'pointer' },
-  drawerFoot: { padding: 16, borderTop: '1px solid rgba(0,0,0,.06)' },
+  drawerTitle: { fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-lg)' },
+  drawerClose: { border: 'none', background: 'var(--ta-muted-bg)', borderRadius: 'var(--radius-xs)', padding: 'var(--space-2)', cursor: 'pointer' },
+  drawerFoot: { padding: 'var(--space-4)', borderTopWidth: 'var(--border-thin)', borderTopStyle: 'solid', borderTopColor: 'rgba(0,0,0,.06)' },
 };
