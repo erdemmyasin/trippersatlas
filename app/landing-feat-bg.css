@@ -21,14 +21,8 @@
     );
 }
 
-#features.l-section.l-feat .l-section__badge {
-  background: color-mix(in srgb, #ffffff 38%, rgba(180, 220, 178, 0.5));
-  border: 1px solid rgba(52, 92, 56, 0.35);
-  color: #1e3d24;
-}
-
 #features.l-section.l-feat .l-section__title {
-  color: color-mix(in srgb, #1a3320 52%, var(--text1));
+  color: var(--ta-ink);
 }
 
 #features.l-section.l-feat .l-section__sub {

@@ -504,8 +504,8 @@ export default function LandingPage() {
           <div className="l-hero__inner">
             <div className="l-hero__masthead">
               <div className="l-hero__badge l-hero__badge--premium">
-                <Sparkles className="l-hero__badge-icon" size={16} strokeWidth={2} aria-hidden />
-                Dijital Atlas ile Planlayın
+                <Sparkles className="l-hero__badge-icon" size={12} strokeWidth={2.2} aria-hidden />
+                Dijital Atlas
               </div>
 
               <h1 id="hero-heading" className="l-hero__display">

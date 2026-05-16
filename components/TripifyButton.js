@@ -115,9 +115,9 @@ const s = {
     transition: 'background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out)',
   },
   btnPrimary: {
-    background: 'rgba(201,168,106,0.10)',
-    borderColor: 'rgba(201,168,106,0.42)',
-    color: '#9C7E3F',
+    background: 'rgba(31,77,92,0.06)',
+    borderColor: 'rgba(31,77,92,0.32)',
+    color: 'var(--ta-accent)',
   },
   btnGhost: {
     background: 'transparent',

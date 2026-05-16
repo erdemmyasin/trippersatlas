@@ -29,6 +29,7 @@ export default function SavedPage() {
         <div style={s.inner}>
           <header style={s.head}>
             <div>
+              <div style={s.eyebrow}>Atlas · Koleksiyonlar</div>
               <h1 style={s.title}>Koleksiyonlar</h1>
               <p style={s.sub}>Beğendiğin yerleri listelere ayır, planla, paylaş.</p>
             </div>
@@ -98,14 +99,30 @@ const s = {
     marginBottom: 'var(--space-7)',
     flexWrap: 'wrap',
   },
+  eyebrow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    width: 'fit-content',
+    padding: '4px 12px',
+    marginBottom: 10,
+    borderRadius: 999,
+    background: 'rgba(31, 77, 92, 0.06)',
+    border: '1px solid rgba(31, 77, 92, 0.22)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: '0.20em',
+    textTransform: 'uppercase',
+    color: 'var(--ta-ink)',
+  },
   title: {
     margin: 0,
     fontFamily: 'var(--font-serif)',
     fontWeight: 'var(--fw-bold)',
-    fontSize: 'var(--text-3xl)',
-    lineHeight: 'var(--text-3xl-lh)',
+    fontSize: 36,
+    lineHeight: 1.1,
     color: 'var(--ta-ink)',
-    letterSpacing: '-0.02em',
+    letterSpacing: '-0.025em',
   },
   sub: {
     margin: 'var(--space-1) 0 0',

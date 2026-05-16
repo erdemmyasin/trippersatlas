@@ -19,14 +19,8 @@
     );
 }
 
-#destinations.l-section.l-trips .l-section__badge {
-  background: color-mix(in srgb, #ffffff 48%, rgba(253, 230, 138, 0.55));
-  border: 1px solid rgba(139, 90, 54, 0.35);
-  color: #4a3928;
-}
-
 #destinations.l-section.l-trips .l-section__title {
-  color: color-mix(in srgb, #2a2218 52%, var(--text1));
+  color: var(--ta-ink);
 }
 
 #destinations.l-section.l-trips .l-section__sub {

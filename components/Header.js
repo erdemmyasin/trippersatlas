@@ -610,7 +610,7 @@ export default function Header({
                       <span
                         style={{
                           ...s.tripPillSegment,
-                          ...(seg.accent === 'gold' ? { color: '#C9A86A' } : {}),
+                          ...(seg.accent === 'gold' ? { color: 'var(--ta-accent)' } : {}),
                         }}
                       >
                         {seg.text}
@@ -1816,7 +1816,7 @@ const s = {
     marginLeft: 'var(--space-3)',
     borderLeftWidth: 'var(--border-thin)',
     borderLeftStyle: 'solid',
-    borderLeftColor: 'rgba(201,168,106,0.32)',
+    borderLeftColor: 'rgba(31,77,92,0.22)',
   },
   dropTripChatRow: {
     display: 'inline-flex',

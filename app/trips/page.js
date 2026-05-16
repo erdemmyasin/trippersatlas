@@ -57,6 +57,7 @@ export default function TripsPage() {
       <main style={{ ...lay.content, position: 'relative' }}>
         {/* Header */}
         <div style={lay.header}>
+          <div style={lay.eyebrow}>Atlas · Gezi Arşivi</div>
           <div style={lay.headerTop}>
             <h1 style={lay.title}>Gezileriniz</h1>
             <button
@@ -64,7 +65,7 @@ export default function TripsPage() {
               style={{ ...lay.newTripBtn, font: 'inherit' }}
               onClick={() => openNewTrip()}
             >
-              <Sparkles size={14} strokeWidth={2.1} color="#fff" aria-hidden />
+              <Sparkles size={14} strokeWidth={2.2} color="#fff" aria-hidden />
               Yeni Gezi
             </button>
           </div>
@@ -73,7 +74,7 @@ export default function TripsPage() {
               <div
                 style={{
                   ...lay.toggleTrack,
-                  background: bookedOnly ? 'var(--ta-night-b)' : 'rgba(15, 23, 32, 0.18)',
+                  background: bookedOnly ? 'var(--ta-accent)' : 'rgba(15, 23, 32, 0.14)',
                 }}
                 onClick={() => setBookedOnly((v) => !v)}
                 role="presentation"
@@ -272,6 +273,23 @@ const lay = {
     width: '100%',
     boxSizing: 'border-box',
   },
+  eyebrow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    width: 'fit-content',
+    padding: '4px 12px',
+    marginBottom: 10,
+    borderRadius: 999,
+    background: 'rgba(31, 77, 92, 0.06)',
+    border: '1px solid rgba(31, 77, 92, 0.22)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: '0.20em',
+    textTransform: 'uppercase',
+    color: 'var(--ta-ink)',
+  },
   headerTop: {
     display: 'flex',
     alignItems: 'flex-start',
@@ -290,11 +308,11 @@ const lay = {
     boxSizing: 'border-box',
   },
   title: {
-    fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 32,
-    color: 'var(--text1)', letterSpacing: '-0.02em', margin: 0,
+    fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 36,
+    color: 'var(--ta-ink)', letterSpacing: '-0.025em', margin: 0,
     flex: '0 1 auto',
     minWidth: 0,
-    lineHeight: 1.15,
+    lineHeight: 1.1,
     paddingRight: 8,
   },
   toggle: {
@@ -325,27 +343,29 @@ const lay = {
   },
   toggleLabel: {
     fontFamily: 'var(--font-sans)',
-    fontSize: 12,
-    fontWeight: 600,
-    color: 'var(--ta-accent-deep)',
-    letterSpacing: '0.01em',
+    fontSize: 11,
+    fontWeight: 700,
+    color: 'var(--ta-ink-muted)',
+    letterSpacing: '0.10em',
+    textTransform: 'uppercase',
     whiteSpace: 'nowrap',
   },
   newTripBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     flexShrink: 0,
     marginLeft: 'auto',
-    padding: '8px 16px',
-    borderRadius: 12,
-    background: 'linear-gradient(135deg, var(--ta-night-a), var(--ta-night-b) 55%, var(--ta-accent))',
+    padding: '10px 18px',
+    borderRadius: 999,
+    background: 'var(--ta-ink)',
     color: '#fff',
-    border: '1px solid rgba(15, 23, 32, 0.12)',
-    boxShadow: '0 4px 14px rgba(15, 23, 32, 0.12)',
+    border: 'none',
+    boxShadow: '0 6px 18px rgba(15, 23, 32, 0.18)',
     fontFamily: 'var(--font-sans)',
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: 13,
+    letterSpacing: '0.01em',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'transform 0.15s ease, box-shadow 0.15s ease',
@@ -425,11 +445,12 @@ const lay = {
 /* ═══ Trip Card Styles ═══ */
 const tc = {
   card: {
-    borderRadius: 16,
-    background: 'white',
-    boxShadow: '0 2px 8px rgba(0,0,0,.06)',
+    borderRadius: 12,
+    background: '#fff',
+    border: '1px solid rgba(31, 77, 92, 0.10)',
+    boxShadow: '0 6px 18px rgba(31, 77, 92, 0.06)',
     cursor: 'pointer',
-    transition: 'transform .2s, box-shadow .2s',
+    transition: 'transform .2s, box-shadow .2s, border-color .2s',
     position: 'relative',
     boxSizing: 'border-box',
   },
@@ -438,7 +459,7 @@ const tc = {
     height: 200,
     overflow: 'hidden',
     background: '#e8e5e0',
-    borderRadius: '16px 16px 0 0',
+    borderRadius: '12px 12px 0 0',
   },
   img: {
     width: '100%', height: '100%', objectFit: 'cover',
@@ -452,7 +473,7 @@ const tc = {
   },
   gradient: {
     position: 'absolute', inset: 0,
-    background: 'linear-gradient(to top, rgba(0,0,0,.65) 0%, rgba(0,0,0,.15) 40%, transparent 70%)',
+    background: 'linear-gradient(to top, rgba(15,23,32,.78) 0%, rgba(15,23,32,.18) 45%, transparent 72%)',
     pointerEvents: 'none',
   },
   menuBtn: {
@@ -500,23 +521,35 @@ const tc = {
   menuDivider: { height: 1, background: 'rgba(0,0,0,.06)', margin: '2px 2px' },
   bottomText: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    padding: '12px 14px', zIndex: 2,
+    padding: '14px 16px 16px', zIndex: 2,
   },
   tripName: {
-    fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15,
-    color: 'white', margin: 0, lineHeight: 1.35,
-    textShadow: '0 1px 4px rgba(0,0,0,.3)',
+    fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 18,
+    color: '#fff', margin: 0, lineHeight: 1.2,
+    letterSpacing: '-0.01em',
+    textShadow: '0 2px 6px rgba(0,0,0,.55)',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
   },
   tripSub: {
-    fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500,
-    color: 'rgba(255,255,255,.8)', margin: '4px 0 0',
-    textShadow: '0 1px 3px rgba(0,0,0,.3)',
+    fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700,
+    color: 'rgba(255,255,255,.85)', margin: '4px 0 0',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    textShadow: '0 1px 3px rgba(0,0,0,.5)',
   },
   bookedBadge: {
     position: 'absolute', top: 10, left: 10,
-    padding: '5px 12px', borderRadius: 999,
-    background: 'rgba(47,143,107,.85)', color: 'white',
-    fontSize: 11, fontWeight: 800, backdropFilter: 'blur(4px)',
+    padding: '4px 10px', borderRadius: 999,
+    background: 'rgba(15, 23, 32, 0.85)',
+    color: '#fff',
+    fontSize: 10, fontWeight: 700,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
     fontFamily: 'var(--font-sans)', zIndex: 2,
   },
 };

@@ -390,7 +390,7 @@ export default function TripHubClient({ tripId: rawTripId }) {
                 }}
                 aria-label="Atlas'a bu geziyi sor"
               >
-                <Sparkles size={14} strokeWidth={2.4} color="#9C7E3F" aria-hidden />
+                <Sparkles size={14} strokeWidth={2.4} color="var(--ta-accent)" aria-hidden />
                 Atlas'a bu geziyi sor
               </button>
             </div>
@@ -908,12 +908,12 @@ const s = {
     fontSize: 'var(--text-sm)',
     fontWeight: 'var(--fw-bold)',
     letterSpacing: '0.01em',
-    color: '#9C7E3F',
-    background: 'rgba(201,168,106,0.10)',
+    color: 'var(--ta-accent)',
+    background: 'rgba(31,77,92,0.06)',
     borderRadius: 'var(--radius-pill)',
     borderWidth: 'var(--border-thin)',
     borderStyle: 'solid',
-    borderColor: 'rgba(201,168,106,0.42)',
+    borderColor: 'rgba(31,77,92,0.32)',
     cursor: 'pointer',
     flexShrink: 0,
     whiteSpace: 'nowrap',

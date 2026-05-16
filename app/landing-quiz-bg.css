@@ -21,14 +21,8 @@
     );
 }
 
-#quiz.l-section.l-quiz .l-section__badge {
-  background: color-mix(in srgb, #ffffff 42%, rgba(196, 230, 190, 0.55));
-  border: 1px solid rgba(86, 120, 82, 0.32);
-  color: #2d4830;
-}
-
 #quiz.l-section.l-quiz .l-section__title {
-  color: color-mix(in srgb, #1f3a22 44%, var(--text1));
+  color: var(--ta-ink);
 }
 
 #quiz.l-section.l-quiz .l-section__sub {

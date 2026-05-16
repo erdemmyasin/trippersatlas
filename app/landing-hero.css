@@ -143,56 +143,53 @@
 .l-hero__badge--premium {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   flex-shrink: 0;
-  padding: clamp(5px, 0.9vh, 8px) clamp(12px, 2.5vw, 16px);
+  padding: 5px 14px;
   border-radius: 999px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(31, 77, 92, 0.08);
+  border: 1px solid rgba(31, 77, 92, 0.28);
   font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.03em;
-  text-transform: none;
-  color: var(--ta-hero-amber-deep);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--ta-ink);
 }
 
 .l-hero__badge-icon {
-  color: var(--ta-hero-amber);
+  color: var(--ta-accent);
+  width: 12px !important;
+  height: 12px !important;
 }
 
 /*
- * Başlık: gece lacivertleri → şafak (leylak/pembe) → gün doğumu altın → batık güneş turuncu–mürdüm
+ * Cinematic Editorial başlık: gün doğumu altın → Ege turkaz denizi gradient.
+ * Üst satır sıcak (gün doğumu), alt satır italik turkaz Ege kıyısı tonuna geçer.
  */
 .l-hero__display {
   margin: 0;
-  margin-top: -0.06em;
+  margin-top: -0.02em;
   font-family: var(--font-serif);
   font-weight: 700;
-  letter-spacing: -0.035em;
-  font-size: clamp(1.65rem, 3svh + 2.2vw, 3.25rem);
-  line-height: 1.22;
+  letter-spacing: -0.025em;
+  font-size: clamp(1.8rem, 3svh + 2.6vw, 3.6rem);
+  line-height: 1.08;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0;
-  /* background-clip: text satır kutusunu sığdırır; descender (ş,g,y…) için yan/alt pay */
   padding: 0.04em 0.02em 0.16em;
   overflow: visible;
   background-image: linear-gradient(
-    168deg,
-    #050914 0%,
-    #0c1828 12%,
-    #152238 22%,
-    #2d3f62 34%,
-    #5c4f7a 44%,
-    #a8788c 52%,
-    #e8b896 62%,
-    #fbbf24 72%,
-    #f59e0b 80%,
-    #ea580c 89%,
-    #c0264f 96%,
-    #7f1d4a 100%
+    180deg,
+    #F4B860 0%,
+    #E8A552 18%,
+    #D89856 36%,
+    #C97B5C 54%,
+    #B85440 72%,
+    #8E3A4D 88%,
+    #5D2447 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
@@ -200,31 +197,36 @@
   -webkit-text-fill-color: transparent;
 }
 
-/* clip metin kümesi iki satırı tek degrade içinde düşünür — alt satır turuncu/mürdüm bandına denk gelir */
 .l-hero__display-line {
   display: block;
   margin: 0;
   padding: 0;
-  line-height: 1.22;
+  line-height: 1.08;
 }
 
 .l-hero__display-line:first-child {
-  padding-bottom: 0.02em;
+  padding-bottom: 0;
 }
 
 .l-hero__display-line:last-child {
-  padding-bottom: 0.14em;
+  padding-bottom: 0.12em;
+  font-style: italic;
 }
 
+/* Alt satır vurgusu — gradient zaten turkaz tonuna iner, italik onu güçlendirir */
+.l-hero__display-line--amber {
+  font-style: italic;
+}
+
+/* Tarayıcı background-clip: text desteklemiyorsa fallback */
 @supports not (background-clip: text) {
   .l-hero__display {
     background-image: none;
-    color: var(--ta-night-a);
+    color: var(--ta-ink);
     -webkit-text-fill-color: currentColor;
   }
-
   .l-hero__display-line--amber {
-    color: var(--ta-hero-amber);
+    color: #8E3A4D;
     -webkit-text-fill-color: currentColor;
   }
 }
@@ -333,61 +335,82 @@
 }
 
 .l-hero__stat-strip {
-  width: min(940px, 100%);
-  margin-top: clamp(22px, 3.5vh, 38px);
+  width: min(900px, 100%);
+  margin-top: clamp(22px, 3.5vh, 40px);
   flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   align-items: stretch;
-  padding: clamp(8px, 1.5vh, 16px) clamp(8px, 1.5vw, 16px);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  /* backdrop-blur arkayı yumuşatır; kullanıcı haritanın tamamının bulanığı zannedebilir → kapatıldı */
+  padding: clamp(12px, 2vh, 18px) 0 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(31, 77, 92, 0.22);
+  position: relative;
+}
+
+.l-hero__stat-strip::before {
+  content: 'ATLAS · RAKAMLARLA';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 12px;
+  background: var(--bg, #fafaf8);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ta-ink-muted);
+  white-space: nowrap;
 }
 
 .l-hero__stat-strip-cell {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 6px 10px;
   min-width: 0;
 }
 
 .l-hero__stat-strip-cell:not(:first-child) {
-  border-inline-start: 1px solid rgba(0, 0, 0, 0.08);
+  border-inline-start: 1px solid rgba(31, 77, 92, 0.14);
 }
 
 .l-hero__stat-strip-ico {
-  flex-shrink: 0;
-  color: var(--ta-hero-amber);
+  display: none;
 }
 
 .l-hero__stat-strip-text {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 2px;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
   min-width: 0;
 }
 
 .l-hero__stat-strip-num {
   font-family: var(--font-serif);
   font-weight: 700;
-  font-size: clamp(14px, 1.4svh + 0.8vw, 19px);
-  letter-spacing: -0.03em;
-  color: var(--ta-night-a);
+  font-size: clamp(20px, 2.2svh + 0.6vw, 28px);
+  letter-spacing: -0.02em;
+  color: var(--ta-ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .l-hero__stat-strip-label {
   font-family: var(--font-sans);
-  font-size: clamp(11px, 1.5vw, 12px);
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--text2);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ta-ink-muted);
 }
 
 .l-hero__scroll-down {

@@ -29,7 +29,7 @@ const s = {
     paddingBottom: 2,
     borderLeftWidth: 2,
     borderLeftStyle: 'solid',
-    borderLeftColor: '#C9A86A',
+    borderLeftColor: 'var(--ta-accent)',
     width: 'fit-content',
     alignSelf: 'flex-start',
   },

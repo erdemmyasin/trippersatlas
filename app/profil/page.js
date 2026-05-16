@@ -192,15 +192,17 @@ export default function ProfilPage() {
                     width: 96,
                     height: 96,
                     borderRadius: '50%',
-                    background: 'linear-gradient(145deg,#c8e0f5,#8ebfe8)',
-                    color: '#1a3a5c',
-                    fontWeight: 800,
-                    fontSize: 32,
+                    background: 'linear-gradient(145deg, #2f7a8f, #1F4D5C)',
+                    color: '#fff',
+                    fontFamily: 'var(--font-serif)',
+                    fontWeight: 700,
+                    fontSize: 34,
+                    letterSpacing: '0.02em',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    boxShadow: '0 8px 28px rgba(35,28,18,.08)',
+                    boxShadow: '0 10px 28px rgba(31,77,92,0.22)',
                   }}
                 >
                   {letter}
@@ -218,10 +220,12 @@ export default function ProfilPage() {
                       <h1
                         style={{
                           margin: 0,
-                          fontSize: 22,
-                          fontWeight: 800,
+                          fontFamily: 'var(--font-serif)',
+                          fontSize: 28,
+                          fontWeight: 700,
                           color: 'var(--ta-ink)',
                           letterSpacing: '-0.02em',
+                          lineHeight: 1.1,
                         }}
                       >
                         {handle}

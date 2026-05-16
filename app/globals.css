@@ -768,24 +768,26 @@ body {
 }
 .l-section__badge {
   display: inline-flex;
-  padding: 6px 14px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(31,77,92,.10);
-  border: 1px solid rgba(31,77,92,.20);
+  background: rgba(31, 77, 92, 0.06);
+  border: 1px solid rgba(31, 77, 92, 0.22);
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: var(--ta-type-caption);
-  color: var(--ta-accent-deep);
+  font-weight: 700;
+  font-size: 10px;
+  color: var(--ta-ink-muted);
   text-transform: uppercase;
-  letter-spacing: var(--ta-type-caption-ls);
+  letter-spacing: 0.18em;
 }
 .l-section__title {
   font-family: var(--font-serif);
-  font-weight: 600;
-  font-size: clamp(26px, 3.2vw, 32px);
-  color: var(--text1);
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  font-weight: 700;
+  font-size: clamp(28px, 3.4vw, 36px);
+  color: var(--ta-ink);
+  letter-spacing: -0.025em;
+  line-height: 1.1;
 }
 .l-section__sub {
   font-family: var(--font-sans);
@@ -1649,18 +1651,20 @@ body {
 }
 .l-trip__card {
   text-decoration: none;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  background: white;
-  border: 1px solid rgba(0,0,0,.06);
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
-  transition: transform .25s, box-shadow .25s;
+  background: #fff;
+  border: 1px solid rgba(31, 77, 92, 0.10);
+  box-shadow: 0 6px 18px rgba(31, 77, 92, 0.06);
+  transition: transform .25s, box-shadow .25s, border-color .25s;
   display: flex;
   flex-direction: column;
+  color: var(--ta-ink);
 }
 .l-trip__card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 16px 40px rgba(0,0,0,.12);
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(31, 77, 92, 0.14);
+  border-color: rgba(31, 77, 92, 0.32);
 }
 
 /* Image area */
@@ -1694,20 +1698,25 @@ body {
   background: linear-gradient(145deg, var(--ta-night-b) 0%, var(--ta-night-c) 50%, color-mix(in srgb, var(--ta-accent) 55%, var(--ta-night-b)) 100%);
 }
 
-/* Region badge — colored pill on top-left */
+/* Region badge — editorial eyebrow (regionColor inline override edilir) */
 .l-trip__region {
   position: absolute;
   top: 12px;
   left: 12px;
-  padding: 5px 12px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(31, 77, 92, 0.22);
   font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 800;
-  color: white;
-  letter-spacing: .04em;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ta-ink-muted);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   z-index: 2;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  box-shadow: 0 4px 12px rgba(31, 77, 92, 0.10);
 }
 
 /* Body */
@@ -1719,11 +1728,12 @@ body {
   flex: 1;
 }
 .l-trip__title {
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-weight: 700;
-  font-size: 14px;
-  color: var(--text1);
-  line-height: 1.45;
+  font-size: 17px;
+  color: var(--ta-ink);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1830,61 +1840,63 @@ body {
   gap: 20px;
 }
 .l-svc__card {
-  padding: 32px 24px;
-  border-radius: 22px;
-  background: rgba(255,255,255,.85);
-  border: 1px solid rgba(0,0,0,.06);
-  box-shadow: 0 8px 20px rgba(0,0,0,.04);
+  padding: 28px 24px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(31, 77, 92, 0.10);
+  box-shadow: 0 6px 18px rgba(31, 77, 92, 0.05);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   position: relative;
-  transition: transform .2s, box-shadow .2s;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
 }
 .l-svc__card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 36px rgba(0,0,0,.08);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(31, 77, 92, 0.10);
+  border-color: rgba(31, 77, 92, 0.32);
 }
-.l-svc__card--soon { opacity: .6; }
+.l-svc__card--soon { opacity: .55; }
 a.l-svc__card--link {
   text-decoration: none;
   color: inherit;
   cursor: pointer;
 }
 a.l-svc__card--link:focus-visible {
-  outline: 2px solid var(--ta-accent, #4a6278);
+  outline: 2px solid var(--ta-accent);
   outline-offset: 3px;
 }
 .l-svc__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: var(--ta-sea-soft);
-  color: var(--ta-sea);
-  border: 1px solid color-mix(in srgb, var(--ta-sea) 18%, transparent);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(31, 77, 92, 0.08);
+  color: var(--ta-accent);
+  border: 1px solid rgba(31, 77, 92, 0.22);
 }
 .l-svc__icon svg {
   flex-shrink: 0;
 }
 .l-svc__title {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 16px;
-  color: var(--text1);
-  line-height: 1.3;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ta-ink);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 .l-svc__desc {
   font-family: var(--font-sans);
-  font-size: var(--ta-type-small);
+  font-size: 13px;
   font-weight: 400;
-  color: var(--text2);
-  line-height: 1.45;
+  color: var(--ta-ink-muted);
+  line-height: 1.55;
+  max-width: 28ch;
 }
 .l-svc__soon {
   position: absolute;
@@ -1921,39 +1933,12 @@ a.l-svc__card--link:focus-visible {
   border-top: 1px solid color-mix(in srgb, #0f766e 22%, rgba(251, 191, 36, 0.25) 78%);
 }
 
-.l-section.l-svc .l-section__badge {
-  background: color-mix(in srgb, #ffffff 72%, rgba(167, 243, 229, 0.55));
-  border: 1px solid color-mix(in srgb, #0f766e 28%, transparent);
-  color: #0f625a;
-}
-
 .l-section.l-svc .l-section__title {
-  color: color-mix(in srgb, #134e48 26%, var(--text1));
+  color: var(--ta-ink);
 }
 
 .l-section.l-svc .l-section__sub {
-  color: color-mix(in srgb, #115e54 14%, var(--text2));
-}
-
-.l-section.l-svc .l-svc__card {
-  background: color-mix(in srgb, #ffffff 90%, rgba(204, 251, 241, 0.4));
-  border: 1px solid color-mix(in srgb, #0f766e 13%, transparent);
-  box-shadow: 0 12px 34px rgba(8, 78, 86, 0.09);
-}
-
-.l-section.l-svc .l-svc__card:hover {
-  box-shadow: 0 18px 42px rgba(8, 70, 82, 0.12);
-}
-
-.l-section.l-svc .l-svc__icon {
-  background: linear-gradient(
-    152deg,
-    var(--svc-coast-sea-soft) 0%,
-    color-mix(in srgb, #ffffff 75%, rgba(153, 246, 228, 0.5)) 40%,
-    color-mix(in srgb, #ffffff 70%, rgba(253, 230, 138, 0.55)) 100%
-  );
-  color: color-mix(in srgb, #0f766e 58%, #0e7490 42%);
-  border-color: color-mix(in srgb, #14b8a6 48%, rgba(245, 158, 11, 0.42) 52%);
+  color: var(--ta-ink-muted);
 }
 
 /* ── Quiz ── */
