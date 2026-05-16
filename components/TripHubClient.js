@@ -105,7 +105,7 @@ export default function TripHubClient({ tripId: rawTripId }) {
   const [completedModules, setCompletedModules] = useState(() => new Set());
   const [selectedListings, setSelectedListings] = useState({});
   const [geoCenter, setGeoCenter] = useState({ lat: 41.0082, lng: 28.9784 });
-  const planHydratedRef = useRef(false);
+  const [planHydrated, setPlanHydrated] = useState(false);
 
   const reloadTrip = useCallback(() => {
     const t = findMergedTripById(tripId);
@@ -116,14 +116,21 @@ export default function TripHubClient({ tripId: rawTripId }) {
     const plan = ws.plan || {};
     setBudget({ ...EMPTY_BUDGET, ...(plan.budget || {}) });
     setCompletedModules(new Set(plan.completedModules || []));
-    setSelectedListings(plan.selectedListings && typeof plan.selectedListings === 'object' ? plan.selectedListings : {});
-    planHydratedRef.current = true;
+    setSelectedListings(
+      plan.selectedListings && typeof plan.selectedListings === 'object'
+        ? plan.selectedListings
+        : {}
+    );
     if (t) seedTripChipsFromTrip(t);
     setLsTick((x) => x + 1);
+    // planHydrated state son set edilir — aynı render batch'inde state ile birlikte
+    // commit olur, sonraki render hem hydrated=true hem populated state ile çalışır,
+    // auto-save effect güvenle yazar (boş override yok).
+    setPlanHydrated(true);
   }, [tripId]);
 
   useEffect(() => {
-    if (!tripId || !planHydratedRef.current) return;
+    if (!tripId || !planHydrated) return;
     saveTripWorkspace(tripId, {
       plan: {
         budget,
@@ -131,7 +138,7 @@ export default function TripHubClient({ tripId: rawTripId }) {
         selectedListings,
       },
     });
-  }, [tripId, budget, completedModules, selectedListings]);
+  }, [tripId, planHydrated, budget, completedModules, selectedListings]);
 
   useEffect(() => {
     reloadTrip();
@@ -353,15 +360,40 @@ export default function TripHubClient({ tripId: rawTripId }) {
           <div style={s.centerWrap}>
           <div style={s.scroll}>
           <div style={s.column}>
-            <input
-              type="text"
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={persistTitle}
-              maxLength={56}
-              aria-label="Gezi adı"
-              style={s.titleInput}
-            />
+            <div style={s.titleRow}>
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={persistTitle}
+                maxLength={56}
+                aria-label="Gezi adı"
+                style={s.titleInput}
+              />
+              <button
+                type="button"
+                style={s.askAtlasBtn}
+                onClick={() => {
+                  const dest = String(tripMetaForChips?.destination || titleDraft || 'Bu seyahatim').trim();
+                  const nights = Number(tripMetaForChips?.nights) || 0;
+                  const lst = Object.values(selectedListings || {});
+                  const svcLines = lst
+                    .slice(0, 5)
+                    .map((l) => `- ${l.name}${l.price ? ` (₺${Number(l.price).toLocaleString('tr-TR')})` : ''}`)
+                    .join('\n');
+                  const parts = [`${dest}${nights > 0 ? ` (${nights} gece)` : ''} için planlama yardımı istiyorum.`];
+                  if (svcLines) {
+                    parts.push(`\nMevcut seçimlerim:\n${svcLines}`);
+                  }
+                  parts.push('\nNe önerirsin? Eksik kalanları birlikte tamamlayalım.');
+                  startChatWithText(parts.join('\n'));
+                }}
+                aria-label="Atlas'a bu geziyi sor"
+              >
+                <Sparkles size={14} strokeWidth={2.4} color="#9C7E3F" aria-hidden />
+                Atlas'a bu geziyi sor
+              </button>
+            </div>
 
             <div style={s.chipWrap}>
               <TripFilterChipBar
@@ -849,7 +881,8 @@ const s = {
     boxSizing: 'border-box',
   },
   titleInput: {
-    width: '100%',
+    flex: 1,
+    minWidth: 0,
     border: 'none',
     background: 'transparent',
     fontFamily: 'var(--font-serif)',
@@ -858,8 +891,33 @@ const s = {
     lineHeight: 'var(--text-3xl-lh)',
     color: 'var(--ta-ink)',
     outline: 'none',
-    marginBottom: 'var(--space-4)',
     boxSizing: 'border-box',
+  },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-3)',
+    marginBottom: 'var(--space-4)',
+  },
+  askAtlasBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 14px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.01em',
+    color: '#9C7E3F',
+    background: 'rgba(201,168,106,0.10)',
+    borderRadius: 'var(--radius-pill)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(201,168,106,0.42)',
+    cursor: 'pointer',
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
+    transition: 'background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out)',
   },
   chipWrap: {
     marginBottom: 'var(--space-5)',

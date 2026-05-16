@@ -42,6 +42,7 @@ import { qp } from '@/lib/quickPlanFilterStyles';
 import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import SkeletonList from '@/components/SkeletonList';
+import TripifyButton from '@/components/TripifyButton';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 
@@ -789,6 +790,21 @@ export default function FlightSearchScreen({
                 <button type="button" style={{ ...st.selectBtn, maxWidth: isPhone ? '100%' : undefined }}>
                   Seçin
                 </button>
+                <div style={{ marginTop: 6, alignSelf: isPhone ? 'flex-start' : 'flex-end' }}>
+                  <TripifyButton
+                    serviceType={lodgingTourResults ? 'tour' : 'flight'}
+                    listing={{
+                      name: `${f.airline} ${f.departureCode}→${f.arrivalCode}`,
+                      location: destination,
+                      price: Number(f.price) || 0,
+                      type: lodgingTourResults ? 'tour' : 'flight',
+                    }}
+                    destination={destination}
+                    autoBook={false}
+                    label="Geziye dönüştür"
+                    successLabel="Geziye eklendi"
+                  />
+                </div>
                 <div style={{ ...st.cardActions, justifyContent: isPhone ? 'flex-start' : 'flex-end' }}>
                   <button
                     type="button"

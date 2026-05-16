@@ -167,6 +167,12 @@ const ChatArea = forwardRef(function ChatArea(
     emptyHero = null,
     /** /chat: sağ üst ⋮ menü (null ise gösterilmez) */
     chatOverflowActions = null,
+    /** Composer içine Tarih/Kişi/Bütçe token bar'ını göster */
+    showComposerTokens = false,
+    /** Token filled state'i için merged trip meta */
+    tripMetaForTokens = null,
+    /** Bu chat bir gezi'ye bağlıysa banner için: { id, name } */
+    boundTrip = null,
   },
   ref
 ) {
@@ -317,6 +323,17 @@ const ChatArea = forwardRef(function ChatArea(
           </div>
         ) : null}
 
+        {boundTrip?.id ? (
+          <a href={`/trips/${encodeURIComponent(boundTrip.id)}`} style={s.boundTripBanner}>
+            <span style={s.boundTripDot} aria-hidden>✦</span>
+            <span style={s.boundTripText}>
+              Bu sohbet <strong>{boundTrip.name || 'gezisine'}</strong> bağlı —
+              seçimlerin doğrudan planına eklenir.
+            </span>
+            <span style={s.boundTripArrow} aria-hidden>›</span>
+          </a>
+        ) : null}
+
         <div style={s.feedWrap}>
           {emptyHero ? (
             <div
@@ -390,6 +407,8 @@ const ChatArea = forwardRef(function ChatArea(
             disabled={typing}
             submitLabel={submitButtonLabel}
             submitIconOnly={submitIconOnly}
+            showTokens={showComposerTokens}
+            tripMeta={tripMetaForTokens}
           />
         </div>
       </div>
@@ -413,29 +432,18 @@ function MessageBubble({
 
   return (
     <div style={s.msgGroup}>
-      {/* Baloncuk */}
       {isUser ? (
-        /* Kullanıcı: avatar sağda, balon sola doğru büyüyemez */
-        <div style={s.rowUser}>
-          <div style={{
-            ...s.bubble,
-            ...s.bubbleUser,
-          }}>
-            {msg.content}
-          </div>
-          <div style={s.avatarUser}>S</div>
+        <div style={s.userRow}>
+          <div style={s.userCapsule}>{msg.content}</div>
         </div>
       ) : (
-        /* AI: avatar solda */
-        <div style={s.rowAI}>
-          <div style={s.avatarAI}>A</div>
-          <div style={{
-            ...s.bubble,
-            ...s.bubbleAI,
-          }}>
-            {msg.content}
-          </div>
-        </div>
+        <article style={s.atlasArticle}>
+          <header style={s.atlasEyebrow}>
+            <span style={s.atlasEyebrowMark} aria-hidden>✦</span>
+            <span style={s.atlasEyebrowLabel}>Atlas</span>
+          </header>
+          <div style={s.atlasProse}>{msg.content}</div>
+        </article>
       )}
 
       {/* Hotel kartları */}
@@ -614,8 +622,112 @@ const s = {
   },
 
   msgGroup: {
-    display: 'grid',
+    display: 'flex',
+    flexDirection: 'column',
     gap: 'var(--space-3)',
+  },
+
+  /* ── Bağlı gezi banner (chat trip ile bağlıyken) ── */
+  boundTripBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    margin: 'var(--space-2) var(--space-5) 0',
+    padding: '8px var(--space-3)',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(201,168,106,0.10)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(201,168,106,0.32)',
+    color: '#9C7E3F',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-semibold)',
+    textDecoration: 'none',
+    flexShrink: 0,
+    cursor: 'pointer',
+    transition: 'background var(--duration-fast) var(--ease-out)',
+  },
+  boundTripDot: {
+    fontSize: 11,
+    lineHeight: 1,
+  },
+  boundTripText: {
+    flex: 1,
+    minWidth: 0,
+    lineHeight: 1.4,
+  },
+  boundTripArrow: {
+    fontSize: 16,
+    fontWeight: 'var(--fw-bold)',
+    opacity: 0.7,
+  },
+
+  /* ── Atlas mesaj (bubble-suz prose, editorial) ── */
+  atlasArticle: {
+    position: 'relative',
+    paddingLeft: 'var(--space-5)',
+    paddingTop: 2,
+    paddingBottom: 2,
+    borderLeftWidth: 2,
+    borderLeftStyle: 'solid',
+    borderLeftColor: '#C9A86A',
+    maxWidth: '88%',
+    alignSelf: 'flex-start',
+  },
+  atlasEyebrow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 'var(--space-2)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: '#C9A86A',
+  },
+  atlasEyebrowMark: {
+    fontSize: 10,
+    transform: 'translateY(-1px)',
+  },
+  atlasEyebrowLabel: {
+    fontFamily: 'var(--font-serif)',
+    fontStyle: 'italic',
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 12,
+    letterSpacing: '0.04em',
+    textTransform: 'none',
+    color: 'var(--ta-ink)',
+  },
+  atlasProse: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-md)',
+    lineHeight: 1.65,
+    color: 'var(--ta-ink)',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+  },
+
+  /* ── Kullanıcı mesaj (sağa hizalı kapsül) ── */
+  userRow: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignSelf: 'stretch',
+  },
+  userCapsule: {
+    maxWidth: '72%',
+    padding: 'var(--space-3) var(--space-4)',
+    borderRadius: 'var(--radius-lg)',
+    background: 'rgba(31,77,92,0.08)',
+    color: 'var(--ta-ink)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-md)',
+    lineHeight: 1.55,
+    wordBreak: 'break-word',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.14)',
   },
 
   /* AI row: avatar-left + bubble */
@@ -704,7 +816,7 @@ const s = {
     gridAutoColumns: '248px',
     gap: 'var(--space-3)',
     overflowX: 'auto',
-    paddingLeft: '46px',
+    paddingLeft: 'var(--space-5)',
     paddingBottom: 'var(--space-1)',
     scrollbarWidth: 'none',
   },
@@ -714,6 +826,6 @@ const s = {
     display: 'grid',
     gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
     gap: 'var(--space-3)',
-    paddingLeft: '46px',
+    paddingLeft: 'var(--space-5)',
   },
 };

@@ -11,26 +11,27 @@ export default function TypingIndicator() {
 }
 
 const dotBase = {
-  width: '7px',
-  height: '7px',
+  width: '6px',
+  height: '6px',
   borderRadius: '50%',
-  background: '#baa889',
+  background: 'var(--ta-accent)',
+  opacity: 0.6,
   animation: 'ta-bounce 1.2s infinite ease-in-out',
 };
 
 const s = {
   wrap: {
     display: 'inline-flex',
-    gap: 'var(--space-2)',
-    padding: 'var(--space-3) var(--space-4)',
-    background: 'white',
-    borderRadius: 'var(--radius-pill)',
-    borderWidth: 'var(--border-thin)',
-    borderStyle: 'solid',
-    borderColor: 'rgba(0,0,0,.05)',
-    marginLeft: '46px',
+    alignItems: 'center',
+    gap: 'var(--space-1)',
+    paddingLeft: 'var(--space-5)',
+    paddingTop: 2,
+    paddingBottom: 2,
+    borderLeftWidth: 2,
+    borderLeftStyle: 'solid',
+    borderLeftColor: '#C9A86A',
     width: 'fit-content',
-    boxShadow: '0 4px 12px rgba(0,0,0,.04)',
+    alignSelf: 'flex-start',
   },
   dot1: { ...dotBase },
   dot2: { ...dotBase, animationDelay: '.16s' },

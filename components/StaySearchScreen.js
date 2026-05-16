@@ -39,6 +39,7 @@ import { qp } from '@/lib/quickPlanFilterStyles';
 import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import SkeletonList from '@/components/SkeletonList';
+import TripifyButton from '@/components/TripifyButton';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
@@ -1248,6 +1249,27 @@ export default function StaySearchScreen({
                         >
                           Fırsatı Gör
                         </button>
+                        <div
+                          style={{
+                            marginTop: 6,
+                            alignSelf: isPhone ? 'flex-start' : 'flex-end',
+                          }}
+                        >
+                          <TripifyButton
+                            serviceType="stay"
+                            listing={{
+                              name: h.name,
+                              location: h.location || h.city || city,
+                              price: Number(h.priceNight) || 0,
+                              type: 'hotel',
+                              imageUrl: h.imageUrl || h.photo || null,
+                            }}
+                            destination={city}
+                            autoBook={false}
+                            label="Geziye dönüştür"
+                            successLabel="Geziye eklendi"
+                          />
+                        </div>
                       </div>
                       <div style={fp.cardIconStack}>
                         <button

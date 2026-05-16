@@ -4,57 +4,24 @@ import { useEffect, useState } from 'react';
 import { Check, MapPin, Pencil, Sparkles, X } from 'lucide-react';
 import { BudgetCategoryGlyph, ListingTypeGlyph } from '@/components/AtlasGlyph';
 
-const MODULES = [
-  {
-    id: 'lodging',
-    label: 'Konaklama',
-    desc: 'Butik otel ve nehir kıyısı seçenekleri öne çıktı.',
-    defaultActive: true,
-    defaultLocked: false,
-    tags: ['Butik otel', 'Merkezde'],
-    hasAdd: true,
-  },
-  {
-    id: 'transport',
-    label: 'Ulaşım',
-    desc: 'Henüz kullanıcı tarafından istenmedi. Gerekirse sonradan eklenebilir.',
-    defaultActive: false,
-    defaultLocked: false,
-    tags: ['Uçuş', 'Tren', 'Araç kiralama'],
-    hasAdd: true,
-  },
-  {
-    id: 'transfer',
-    label: 'Transfer',
-    desc: 'Havalimanı karşılama ve dönüş transferi değerlendiriliyor.',
-    defaultActive: true,
-    defaultLocked: false,
-    tags: ['Karşılama', 'Özel araç'],
-    hasAdd: true,
-  },
-  {
-    id: 'activities',
-    label: 'Aktiviteler',
-    desc: 'Müze, kale ve yerel yemek durağı içeren rota oluşturuldu.',
-    defaultActive: true,
-    defaultLocked: false,
-    tags: ['Müze', 'Kale', 'Yerel lezzet'],
-    hasAdd: true,
-  },
-  {
-    id: 'extras',
-    label: 'Ekstra servisler',
-    desc: 'İstenirse cruise, restoran rezervasyonu veya özel deneyim eklenebilir.',
-    defaultActive: false,
-    defaultLocked: false,
-    tags: ['Gemi turu', 'Restoran', 'Sigorta'],
-    hasAdd: true,
-  },
+/**
+ * Atlas servisler — hızlı plan menüsündeki kategorilerle eşleşir.
+ * "Tur" ayrı bir servis değil; tur seçilince arka planda Konaklama + Uçuş
+ * (ve içeriği varsa Araç Kiralama) otomatik aktif olur.
+ */
+const SERVICES = [
+  { id: 'lodging',  label: 'Konaklama',     listingTypes: ['hotel', 'villa', 'clinic'] },
+  { id: 'flight',   label: 'Uçuş',          listingTypes: ['flight'] },
+  { id: 'bus',      label: 'Otobüs',        listingTypes: ['bus'] },
+  { id: 'car',      label: 'Araç kiralama', listingTypes: ['car'] },
+  { id: 'transfer', label: 'Transfer',      listingTypes: ['transfer'] },
+  { id: 'activity', label: 'Aktivite',      listingTypes: ['tour', 'boat', 'activity'] },
+  { id: 'extras',   label: 'Ekstra',        listingTypes: ['restaurant', 'extra'] },
 ];
 
 const BUDGET_CATS = [
   { key: 'accommodation', label: 'Konaklama' },
-  { key: 'transport', label: 'Transfer' },
+  { key: 'transport', label: 'Ulaşım' },
   { key: 'activities', label: 'Aktivite' },
   { key: 'extras', label: 'Diğer' },
 ];
@@ -63,6 +30,9 @@ export default function LeftPanel({
   planName = 'Yeni Seyahat Planı',
   onPlanNameChange,
   completedModules = new Set(),
+  bookedServices = new Set(),
+  onBookService,
+  onUnbookService,
   budget = {},
   selectedListings = {},
   onDeselect,
@@ -141,64 +111,89 @@ export default function LeftPanel({
       </div>
       ) : null}
 
-      {/* ── Modül Tab Grid ── */}
-      <div style={s.modSection}>
-        <div style={s.sectionTitle}>
-          <span>Seyahat modülleri</span>
-          {planBadgeLabel != null && String(planBadgeLabel).trim() !== '' ? (
-            <span style={s.planTag}>{planBadgeLabel}</span>
-          ) : null}
-        </div>
+      {/* ── Editorial künye ── */}
+      <div style={s.editorialEyebrow}>
+        <span style={s.eyebrowDot} aria-hidden>✦</span>
+        {bookedServices.size > 0
+          ? `ISSUE 01 · ${bookedServices.size} REZERVE`
+          : completedModules.size > 0
+            ? `TASLAK · ${completedModules.size} SERVİS`
+            : 'TASLAK · ATLAS EDITION'}
+      </div>
 
-        {/* Text-only module tabs */}
-        <div style={s.tabGrid}>
-          {MODULES.map(mod => {
-            const isDone  = completedModules.has(mod.id);
-            const isActive = activeModule === mod.id;
+      {/* ── Servisler ── */}
+      <section style={s.editorialSection}>
+        <header style={s.editorialHead}>
+          <h3 style={s.editorialTitle}>Servisler</h3>
+          <span style={s.editorialMeta}>
+            {bookedServices.size > 0
+              ? `${bookedServices.size} ✓ · ${completedModules.size} / ${SERVICES.length}`
+              : `${completedModules.size} / ${SERVICES.length}`}
+          </span>
+        </header>
+        <div style={s.hairline} aria-hidden />
+
+        <div style={s.moduleRowList}>
+          {SERVICES.map((svc) => {
+            const isPicked = completedModules.has(svc.id);
+            const isBooked = bookedServices.has(svc.id);
+            const svcCount = Object.values(selectedListings).filter((l) => {
+              const t = String(l?.type || '').toLowerCase();
+              return svc.listingTypes.includes(t);
+            }).length;
             return (
-              <div key={mod.id} style={s.tabBlock}>
-                <button
+              <div key={svc.id} style={s.moduleRowItem}>
+                <span
                   style={{
-                    ...s.tabItem,
-                    ...(isActive  ? s.tabItemActive  : {}),
-                    ...(isDone    ? s.tabItemDone    : {}),
+                    ...s.statusRing,
+                    ...(isBooked ? s.statusRingBooked : isPicked ? s.statusRingDone : {}),
                   }}
-                  onClick={() => setActiveModule(id => id === mod.id ? null : mod.id)}
+                  aria-hidden
                 >
-                  <span style={s.tabLabel}>{mod.label.split(' /')[0]}</span>
-                  {isDone && (
-                    <span style={s.tabTick} aria-hidden>
-                      <Check size={12} strokeWidth={2.5} color="var(--ta-sea)" />
-                    </span>
-                  )}
-                </button>
-
-                {/* Her modülün kendi altında açılan detay paneli */}
-                {isActive && (
-                  <div style={s.expandPanel}>
-                    <p style={s.expandDesc}>{mod.desc}</p>
-                    <div style={s.tagsRow}>
-                      {mod.tags.map(t => <span key={t} style={s.tag}>{t}</span>)}
-                      {mod.hasAdd && <span style={s.tagAdd}>+ ekle</span>}
-                    </div>
-                    {isDone && (
-                      <span style={s.expandDone}>
-                        <Check size={12} strokeWidth={2.5} aria-hidden />
-                        Tamamlandı
-                      </span>
-                    )}
-                  </div>
+                  {isBooked ? (
+                    <Check size={11} strokeWidth={3} color="#fff" />
+                  ) : isPicked ? (
+                    <Check size={11} strokeWidth={3} color="#fff" />
+                  ) : null}
+                </span>
+                <span style={s.moduleRowLabel}>{svc.label}</span>
+                {isBooked ? (
+                  <>
+                    <span style={s.moduleRowBookedTag}>Rezerve</span>
+                    <button
+                      type="button"
+                      style={s.moduleRowAction}
+                      onClick={() => onUnbookService?.(svc.id)}
+                      aria-label={`${svc.label} rezervasyonunu geri al`}
+                    >
+                      Geri al
+                    </button>
+                  </>
+                ) : isPicked ? (
+                  <>
+                    <span style={s.moduleRowMetaDone}>{svcCount || 1} öğe</span>
+                    <button
+                      type="button"
+                      style={s.moduleRowActionPrimary}
+                      onClick={() => onBookService?.(svc.id)}
+                      aria-label={`${svc.label} için rezervasyon işaretle`}
+                    >
+                      Rezerve ettim
+                    </button>
+                  </>
+                ) : (
+                  <span style={s.moduleRowMeta}>—</span>
                 )}
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* ── Bütçe ── */}
-      <BudgetSection budget={budget} />
+      <BudgetSection budget={budget} selectedListings={selectedListings} />
 
-      {/* ── Seyahat Planı (seçilen öğeler) ── */}
+      {/* ── Seyahat Planı ── */}
       <PlanSection selectedListings={selectedListings} onDeselect={onDeselect} />
 
       {/* ── Akıllı öneri (/chat’te harita altında) ── */}
@@ -218,107 +213,133 @@ export default function LeftPanel({
   );
 }
 
-/* ── Bütçe bölümü ── */
-function BudgetSection({ budget }) {
+/* ── Bütçe bölümü (Cinematic Editorial) ── */
+function BudgetSection({ budget, selectedListings = {} }) {
   const values = BUDGET_CATS.map(c => budget[c.key] ?? 0);
   const total  = values.reduce((a, b) => a + b, 0);
+  const filledCats = BUDGET_CATS.filter((_, i) => values[i] > 0);
+  const itemCount = Object.keys(selectedListings).length;
 
   return (
-    <div style={s.section}>
-      <div style={s.sectionTitle}>
-        <span>Bütçe özeti</span>
-        {total > 0 && (
-          <span style={s.budgetTotalBadge}>
-            ₺{total.toLocaleString('tr-TR')}
-          </span>
+    <section style={s.editorialSection}>
+      <header style={s.editorialHead}>
+        <h3 style={s.editorialTitle}>Bütçe</h3>
+        {total > 0 ? (
+          <span style={s.editorialMeta}>{filledCats.length} kategori</span>
+        ) : null}
+      </header>
+      <div style={s.hairline} aria-hidden />
+
+      <div style={s.budgetTotalBig}>
+        {total === 0 ? (
+          <>
+            <span style={s.budgetCurrency}>₺</span>
+            <span style={s.budgetDash}>—</span>
+          </>
+        ) : (
+          <>
+            <span style={s.budgetCurrency}>₺</span>
+            <span style={s.budgetAmount}>{total.toLocaleString('tr-TR')}</span>
+          </>
         )}
       </div>
 
-      <div style={s.budgetCard}>
-        {total === 0 ? (
-          <p style={s.emptyNote}>Henüz seçilen öğe yok. Bir listing seçilince bütçe burada görünür.</p>
-        ) : (
-          <>
-            <div style={s.budgetTotalRow}>
-              <span style={s.budgetTotalLabel}>Toplam</span>
-              <span style={s.budgetTotalAmt}>₺{total.toLocaleString('tr-TR')}</span>
-            </div>
+      <p style={s.budgetSubtitle}>
+        {total === 0
+          ? 'Sohbette bir öneri seçince burada birikir.'
+          : `${itemCount} öğe seçildi · ${filledCats.length} modülde`}
+      </p>
+
+      {total > 0 ? (
+        <>
+          <div style={s.budgetBreakdownLabel}>Kategori Dağılımı</div>
+          <div style={s.budgetBreakdownList}>
             {BUDGET_CATS.map((cat, i) => {
               const val = values[i];
               if (!val) return null;
               const pct = Math.round((val / total) * 100);
+              const itemsInCat = Object.values(selectedListings).filter((l) => {
+                const t = String(l?.type || '').toLowerCase();
+                if (cat.key === 'accommodation') return ['hotel', 'villa', 'clinic'].includes(t);
+                if (cat.key === 'transport') return ['transfer', 'car', 'flight', 'bus'].includes(t);
+                if (cat.key === 'activities') return ['tour', 'boat', 'activity'].includes(t);
+                if (cat.key === 'extras') return ['restaurant', 'extra'].includes(t);
+                return false;
+              }).length;
               return (
-                <div key={cat.key} style={s.budgetRow}>
-                  <span style={s.budgetCatIcon}>
-                    <BudgetCategoryGlyph catKey={cat.key} size={14} />
-                  </span>
-                  <span style={s.budgetCatLabel}>{cat.label}</span>
-                  <span style={s.budgetCatAmt}>₺{val.toLocaleString('tr-TR')}</span>
-                  <div style={s.miniBar}>
-                    <div style={{ ...s.miniBarFill, width: `${pct}%` }} />
+                <div key={cat.key} style={s.budgetCatRow}>
+                  <span style={s.budgetCatBullet} aria-hidden>✦</span>
+                  <div style={s.budgetCatMain}>
+                    <span style={s.budgetCatName}>{cat.label}</span>
+                    {itemsInCat > 0 ? (
+                      <span style={s.budgetCatHint}>{itemsInCat} öğe</span>
+                    ) : null}
                   </div>
+                  <span style={s.budgetCatPct}>%{pct}</span>
+                  <span style={s.budgetCatAmt}>₺{val.toLocaleString('tr-TR')}</span>
                 </div>
               );
             })}
-          </>
-        )}
-      </div>
-    </div>
+          </div>
+        </>
+      ) : null}
+    </section>
   );
 }
 
-/* ── Seyahat Planı bölümü ── */
+/* ── Seyahat Planı bölümü (Cinematic Editorial) ── */
 function PlanSection({ selectedListings, onDeselect }) {
   const items = Object.values(selectedListings);
 
   return (
-    <div style={s.section}>
-      <div style={s.sectionTitle}>
-        <span>Seyahat planı</span>
-        {items.length > 0 && (
-          <span style={s.planCountBadge}>{items.length} öğe</span>
-        )}
-      </div>
+    <section style={s.editorialSection}>
+      <header style={s.editorialHead}>
+        <h3 style={s.editorialTitle}>Seyahat Planı</h3>
+        {items.length > 0 ? (
+          <span style={s.editorialMeta}>{items.length} öğe</span>
+        ) : null}
+      </header>
+      <div style={s.hairline} aria-hidden />
 
-      <div style={s.planCard}>
-        {items.length === 0 ? (
-          <p style={s.emptyNote}>Chat&apos;ten bir seçenek seçince buraya eklenir.</p>
-        ) : (
-          <div style={s.planList}>
-            {items.map((listing, i) => (
-              <div key={listing.name ?? i} style={s.planItem}>
-                <span style={s.planItemIcon}>
-                  <ListingTypeGlyph type={listing.type} size={16} />
-                </span>
-                <div style={s.planItemInfo}>
-                  <span style={s.planItemName}>{listing.name}</span>
-                  {listing.location && (
-                    <span style={s.planItemLoc}>
-                      <MapPin size={11} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 3 }} aria-hidden />
-                      {listing.location}
-                    </span>
-                  )}
-                </div>
-                {listing.price != null && (
-                  <span style={s.planItemPrice}>
-                    ₺{Number(listing.price).toLocaleString('tr-TR')}
+      {items.length === 0 ? (
+        <p style={s.proseEmpty}>
+          Sohbette bir öneri seçince buraya günlük günlük işlenir. Atlas plan
+          taslağını bu bölümde sayfa sayfa kuracak.
+        </p>
+      ) : (
+        <div style={s.planListEd}>
+          {items.map((listing, i) => (
+            <div key={listing.name ?? i} style={s.planItemEd}>
+              <span style={s.planItemIconEd} aria-hidden>
+                <ListingTypeGlyph type={listing.type} size={14} />
+              </span>
+              <div style={s.planItemInfoEd}>
+                <span style={s.planItemNameEd}>{listing.name}</span>
+                {listing.location ? (
+                  <span style={s.planItemLocEd}>
+                    <MapPin size={10} strokeWidth={2} aria-hidden />
+                    {listing.location}
                   </span>
-                )}
-                <button
-                  type="button"
-                  style={s.planRemoveBtn}
-                  onClick={() => onDeselect?.(listing)}
-                  title="Plandam kaldır"
-                  aria-label="Kaldır"
-                >
-                  <X size={14} strokeWidth={2} aria-hidden />
-                </button>
+                ) : null}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              {listing.price != null ? (
+                <span style={s.planItemPriceEd}>
+                  ₺{Number(listing.price).toLocaleString('tr-TR')}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                style={s.planRemoveBtnEd}
+                onClick={() => onDeselect?.(listing)}
+                aria-label="Kaldır"
+              >
+                <X size={12} strokeWidth={2.2} aria-hidden />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -374,6 +395,341 @@ function ModuleBlock({ mod, isDone }) {
 }
 
 const s = {
+  /* ──────────────────────────────────────────
+     Cinematic Editorial — bölüm bloklarının
+     ortak gramer kuralları
+     ────────────────────────────────────────── */
+  editorialEyebrow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    margin: '0 0 var(--space-4)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: '#C9A86A',
+  },
+  eyebrowDot: {
+    fontSize: 9,
+    color: '#C9A86A',
+    transform: 'translateY(-1px)',
+  },
+  editorialSection: {
+    margin: '0 0 var(--space-5)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'var(--space-3)',
+  },
+  editorialHead: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 'var(--space-3)',
+  },
+  editorialTitle: {
+    margin: 0,
+    fontFamily: 'var(--font-serif)',
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--text-md)',
+    lineHeight: 1,
+    letterSpacing: '0.04em',
+    color: 'var(--ta-ink)',
+  },
+  editorialMeta: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-semibold)',
+    letterSpacing: '0.10em',
+    textTransform: 'uppercase',
+    color: 'var(--ta-ink-muted)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  hairline: {
+    height: 1,
+    background: 'linear-gradient(90deg, rgba(31,77,92,0.30) 0%, rgba(31,77,92,0.05) 100%)',
+    margin: '0 0 var(--space-2)',
+  },
+
+  /* ── Modül satırları ── */
+  moduleRowList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'var(--space-2)',
+  },
+  moduleRowItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-3)',
+    padding: '6px 0',
+  },
+  statusRing: {
+    width: 20,
+    height: 20,
+    borderRadius: '50%',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.32)',
+    background: 'transparent',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transition: 'background var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out)',
+  },
+  statusRingDone: {
+    background: 'var(--ta-accent)',
+    borderColor: 'var(--ta-accent)',
+  },
+  statusRingBooked: {
+    background: '#C9A86A',
+    borderColor: '#C9A86A',
+    boxShadow: '0 0 0 3px rgba(201,168,106,0.18)',
+  },
+  moduleRowLabel: {
+    flex: 1,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-base)',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--ta-ink)',
+  },
+  moduleRowMeta: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    color: 'var(--ta-ink-subtle)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  moduleRowMetaDone: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    color: 'var(--ta-accent)',
+    fontWeight: 'var(--fw-bold)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  moduleRowBookedTag: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: '#C9A86A',
+    padding: '2px 8px',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(201,168,106,0.12)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(201,168,106,0.32)',
+  },
+  moduleRowAction: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-semibold)',
+    letterSpacing: '0.04em',
+    color: 'var(--ta-ink-subtle)',
+    background: 'transparent',
+    border: 'none',
+    padding: '2px 4px',
+    cursor: 'pointer',
+    marginLeft: 4,
+  },
+  moduleRowActionPrimary: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: '#C9A86A',
+    background: 'transparent',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(201,168,106,0.42)',
+    padding: '3px 8px',
+    borderRadius: 'var(--radius-pill)',
+    cursor: 'pointer',
+    marginLeft: 6,
+    whiteSpace: 'nowrap',
+    transition: 'background var(--duration-fast) var(--ease-out)',
+  },
+
+  /* ── Bütçe büyük rakam ── */
+  budgetTotalBig: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    gap: 6,
+    fontFamily: 'var(--font-serif)',
+    fontWeight: 'var(--fw-bold)',
+    color: 'var(--ta-ink)',
+    letterSpacing: '-0.02em',
+  },
+  budgetCurrency: {
+    fontSize: 'var(--text-xl)',
+    color: 'var(--ta-ink-muted)',
+    fontWeight: 'var(--fw-medium)',
+  },
+  budgetAmount: {
+    fontSize: 32,
+    lineHeight: 1,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  budgetDash: {
+    fontSize: 32,
+    lineHeight: 1,
+    color: 'var(--ta-ink-subtle)',
+  },
+  budgetSubtitle: {
+    margin: 0,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    color: 'var(--ta-ink-muted)',
+    lineHeight: 1.45,
+  },
+  budgetBreakdownLabel: {
+    marginTop: 'var(--space-3)',
+    marginBottom: 2,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    color: '#C9A86A',
+  },
+  budgetBreakdownList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'var(--space-1)',
+  },
+  budgetCatRow: {
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr auto auto',
+    alignItems: 'baseline',
+    columnGap: 'var(--space-2)',
+    paddingTop: 'var(--space-2)',
+    paddingBottom: 'var(--space-2)',
+    borderTopWidth: 'var(--border-thin)',
+    borderTopStyle: 'solid',
+    borderTopColor: 'rgba(201,168,106,0.18)',
+  },
+  budgetCatBullet: {
+    color: '#C9A86A',
+    fontSize: 11,
+    lineHeight: 1,
+    transform: 'translateY(1px)',
+  },
+  budgetCatMain: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 1,
+    minWidth: 0,
+  },
+  budgetCatName: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--ta-ink)',
+  },
+  budgetCatHint: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    color: 'var(--ta-ink-muted)',
+    letterSpacing: '0.04em',
+  },
+  budgetCatPct: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--ta-ink-muted)',
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '0.02em',
+  },
+  budgetCatAmt: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-bold)',
+    color: 'var(--ta-ink)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+
+  /* ── Plan prose + satır ── */
+  proseEmpty: {
+    margin: 0,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    color: 'var(--ta-ink-muted)',
+    lineHeight: 1.55,
+    maxWidth: '36ch',
+  },
+  planListEd: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'var(--space-2)',
+  },
+  planItemEd: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-2)',
+    padding: 'var(--space-2) 0',
+    borderTopWidth: 'var(--border-thin)',
+    borderTopStyle: 'solid',
+    borderTopColor: 'rgba(31,77,92,0.08)',
+  },
+  planItemIconEd: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 22,
+    height: 22,
+    borderRadius: 'var(--radius-xs)',
+    background: 'rgba(31,77,92,0.06)',
+    color: 'var(--ta-accent)',
+    flexShrink: 0,
+  },
+  planItemInfoEd: {
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 1,
+  },
+  planItemNameEd: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-semibold)',
+    color: 'var(--ta-ink)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  planItemLocEd: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 11,
+    color: 'var(--ta-ink-muted)',
+  },
+  planItemPriceEd: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--fw-bold)',
+    color: 'var(--ta-ink)',
+    fontVariantNumeric: 'tabular-nums',
+    flexShrink: 0,
+  },
+  planRemoveBtnEd: {
+    width: 22,
+    height: 22,
+    border: 'none',
+    borderRadius: '50%',
+    background: 'transparent',
+    color: 'var(--ta-ink-subtle)',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
   /* ── Plan adı ── */
   planNameRow: {
     marginBottom: '14px',

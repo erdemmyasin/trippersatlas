@@ -13,8 +13,7 @@ import Header from '@/components/Header';
 import TripRouteHeader from '@/components/TripRouteHeader';
 import TripToolsGrid from '@/components/TripToolsGrid';
 import LeftPanel from '@/components/LeftPanel';
-import ChatMapSmartInsight from '@/components/ChatMapSmartInsight';
-import RightPanelInspirations from '@/components/RightPanelInspirations';
+import RightPanelFeed from '@/components/RightPanelFeed';
 import ChatArea from '@/components/ChatArea';
 import QuickPlanForm from '@/components/QuickPlanForm';
 import RightPanel, { DEFAULT_MAP_MARKERS } from '@/components/RightPanel';
@@ -105,14 +104,27 @@ function buildPaxFromTravelers(t) {
 
 const TYPE_TO_CAT = {
   hotel: 'accommodation', villa: 'accommodation', clinic: 'accommodation',
-  transfer: 'transport', car: 'transport',
-  tour: 'activities', boat: 'activities',
-  restaurant: 'extras',
+  flight: 'transport', bus: 'transport', car: 'transport', transfer: 'transport',
+  tour: 'activities', boat: 'activities', activity: 'activities',
+  restaurant: 'extras', extra: 'extras',
 };
-const TYPE_TO_MODULE = {
-  hotel: 'lodging', villa: 'lodging', clinic: 'lodging',
-  transfer: 'transfer', car: 'transfer',
-  tour: 'activities', boat: 'activities',
+/**
+ * Listing türü → aktive olacak servis id'leri.
+ * "Tur" özel: arka planda Konaklama + Uçuş (+ paket araba içeriyorsa Araç) aktif.
+ */
+const TYPE_TO_SERVICES = {
+  hotel:      ['lodging'],
+  villa:      ['lodging'],
+  clinic:     ['lodging'],
+  flight:     ['flight'],
+  bus:        ['bus'],
+  car:        ['car'],
+  transfer:   ['transfer'],
+  tour:       ['lodging', 'flight', 'activity'],
+  boat:       ['activity'],
+  activity:   ['activity'],
+  restaurant: ['extras'],
+  extra:      ['extras'],
 };
 const EMPTY_BUDGET = { accommodation: 0, transport: 0, activities: 0, extras: 0 };
 
@@ -172,6 +184,7 @@ export default function ChatPlanWorkspace({
   const [planName, setPlanName] = useState('Yeni Seyahat Planı');
   const [budget, setBudget] = useState(EMPTY_BUDGET);
   const [completedModules, setCompletedModules] = useState(new Set());
+  const [bookedServices, setBookedServices] = useState(new Set());
   const [selectedListings, setSelectedListings] = useState({});
   const [tripMeta, setTripMeta] = useState(DEFAULT_SOBHET_TRIP_META);
   const [chatFlowPhase, setChatFlowPhase] = useState('collect_meta');
@@ -185,6 +198,7 @@ export default function ChatPlanWorkspace({
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
   const [assistantSignal, setAssistantSignal] = useState(null);
   const [savedPlans, setSavedPlans] = useState(INITIAL_SAVED_PLANS);
+  const [mapVisible, setMapVisible] = useState(false);
 
   const activeChatRef = useRef(null);
   activeChatRef.current = activeChat;
@@ -274,6 +288,7 @@ export default function ChatPlanWorkspace({
         messages: liveMessagesRef.current,
         plan: {
           completedModules: Array.from(completedModules),
+          bookedServices: Array.from(bookedServices),
           budget,
           selectedListings,
         },
@@ -287,7 +302,7 @@ export default function ChatPlanWorkspace({
         title: deriveChatTitle(liveMessagesRef.current),
       });
     }
-  }, [budget, completedModules, mapMarkers, planName, selectedListings, tripMeta]);
+  }, [budget, completedModules, bookedServices, mapMarkers, planName, selectedListings, tripMeta]);
 
   /** Sohbet açık kalsın; üst plandaki gezi verisini seçilen kayıttan doldurur */
   const hydratePlanFromStoredTrip = useCallback((trip) => {
@@ -300,6 +315,7 @@ export default function ChatPlanWorkspace({
     setPlanName(top.planName || merged.name || 'Yeni Seyahat Planı');
     setBudget({ ...EMPTY_BUDGET, ...(plan.budget || {}) });
     setCompletedModules(new Set(plan.completedModules || []));
+    setBookedServices(new Set(plan.bookedServices || []));
     setSelectedListings(plan.selectedListings || {});
     const { datesChipText, nights, month } = tripDatesToMeta(merged.startDate, merged.endDate);
     const { paxChipText, travelers } = buildPaxFromTravelers(merged.travelers);
@@ -346,6 +362,7 @@ export default function ChatPlanWorkspace({
     setPlanName(ws.topBarData.planName || trip.name || 'Yeni Seyahat Planı');
     setBudget({ ...EMPTY_BUDGET, ...ws.plan.budget });
     setCompletedModules(new Set(ws.plan.completedModules || []));
+    setBookedServices(new Set(ws.plan.bookedServices || []));
     setSelectedListings(ws.plan.selectedListings || {});
     setTripMeta({ ...INITIAL_TRIP_META, ...ws.topBarData.tripMeta });
     const m = ws.mapData?.markers;
@@ -376,6 +393,7 @@ export default function ChatPlanWorkspace({
     setPlanName('Yeni Seyahat Planı');
     setBudget(EMPTY_BUDGET);
     setCompletedModules(new Set());
+    setBookedServices(new Set());
     setSelectedListings({});
     setTripMeta(DEFAULT_SOBHET_TRIP_META);
     setMapMarkers(DEFAULT_MAP_MARKERS);
@@ -733,11 +751,24 @@ export default function ChatPlanWorkspace({
   }, [headerVariant, uiMode, chatFlowPhase, mergedTripMetaForGate]);
 
   useEffect(() => {
-    if (uiMode !== 'trip' || !activeTripId) return;
+    /** Plan/bütçe değişiklikleri için workspace persist hedefi:
+     *  - Doğrudan /trips/{id} sayfasındaysak → o trip
+     *  - /chat'te ve aktif sohbet bir trip'e bağlıysa → bağlı trip
+     *  Aksi halde sadece chat içi state; trip workspace dokunulmaz.
+     */
+    let targetTripId = null;
+    if (uiMode === 'trip' && activeTripId) {
+      targetTripId = String(activeTripId);
+    } else if (uiMode === 'chat' && activeChat?.tripId) {
+      targetTripId = String(activeChat.tripId);
+    }
+    if (!targetTripId) return;
+
     const t = setTimeout(() => {
-      saveTripWorkspace(activeTripId, {
+      saveTripWorkspace(targetTripId, {
         plan: {
           completedModules: Array.from(completedModules),
+          bookedServices: Array.from(bookedServices),
           budget,
           selectedListings,
         },
@@ -749,9 +780,11 @@ export default function ChatPlanWorkspace({
   }, [
     uiMode,
     activeTripId,
+    activeChat?.tripId,
     planName,
     budget,
     completedModules,
+    bookedServices,
     selectedListings,
     tripMeta,
     mapMarkers,
@@ -866,6 +899,7 @@ export default function ChatPlanWorkspace({
     setPlanName('Yeni Seyahat Planı');
     setBudget(EMPTY_BUDGET);
     setCompletedModules(new Set());
+    setBookedServices(new Set());
     setSelectedListings({});
     setTripMeta(INITIAL_TRIP_META);
     trackEvent('plan.create', { source: 'header.dropdown' });
@@ -898,8 +932,12 @@ export default function ChatPlanWorkspace({
     }
     const cat = TYPE_TO_CAT[type] ?? 'extras';
     setBudget((prev) => ({ ...prev, [cat]: prev[cat] + Number(price) }));
-    const modId = TYPE_TO_MODULE[type];
-    if (modId) setCompletedModules((prev) => new Set([...prev, modId]));
+    const svcIds = TYPE_TO_SERVICES[type] || [];
+    // Tur içerisinde araç paket varsa "car" da aktive olur
+    if (type === 'tour' && listing?.includesCar) svcIds.push('car');
+    if (svcIds.length > 0) {
+      setCompletedModules((prev) => new Set([...prev, ...svcIds]));
+    }
     setSelectedListings((prev) => ({ ...prev, [listing.name]: listing }));
     const city = location.split(/[,·\-]/)[0].trim();
     if (city) setTripMeta((prev) => ({ ...prev, destination: city }));
@@ -911,20 +949,24 @@ export default function ChatPlanWorkspace({
     const lk = listingMapKey(listing);
     setMapPinSelectedKey((cur) => (cur === lk ? null : cur));
     const cat = TYPE_TO_CAT[type] ?? 'extras';
-    const modId = TYPE_TO_MODULE[type];
+    const svcIds = TYPE_TO_SERVICES[type] || [];
     setBudget((prev) => ({ ...prev, [cat]: Math.max(0, prev[cat] - Number(price)) }));
     setSelectedListings((prev) => {
       const next = { ...prev };
       delete next[name];
-      if (modId) {
-        const still = Object.values(next).some((l) => TYPE_TO_MODULE[l.type] === modId);
-        if (!still) {
-          setCompletedModules((pm) => {
-            const a = new Set(pm);
-            a.delete(modId);
-            return a;
-          });
-        }
+      // Bu listing'in aktive ettiği her servis için: başka bir listing aynı servisi
+      // hâlâ destekliyor mu kontrol et; yoksa servisi tamamlanmışlardan çıkar.
+      if (svcIds.length > 0) {
+        setCompletedModules((pm) => {
+          const a = new Set(pm);
+          for (const sid of svcIds) {
+            const stillUsed = Object.values(next).some((l) =>
+              (TYPE_TO_SERVICES[l.type] || []).includes(sid)
+            );
+            if (!stillUsed) a.delete(sid);
+          }
+          return a;
+        });
       }
       return next;
     });
@@ -1012,6 +1054,17 @@ export default function ChatPlanWorkspace({
       planName={planName}
       onPlanNameChange={handlePlanNameChange}
       completedModules={completedModules}
+      bookedServices={bookedServices}
+      onBookService={(id) =>
+        setBookedServices((prev) => new Set([...prev, id]))
+      }
+      onUnbookService={(id) =>
+        setBookedServices((prev) => {
+          const n = new Set(prev);
+          n.delete(id);
+          return n;
+        })
+      }
       budget={budget}
       selectedListings={selectedListings}
       onDeselect={handleListingDeselect}
@@ -1100,6 +1153,13 @@ export default function ChatPlanWorkspace({
             activeChatTripIdForPlanMenu={
               chatSohbetChrome && activeChat?.tripId ? String(activeChat.tripId) : null
             }
+            hideFilterChipBar={chatSohbetChrome}
+            budgetTotal={
+              chatSohbetChrome
+                ? Object.values(budget).reduce((a, b) => a + (Number(b) || 0), 0)
+                : 0
+            }
+            bookedCount={chatSohbetChrome ? bookedServices.size : 0}
           />
         )}
 
@@ -1136,6 +1196,19 @@ export default function ChatPlanWorkspace({
               noWelcomeWhenEmpty
               emptyHero={emptyHero}
               chatOverflowActions={chatOverflowActions}
+              showComposerTokens={chatSohbetChrome}
+              tripMetaForTokens={mergedTripMetaForGate}
+              boundTrip={
+                chatSohbetChrome && activeChat?.tripId
+                  ? {
+                      id: String(activeChat.tripId),
+                      name:
+                        findMergedTripById(activeChat.tripId)?.name ||
+                        activeChat?.tripName ||
+                        'Gezisine',
+                    }
+                  : null
+              }
             />
           </div>
 
@@ -1148,8 +1221,66 @@ export default function ChatPlanWorkspace({
                 : {}),
             }}
           >
-            {chatSohbetChrome && !String(tripMeta.destination || '').trim() ? (
-              <RightPanelInspirations />
+            {chatSohbetChrome ? (
+              <div style={s.feedSplit}>
+                <div
+                  style={{
+                    ...s.feedPane,
+                    ...(mapVisible ? s.feedPaneShrunk : {}),
+                  }}
+                >
+                  <RightPanelFeed
+                    destination={tripMeta?.destination || ''}
+                    onPickCity={(city) => {
+                      chatAreaRef.current?.sendAtlasFilterPrompt?.(
+                        `${city} hakkında daha fazla göster — neler önerirsin?`
+                      );
+                    }}
+                    onShowOnMap={(city) => {
+                      setMapVisible(true);
+                      if (city) {
+                        try {
+                          fetch(`/api/places/geocode?address=${encodeURIComponent(appendRegionalGeocodeContext(city))}`)
+                            .then((r) => r.json())
+                            .then((j) => {
+                              if (j?.lat != null && j?.lng != null) {
+                                setGeoCenter({ lat: j.lat, lng: j.lng });
+                                setMapFocusRequest({ lat: j.lat, lng: j.lng, at: Date.now() });
+                              }
+                            })
+                            .catch(() => {});
+                        } catch {
+                          /* ignore */
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                {mapVisible ? (
+                  <div style={s.mapPane}>
+                    <button
+                      type="button"
+                      style={s.mapCloseBtn}
+                      onClick={() => setMapVisible(false)}
+                      aria-label="Haritayı kapat"
+                    >
+                      ×
+                    </button>
+                    <RightPanel
+                      completedModules={completedModules}
+                      markers={mapMarkers}
+                      hideMapOverlay
+                      googleMap={{
+                        center: geoCenter,
+                        markers: chatGoogleMarkers,
+                        zoom: 12,
+                        focusRequest: mapFocusRequest,
+                        onMarkerClick: handleMapMarkerClick,
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <RightPanel
                 completedModules={completedModules}
@@ -1166,7 +1297,6 @@ export default function ChatPlanWorkspace({
                 mapSubline={resolvedMapPins.length ? `${resolvedMapPins.length} öneri` : ''}
               />
             )}
-            {chatSohbetChrome ? <ChatMapSmartInsight tripMeta={tripMeta} /> : null}
             {headerVariant === 'tripDetail' ? (
               <div style={{ flexShrink: 0, overflowY: 'auto', minHeight: 0 }}>
                 <TripToolsGrid />
@@ -1214,5 +1344,58 @@ const s = {
     boxSizing: 'border-box',
     minHeight: 0,
     overflowY: 'auto',
+  },
+  feedSplit: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'var(--space-3)',
+  },
+  feedPane: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'flex var(--duration-slow) var(--ease-out)',
+  },
+  feedPaneShrunk: {
+    flex: '0 1 45%',
+    minHeight: 220,
+  },
+  mapPane: {
+    position: 'relative',
+    flex: '1 1 50%',
+    minHeight: 220,
+    borderRadius: 'var(--radius-lg)',
+    overflow: 'hidden',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(31,77,92,0.12)',
+    boxShadow: '0 10px 28px rgba(31,77,92,0.08)',
+    display: 'flex',
+    flexDirection: 'column',
+    animation: 'feedMapSlide var(--duration-slow) var(--ease-out)',
+  },
+  mapCloseBtn: {
+    position: 'absolute',
+    top: 'var(--space-3)',
+    left: 'var(--space-3)',
+    zIndex: 3,
+    width: 30,
+    height: 30,
+    borderRadius: '50%',
+    border: 'none',
+    background: 'var(--ta-ink)',
+    cursor: 'pointer',
+    fontSize: 20,
+    fontWeight: 'var(--fw-bold)',
+    lineHeight: 1,
+    color: '#fff',
+    boxShadow: '0 6px 16px rgba(31,77,92,0.28)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 2,
   },
 };

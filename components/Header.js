@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, ChevronDown, Briefcase, Plus, Check, Sparkles, ChevronLeft, MessageCircle } from 'lucide-react';
+import { X, ChevronDown, Briefcase, Plus, Check, Sparkles, ChevronLeft, MessageCircle, Pencil } from 'lucide-react';
 import ChipModal from './ChipModal';
 import TripFilterChipBar, { chipLabel, formatChipText, CHIP_IDS } from '@/components/TripFilterChipBar';
 import NavLocaleCurrency from '@/components/NavLocaleCurrency';
@@ -191,6 +191,12 @@ export default function Header({
   activeChatIdForPlanMenu = null,
   /** Açık sohbetin gezi bağlantısı (Sohbete Devam eşlemesi) */
   activeChatTripIdForPlanMenu = null,
+  /** Üst filtre chip bar'ını gizle (composer-token prototip için) */
+  hideFilterChipBar = false,
+  /** Pill içine canlı bütçe toplamı (₺ N) yansıtmak için workspace'ten gelen sayı */
+  budgetTotal = 0,
+  /** Pill sonuna eklenecek rezerve sayısı (· N ✓) */
+  bookedCount = 0,
 }) {
   void _planPills;
   void savedPlans;
@@ -210,8 +216,12 @@ export default function Header({
   const [planCreateOk, setPlanCreateOk] = useState(false);
   const [trips, setTrips] = useState([]);
   const [hoverTripId, setHoverTripId] = useState(null);
-  /** planDropdownMinimal: trips | tripChats | modules */
-  const [planMinimalPanel, setPlanMinimalPanel] = useState('trips');
+  /** planDropdownMinimal: trips | tripChats | modules.
+   * Chat-merkez (planDropdownMinimal=true) ise default 'modules' — açılınca
+   * doğrudan Seyahat Modülleri/Bütçe/Sohbete Devam görünür. */
+  const [planMinimalPanel, setPlanMinimalPanel] = useState(() =>
+    planDropdownMinimal ? 'modules' : 'trips'
+  );
   const [tripChatsFocusTrip, setTripChatsFocusTrip] = useState(null);
   /** tripChats listesinden seçilen sohbet: modüller panelinde "Sohbete Devam Et" */
   const [modulesContinueChatId, setModulesContinueChatId] = useState(null);
@@ -229,11 +239,11 @@ export default function Header({
 
   useEffect(() => {
     if (!dropOpen) {
-      setPlanMinimalPanel('trips');
+      setPlanMinimalPanel(planDropdownMinimal ? 'modules' : 'trips');
       setTripChatsFocusTrip(null);
       setModulesContinueChatId(null);
     }
-  }, [dropOpen]);
+  }, [dropOpen, planDropdownMinimal]);
 
   useEffect(() => {
     if (!dropOpen || !planDropdownMinimal) {
@@ -292,12 +302,6 @@ export default function Header({
     activeChatTripIdForPlanMenu,
     tripContextIdForModules,
   ]);
-
-  useEffect(() => {
-    if (dropOpen && planDropdownMinimal && planMinimalPanel === 'tripChats' && !tripChatsFocusTrip) {
-      setPlanMinimalPanel('trips');
-    }
-  }, [dropOpen, planDropdownMinimal, planMinimalPanel, tripChatsFocusTrip]);
 
   useEffect(() => {
     if (!dropOpen) return;
@@ -384,6 +388,22 @@ export default function Header({
     () => mergeTripMetaForChips(tripMeta, fromLs),
     [tripMeta, fromLs]
   );
+
+  /** Pill içeriği: chat-merkez modda destinasyon/gece/bütçe dolduysa
+   *  boarding-pass özeti (Antalya · 4 gece · ₺12.400). Değilse plan adı.
+   */
+  const pillSegments = useMemo(() => {
+    if (!planDropdownMinimal) return null;
+    const dest = String(tripMetaForChips?.destination || '').trim();
+    const nights = Number(tripMetaForChips?.nights) || 0;
+    if (!dest && nights === 0 && !(budgetTotal > 0) && !(bookedCount > 0)) return null;
+    const segs = [];
+    if (dest) segs.push({ text: dest });
+    if (nights > 0) segs.push({ text: `${nights} gece` });
+    if (budgetTotal > 0) segs.push({ text: `₺${Number(budgetTotal).toLocaleString('tr-TR')}` });
+    if (bookedCount > 0) segs.push({ text: `${bookedCount} ✓`, accent: 'gold' });
+    return segs.length > 0 ? segs : null;
+  }, [planDropdownMinimal, tripMetaForChips, budgetTotal, bookedCount]);
 
   const applyTripMeta = useCallback(
     (update) => {
@@ -582,7 +602,25 @@ export default function Header({
               <span style={s.tripStar} aria-hidden>
                 <Sparkles size={13} strokeWidth={2.2} color="var(--ta-accent-deep)" />
               </span>
-              <span style={s.tripName}>{displayName}</span>
+              {pillSegments ? (
+                <span style={s.tripPillBoarding}>
+                  {pillSegments.map((seg, i) => (
+                    <span key={i} style={s.tripPillSegmentWrap}>
+                      {i > 0 ? <span style={s.tripPillSep} aria-hidden>·</span> : null}
+                      <span
+                        style={{
+                          ...s.tripPillSegment,
+                          ...(seg.accent === 'gold' ? { color: '#C9A86A' } : {}),
+                        }}
+                      >
+                        {seg.text}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span style={s.tripName}>{displayName}</span>
+              )}
               <span
                 style={{
                   ...s.chevron,
@@ -630,41 +668,72 @@ export default function Header({
                           trips.map((trip) => {
                             const sel = String(activePlanId) === String(trip.id);
                             const hovered = hoverTripId === trip.id;
+                            const boundChats = listChatsForTrip(String(trip.id));
                             return (
-                              <button
-                                key={trip.id}
-                                type="button"
-                                style={{
-                                  ...s.dropTripRow,
-                                  ...(sel ? s.dropItemActive : {}),
-                                  ...(!sel && hovered ? s.dropTripRowHover : {}),
-                                }}
-                                onMouseEnter={() => setHoverTripId(trip.id)}
-                                onMouseLeave={() => setHoverTripId(null)}
-                                onClick={() => {
-                                  setNotes(readNotesFromStorage());
-                                  if (typeof onPickTripFromPlanMenu === 'function') {
-                                    onPickTripFromPlanMenu(trip);
-                                  } else {
-                                    onActivateStoredTrip?.(trip);
-                                  }
-                                  setTripChatsFocusTrip(trip);
-                                  setModulesContinueChatId(null);
-                                  setPlanMinimalPanel('tripChats');
-                                }}
-                              >
-                                <Briefcase size={16} color="var(--ta-accent-deep)" strokeWidth={2} aria-hidden />
-                                <div style={s.dropTripTextCol}>
-                                  <span style={s.dropTripTitle}>{trip.name}</span>
-                                  <span style={s.dropTripSub}>
-                                    {(trip.destination && String(trip.destination).trim()) || '—'} ·{' '}
-                                    {formatTripListDate(trip, locale)}
-                                  </span>
-                                </div>
-                                {sel ? (
-                                  <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
+                              <div key={trip.id}>
+                                <button
+                                  type="button"
+                                  style={{
+                                    ...s.dropTripRow,
+                                    ...(sel ? s.dropItemActive : {}),
+                                    ...(!sel && hovered ? s.dropTripRowHover : {}),
+                                  }}
+                                  onMouseEnter={() => setHoverTripId(trip.id)}
+                                  onMouseLeave={() => setHoverTripId(null)}
+                                  onClick={() => {
+                                    setNotes(readNotesFromStorage());
+                                    if (typeof onPickTripFromPlanMenu === 'function') {
+                                      onPickTripFromPlanMenu(trip);
+                                    } else {
+                                      onActivateStoredTrip?.(trip);
+                                    }
+                                    // tripChats orta katman atlandı — doğrudan modules
+                                    setTripChatsFocusTrip(trip);
+                                    setModulesContinueChatId(null);
+                                    setPlanMinimalPanel('modules');
+                                  }}
+                                >
+                                  <Briefcase size={16} color="var(--ta-accent-deep)" strokeWidth={2} aria-hidden />
+                                  <div style={s.dropTripTextCol}>
+                                    <span style={s.dropTripTitle}>{trip.name}</span>
+                                    <span style={s.dropTripSub}>
+                                      {(trip.destination && String(trip.destination).trim()) || '—'} ·{' '}
+                                      {formatTripListDate(trip, locale)}
+                                    </span>
+                                  </div>
+                                  {sel ? (
+                                    <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
+                                  ) : null}
+                                </button>
+
+                                {boundChats.length > 0 ? (
+                                  <div style={s.dropTripChatsList}>
+                                    {boundChats.map((c) => (
+                                      <button
+                                        key={c.id}
+                                        type="button"
+                                        style={s.dropTripChatRow}
+                                        onClick={() => {
+                                          setDropOpen(false);
+                                          router.push(
+                                            `/chat?chat=${encodeURIComponent(String(c.id))}`
+                                          );
+                                        }}
+                                      >
+                                        <MessageCircle
+                                          size={12}
+                                          strokeWidth={2}
+                                          color="var(--ta-ink-subtle)"
+                                          aria-hidden
+                                        />
+                                        <span style={s.dropTripChatLabel}>
+                                          {c.title || 'Başlıksız sohbet'}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
                                 ) : null}
-                              </button>
+                              </div>
                             );
                           })
                         )}
@@ -684,106 +753,6 @@ export default function Header({
                         </button>
                       </div>
                     </>
-                  ) : planMinimalPanel === 'tripChats' && tripChatsFocusTrip ? (
-                    <>
-                      <div style={s.planMinimalTripsHeaderRow}>
-                        <span style={s.planMinimalTripsTitle}>Gezi sohbetleri</span>
-                        <button
-                          type="button"
-                          style={s.dropMenuCloseBtnCompact}
-                          onClick={() => setDropOpen(false)}
-                          aria-label="Menüyü kapat"
-                        >
-                          <X size={15} strokeWidth={2.2} color="var(--text3)" aria-hidden />
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        style={s.planMinimalBackBtn}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPlanMinimalPanel('trips');
-                        }}
-                      >
-                        <ChevronLeft size={16} strokeWidth={2.2} color="var(--ta-accent-deep)" aria-hidden />
-                        Gezilerime Geri Dön
-                      </button>
-                      <div
-                        style={s.planMinimalTripsList}
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        {tripChatsList.length === 0 ? (
-                          <p style={s.planMinimalTripsEmpty}>
-                            Bu geziyle henüz sohbet yok. Aşağıdan yeni sohbet oluşturabilirsiniz.
-                          </p>
-                        ) : (
-                          tripChatsList.map((c) => {
-                            const sel =
-                              (activeChatIdForPlanMenu != null &&
-                                String(activeChatIdForPlanMenu) === String(c.id)) ||
-                              String(modulesContinueChatId) === String(c.id);
-                            const hovered = hoverTripId === c.id;
-                            return (
-                              <button
-                                key={c.id}
-                                type="button"
-                                style={{
-                                  ...s.dropTripRow,
-                                  ...(sel ? s.dropItemActive : {}),
-                                  ...(!sel && hovered ? s.dropTripRowHover : {}),
-                                }}
-                                onMouseEnter={() => setHoverTripId(c.id)}
-                                onMouseLeave={() => setHoverTripId(null)}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setNotes(readNotesFromStorage());
-                                  if (typeof onPickTripFromPlanMenu === 'function' && tripChatsFocusTrip) {
-                                    onPickTripFromPlanMenu(tripChatsFocusTrip);
-                                  }
-                                  setModulesContinueChatId(String(c.id));
-                                  setPlanMinimalPanel('modules');
-                                }}
-                              >
-                                <MessageCircle
-                                  size={16}
-                                  color="var(--ta-accent-deep)"
-                                  strokeWidth={2}
-                                  aria-hidden
-                                />
-                                <div style={s.dropTripTextCol}>
-                                  <span style={s.dropTripTitle}>{c.title || 'Başlıksız'}</span>
-                                  <span style={s.dropTripSub}>{formatChatRowDate(c, locale)}</span>
-                                </div>
-                                {sel ? (
-                                  <Check size={16} color="var(--ta-accent-deep)" strokeWidth={2.5} aria-hidden />
-                                ) : null}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                      <div style={s.dropdownMinimalFooter}>
-                        <button
-                          type="button"
-                          style={s.dropdownGeziBtn}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (typeof onPickTripFromPlanMenu === 'function' && tripChatsFocusTrip) {
-                              onPickTripFromPlanMenu(tripChatsFocusTrip);
-                            }
-                            setModulesContinueChatId(null);
-                            setDropOpen(false);
-                            router.push(
-                              `/chat?newChat=1&trip=${encodeURIComponent(String(tripChatsFocusTrip.id))}`
-                            );
-                          }}
-                        >
-                          <MessageCircle size={14} strokeWidth={2.1} color="#fff" aria-hidden />
-                          Sohbet oluştur
-                        </button>
-                      </div>
-                    </>
                   ) : (
                     <>
                       <button
@@ -791,34 +760,23 @@ export default function Header({
                         style={s.planMinimalBackBtn}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const tr =
-                            tripChatsFocusTrip ||
-                            (String(activePlanId) !== 'active'
-                              ? findMergedTripById(activePlanId)
-                              : null);
-                          if (tr) {
-                            setTripChatsFocusTrip(tr);
-                            setModulesContinueChatId(null);
-                            setPlanMinimalPanel('tripChats');
-                          } else {
-                            setModulesContinueChatId(null);
-                            setPlanMinimalPanel('trips');
-                          }
+                          setModulesContinueChatId(null);
+                          setPlanMinimalPanel('trips');
                         }}
                       >
                         <ChevronLeft size={16} strokeWidth={2.2} color="var(--ta-accent-deep)" aria-hidden />
-                        {modulesBackTargetTrip ? 'Gezi sohbetlerine dön' : 'Gezilerime Dön'}
+                        Gezilerime Dön
                       </button>
                       <div style={s.planMinimalTopRow}>
                         {typeof onPlanNameChange === 'function' ? (
-                          <div style={s.planMinimalInputWrap}>
+                          <div style={s.editorialTitleWrap}>
                             <input
                               type="text"
                               key={displayName}
                               defaultValue={displayName}
                               maxLength={48}
                               aria-label="Plan adı"
-                              style={s.planNameDropInputCompact}
+                              style={s.editorialTitleInput}
                               onClick={(e) => e.stopPropagation()}
                               onBlur={(e) => {
                                 const v = e.target.value.trim() || 'Yeni Seyahat Planı';
@@ -828,9 +786,16 @@ export default function Header({
                                 if (e.key === 'Enter') e.currentTarget.blur();
                               }}
                             />
+                            <Pencil
+                              size={12}
+                              strokeWidth={2.2}
+                              color="var(--ta-ink-subtle)"
+                              style={s.editorialTitlePencil}
+                              aria-hidden
+                            />
                           </div>
                         ) : (
-                          <div style={s.planMinimalInputWrap} aria-hidden />
+                          <div style={s.editorialTitleWrap} aria-hidden />
                         )}
                         <button
                           type="button"
@@ -945,17 +910,15 @@ export default function Header({
 
                   {planWorkspaceSlot ? (
                     <>
-                      <div style={s.dropDivider} />
-                      <div style={s.dropSectionLabel}>Plan adı</div>
                       {typeof onPlanNameChange === 'function' ? (
-                        <div style={{ padding: '2px 8px 8px' }}>
+                        <div style={s.editorialTitleWrap}>
                           <input
                             type="text"
                             key={displayName}
                             defaultValue={displayName}
                             maxLength={48}
                             aria-label="Plan adı"
-                            style={s.planNameDropInput}
+                            style={s.editorialTitleInput}
                             onClick={(e) => e.stopPropagation()}
                             onBlur={(e) => {
                               const v = e.target.value.trim() || 'Yeni Seyahat Planı';
@@ -965,6 +928,7 @@ export default function Header({
                               if (e.key === 'Enter') e.currentTarget.blur();
                             }}
                           />
+                          <Pencil size={12} strokeWidth={2.2} color="var(--ta-ink-subtle)" style={s.editorialTitlePencil} aria-hidden />
                         </div>
                       ) : null}
                       <div
@@ -994,44 +958,50 @@ export default function Header({
             ) : null}
           </div>
 
-          {/* Separator */}
-          <span style={s.barSep} />
+          {!hideFilterChipBar ? (
+            <>
+              {/* Separator */}
+              <span style={s.barSep} />
 
-          {/* Trip summary chips — referans: Interior · 5 days in Jul · … */}
-          <TripFilterChipBar
-            variant="header"
-            tripMetaForChips={tripMetaForChips}
-            openModal={openModal}
-            setOpenModal={setOpenModal}
-            notesModalOpen={notesModalOpen}
-            setNotesModalOpen={setNotesModalOpen}
-            notes={notes}
-            stageChipId={stageChipId}
-          />
+              {/* Trip summary chips — referans: Interior · 5 days in Jul · … */}
+              <TripFilterChipBar
+                variant="header"
+                tripMetaForChips={tripMetaForChips}
+                openModal={openModal}
+                setOpenModal={setOpenModal}
+                notesModalOpen={notesModalOpen}
+                setNotesModalOpen={setNotesModalOpen}
+                notes={notes}
+                stageChipId={stageChipId}
+              />
+            </>
+          ) : null}
         </div>
-        <button
-          type="button"
-          style={{
-            ...s.planCreateChipBtn,
-            ...(atlasAskMode ? s.planCreateChipBtnAccent : null),
-          }}
-          onClick={() => {
-            if (atlasAskMode) {
-              onAtlasAskFromFilters?.(
-                'Üstteki seyahat filtrelerime göre özet ve önerilerini güncelle.'
-              );
-              return;
-            }
-            handlePlanCreateFromChips();
-          }}
-        >
-          {atlasAskMode ? (
-            <Sparkles size={14} strokeWidth={2.5} color="#FFFFFF" aria-hidden />
-          ) : (
-            <Plus size={14} strokeWidth={2.5} color="#FFFFFF" aria-hidden />
-          )}
-          {atlasAskMode ? "Atlas'a Sor" : 'Plan Oluştur'}
-        </button>
+        {!hideFilterChipBar ? (
+          <button
+            type="button"
+            style={{
+              ...s.planCreateChipBtn,
+              ...(atlasAskMode ? s.planCreateChipBtnAccent : null),
+            }}
+            onClick={() => {
+              if (atlasAskMode) {
+                onAtlasAskFromFilters?.(
+                  'Üstteki seyahat filtrelerime göre özet ve önerilerini güncelle.'
+                );
+                return;
+              }
+              handlePlanCreateFromChips();
+            }}
+          >
+            {atlasAskMode ? (
+              <Sparkles size={14} strokeWidth={2.5} color="#FFFFFF" aria-hidden />
+            ) : (
+              <Plus size={14} strokeWidth={2.5} color="#FFFFFF" aria-hidden />
+            )}
+            {atlasAskMode ? "Atlas'a Sor" : 'Plan Oluştur'}
+          </button>
+        ) : null}
         </div>
       </div>
 
@@ -1501,6 +1471,30 @@ const s = {
     flexShrink: 0,
   },
   tripName: { fontSize: 'var(--text-base)' },
+  tripPillBoarding: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 0,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-base)',
+    lineHeight: 'var(--text-base-lh)',
+  },
+  tripPillSegmentWrap: {
+    display: 'inline-flex',
+    alignItems: 'center',
+  },
+  tripPillSep: {
+    display: 'inline-block',
+    margin: '0 var(--space-2)',
+    color: 'rgba(31,77,92,0.35)',
+    fontWeight: 'var(--fw-medium)',
+  },
+  tripPillSegment: {
+    fontWeight: 'var(--fw-bold)',
+    color: 'var(--ta-ink)',
+    letterSpacing: '0.005em',
+    fontVariantNumeric: 'tabular-nums',
+  },
   chevron: {
     width: 'var(--space-4)',
     height: 'var(--space-4)',
@@ -1814,6 +1808,38 @@ const s = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
+  dropTripChatsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    padding: '2px 0 6px 32px',
+    marginLeft: 'var(--space-3)',
+    borderLeftWidth: 'var(--border-thin)',
+    borderLeftStyle: 'solid',
+    borderLeftColor: 'rgba(201,168,106,0.32)',
+  },
+  dropTripChatRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 8px',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 'var(--radius-xs)',
+    cursor: 'pointer',
+    textAlign: 'left',
+    color: 'var(--ta-ink-muted)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--fw-medium)',
+    transition: 'background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out)',
+  },
+  dropTripChatLabel: {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: 220,
+  },
   dropSectionLabel: {
     fontFamily: 'var(--font-sans)',
     fontSize: 10,
@@ -1946,6 +1972,38 @@ const s = {
     fontSize: 'var(--text-md)',
     color: 'var(--text1)',
     outline: 'none',
+  },
+  editorialTitleWrap: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    margin: '0 var(--space-1) var(--space-4)',
+  },
+  editorialTitleInput: {
+    flex: 1,
+    minWidth: 0,
+    boxSizing: 'border-box',
+    padding: '4px 22px 6px 0',
+    border: 'none',
+    background: 'transparent',
+    fontFamily: 'var(--font-serif)',
+    fontWeight: 'var(--fw-bold)',
+    fontSize: 'var(--text-xl)',
+    lineHeight: 1.15,
+    letterSpacing: '-0.015em',
+    color: 'var(--ta-ink)',
+    outline: 'none',
+    borderBottomWidth: 'var(--border-thin)',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'rgba(31,77,92,0.18)',
+    transition: 'border-color var(--duration-base) var(--ease-out)',
+  },
+  editorialTitlePencil: {
+    position: 'absolute',
+    right: 4,
+    bottom: 8,
+    pointerEvents: 'none',
+    opacity: 0.6,
   },
   planDropTripLabel: {
     fontFamily: 'var(--font-sans)',

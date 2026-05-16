@@ -40,6 +40,7 @@ import { qp } from '@/lib/quickPlanFilterStyles';
 import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import SkeletonList from '@/components/SkeletonList';
+import TripifyButton from '@/components/TripifyButton';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { popoverCoords, datePanelCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
@@ -945,6 +946,21 @@ export default function CarSearchScreen() {
                 >
                   Rezerve et
                 </button>
+                <div style={{ marginTop: 6, alignSelf: isPhone ? 'flex-start' : 'flex-end' }}>
+                  <TripifyButton
+                    serviceType="car"
+                    listing={{
+                      name: `${c.company || 'Araç'} · ${c.model || c.title || 'Kiralama'}`,
+                      location: c.pickupCity || c.city || '',
+                      price: Number(c.totalPrice) || Number(c.dailyPrice) || 0,
+                      type: 'car',
+                    }}
+                    destination={c.pickupCity || c.city || ''}
+                    autoBook={false}
+                    label="Geziye dönüştür"
+                    successLabel="Geziye eklendi"
+                  />
+                </div>
               </div>
             </article>
           ))}

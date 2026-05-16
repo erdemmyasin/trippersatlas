@@ -25,6 +25,7 @@ import { useLocaleCurrency } from '@/components/LocaleCurrencyContext';
 import { qp } from '@/lib/quickPlanFilterStyles';
 import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
+import TripifyButton from '@/components/TripifyButton';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
@@ -830,6 +831,22 @@ export default function ActivitySearchScreen() {
                               <div style={sx.priceFrom}>Başlayan fiyatlar</div>
                               <div style={sx.priceMain}>{fmtPrice(a.price, prefCurrency, locale)}</div>
                               <div style={sx.priceSub}>kişi başı</div>
+                              <div style={{ marginTop: 6, display: 'flex', justifyContent: isPhone ? 'flex-start' : 'flex-end' }}>
+                                <TripifyButton
+                                  serviceType="activity"
+                                  listing={{
+                                    name: a.title || a.name || 'Aktivite',
+                                    location: a.city || a.location || '',
+                                    price: Number(a.price) || 0,
+                                    type: 'activity',
+                                    imageUrl: a.imageUrl || a.photo || null,
+                                  }}
+                                  destination={a.city || a.location || ''}
+                                  autoBook={false}
+                                  label="Geziye dönüştür"
+                                  successLabel="Geziye eklendi"
+                                />
+                              </div>
                             </div>
                           </article>
                         ))}
