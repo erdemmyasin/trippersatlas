@@ -37,10 +37,10 @@ export default function TripJournal({ tripId, tripName, onAdd, onEditEntry }) {
         </header>
         <EmptyState
           icon={BookHeart}
-          title="Anılarını biriktir"
+          title="Anılarını ölümsüzleştir"
           description={
             tripName
-              ? `${tripName} gezisinden foto ve notlar ekle; tarihe göre kendi günlüğünü oluştur.`
+              ? `${tripName} planından foto ve notlar ekle; tarihe göre kendi günlüğünü oluştur.`
               : 'Bu seyahatten foto ve notlar ekle; tarihe göre kendi günlüğünü oluştur.'
           }
           action={

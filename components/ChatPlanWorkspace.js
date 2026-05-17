@@ -119,7 +119,7 @@ const TYPE_TO_SERVICES = {
   flight:     ['flight'],
   bus:        ['bus'],
   car:        ['car'],
-  transfer:   ['transfer'],
+  transfer:   ['car'],
   tour:       ['lodging', 'flight', 'activity'],
   boat:       ['activity'],
   activity:   ['activity'],
@@ -185,6 +185,7 @@ export default function ChatPlanWorkspace({
   const [budget, setBudget] = useState(EMPTY_BUDGET);
   const [completedModules, setCompletedModules] = useState(new Set());
   const [bookedServices, setBookedServices] = useState(new Set());
+  const [paidServices, setPaidServices] = useState(new Set());
   const [selectedListings, setSelectedListings] = useState({});
   const [tripMeta, setTripMeta] = useState(DEFAULT_SOBHET_TRIP_META);
   const [chatFlowPhase, setChatFlowPhase] = useState('collect_meta');
@@ -289,6 +290,7 @@ export default function ChatPlanWorkspace({
         plan: {
           completedModules: Array.from(completedModules),
           bookedServices: Array.from(bookedServices),
+          paidServices: Array.from(paidServices),
           budget,
           selectedListings,
         },
@@ -302,7 +304,7 @@ export default function ChatPlanWorkspace({
         title: deriveChatTitle(liveMessagesRef.current),
       });
     }
-  }, [budget, completedModules, bookedServices, mapMarkers, planName, selectedListings, tripMeta]);
+  }, [budget, completedModules, bookedServices, paidServices, mapMarkers, planName, selectedListings, tripMeta]);
 
   /** Sohbet açık kalsın; üst plandaki gezi verisini seçilen kayıttan doldurur */
   const hydratePlanFromStoredTrip = useCallback((trip) => {
@@ -316,6 +318,7 @@ export default function ChatPlanWorkspace({
     setBudget({ ...EMPTY_BUDGET, ...(plan.budget || {}) });
     setCompletedModules(new Set(plan.completedModules || []));
     setBookedServices(new Set(plan.bookedServices || []));
+    setPaidServices(new Set(plan.paidServices || []));
     setSelectedListings(plan.selectedListings || {});
     const { datesChipText, nights, month } = tripDatesToMeta(merged.startDate, merged.endDate);
     const { paxChipText, travelers } = buildPaxFromTravelers(merged.travelers);
@@ -363,6 +366,7 @@ export default function ChatPlanWorkspace({
     setBudget({ ...EMPTY_BUDGET, ...ws.plan.budget });
     setCompletedModules(new Set(ws.plan.completedModules || []));
     setBookedServices(new Set(ws.plan.bookedServices || []));
+    setPaidServices(new Set(ws.plan.paidServices || []));
     setSelectedListings(ws.plan.selectedListings || {});
     setTripMeta({ ...INITIAL_TRIP_META, ...ws.topBarData.tripMeta });
     const m = ws.mapData?.markers;
@@ -394,6 +398,7 @@ export default function ChatPlanWorkspace({
     setBudget(EMPTY_BUDGET);
     setCompletedModules(new Set());
     setBookedServices(new Set());
+    setPaidServices(new Set());
     setSelectedListings({});
     setTripMeta(DEFAULT_SOBHET_TRIP_META);
     setMapMarkers(DEFAULT_MAP_MARKERS);
@@ -769,6 +774,7 @@ export default function ChatPlanWorkspace({
         plan: {
           completedModules: Array.from(completedModules),
           bookedServices: Array.from(bookedServices),
+          paidServices: Array.from(paidServices),
           budget,
           selectedListings,
         },
@@ -785,6 +791,7 @@ export default function ChatPlanWorkspace({
     budget,
     completedModules,
     bookedServices,
+    paidServices,
     selectedListings,
     tripMeta,
     mapMarkers,
@@ -900,6 +907,7 @@ export default function ChatPlanWorkspace({
     setBudget(EMPTY_BUDGET);
     setCompletedModules(new Set());
     setBookedServices(new Set());
+    setPaidServices(new Set());
     setSelectedListings({});
     setTripMeta(INITIAL_TRIP_META);
     trackEvent('plan.create', { source: 'header.dropdown' });
@@ -1055,11 +1063,28 @@ export default function ChatPlanWorkspace({
       onPlanNameChange={handlePlanNameChange}
       completedModules={completedModules}
       bookedServices={bookedServices}
+      paidServices={paidServices}
       onBookService={(id) =>
         setBookedServices((prev) => new Set([...prev, id]))
       }
-      onUnbookService={(id) =>
+      onUnbookService={(id) => {
         setBookedServices((prev) => {
+          const n = new Set(prev);
+          n.delete(id);
+          return n;
+        });
+        // booked çıkınca paid de gitmeli
+        setPaidServices((prev) => {
+          const n = new Set(prev);
+          n.delete(id);
+          return n;
+        });
+      }}
+      onPayService={(id) =>
+        setPaidServices((prev) => new Set([...prev, id]))
+      }
+      onUnpayService={(id) =>
+        setPaidServices((prev) => {
           const n = new Set(prev);
           n.delete(id);
           return n;
@@ -1205,7 +1230,7 @@ export default function ChatPlanWorkspace({
                       name:
                         findMergedTripById(activeChat.tripId)?.name ||
                         activeChat?.tripName ||
-                        'Gezisine',
+                        'Planınıza',
                     }
                   : null
               }

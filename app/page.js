@@ -378,6 +378,44 @@ export default function LandingPage() {
   const [email, setEmail] = useState('');
   const [heroPrompt, setHeroPrompt] = useState('');
   const [heroMapVisible, setHeroMapVisible] = useState(false);
+  const [heroFocus, setHeroFocus] = useState(false);
+
+  /* Typewriter placeholder — HERO_CHIPS metinlerini sırayla harf-harf yazar,
+   * bekler, siler, sonrakine geçer. Kullanıcı yazıyor veya focus iken durur. */
+  const [twIdx, setTwIdx] = useState(0);
+  const [twChars, setTwChars] = useState(0);
+  const [twPhase, setTwPhase] = useState('typing'); // typing | holding | erasing
+  const typewriterActive = !heroFocus && heroPrompt.length === 0;
+
+  useEffect(() => {
+    if (!typewriterActive) return undefined;
+    const target = HERO_CHIPS[twIdx].text;
+    let delay;
+    if (twPhase === 'typing') delay = 60;
+    else if (twPhase === 'holding') delay = 1800;
+    else delay = 28;
+    const t = setTimeout(() => {
+      if (twPhase === 'typing') {
+        const next = twChars + 1;
+        setTwChars(next);
+        if (next >= target.length) setTwPhase('holding');
+      } else if (twPhase === 'holding') {
+        setTwPhase('erasing');
+      } else {
+        const next = twChars - 1;
+        setTwChars(next);
+        if (next <= 0) {
+          setTwIdx((i) => (i + 1) % HERO_CHIPS.length);
+          setTwPhase('typing');
+        }
+      }
+    }, delay);
+    return () => clearTimeout(t);
+  }, [twPhase, twChars, twIdx, typewriterActive]);
+
+  const typewriterPlaceholder = typewriterActive
+    ? HERO_CHIPS[twIdx].text.slice(0, twChars) + (twPhase !== 'erasing' ? '▏' : '')
+    : 'Hayalindeki seyahati yaz…';
 
   useEffect(() => {
     const root = landingRef.current;
@@ -504,7 +542,6 @@ export default function LandingPage() {
           <div className="l-hero__inner">
             <div className="l-hero__masthead">
               <div className="l-hero__badge l-hero__badge--premium">
-                <Sparkles className="l-hero__badge-icon" size={12} strokeWidth={2.2} aria-hidden />
                 Dijital Atlas
               </div>
 
@@ -526,15 +563,16 @@ export default function LandingPage() {
               }}
             >
               <div className="l-hero__search-row">
-                <Sparkles className="l-hero__search-sparkle" size={22} strokeWidth={2} aria-hidden />
                 <input
                   id="hero-trip-prompt"
                   className="l-hero__search-input"
                   type="text"
                   name="trip"
-                  placeholder="Hayalindeki seyahati yaz…"
+                  placeholder={typewriterPlaceholder}
                   value={heroPrompt}
                   onChange={(e) => setHeroPrompt(e.target.value)}
+                  onFocus={() => setHeroFocus(true)}
+                  onBlur={() => setHeroFocus(false)}
                   autoComplete="off"
                   aria-label="Hayalindeki seyahati yazın"
                 />

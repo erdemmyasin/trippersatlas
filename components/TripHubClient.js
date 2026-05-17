@@ -103,6 +103,8 @@ export default function TripHubClient({ tripId: rawTripId }) {
   const [chatMetas, setChatMetas] = useState([]);
   const [budget, setBudget] = useState(EMPTY_BUDGET);
   const [completedModules, setCompletedModules] = useState(() => new Set());
+  const [bookedServices, setBookedServices] = useState(() => new Set());
+  const [paidServices, setPaidServices] = useState(() => new Set());
   const [selectedListings, setSelectedListings] = useState({});
   const [geoCenter, setGeoCenter] = useState({ lat: 41.0082, lng: 28.9784 });
   const [planHydrated, setPlanHydrated] = useState(false);
@@ -116,6 +118,8 @@ export default function TripHubClient({ tripId: rawTripId }) {
     const plan = ws.plan || {};
     setBudget({ ...EMPTY_BUDGET, ...(plan.budget || {}) });
     setCompletedModules(new Set(plan.completedModules || []));
+    setBookedServices(new Set(plan.bookedServices || []));
+    setPaidServices(new Set(plan.paidServices || []));
     setSelectedListings(
       plan.selectedListings && typeof plan.selectedListings === 'object'
         ? plan.selectedListings
@@ -135,10 +139,12 @@ export default function TripHubClient({ tripId: rawTripId }) {
       plan: {
         budget,
         completedModules: Array.from(completedModules),
+        bookedServices: Array.from(bookedServices),
+        paidServices: Array.from(paidServices),
         selectedListings,
       },
     });
-  }, [tripId, planHydrated, budget, completedModules, selectedListings]);
+  }, [tripId, planHydrated, budget, completedModules, bookedServices, paidServices, selectedListings]);
 
   useEffect(() => {
     reloadTrip();
@@ -326,7 +332,7 @@ export default function TripHubClient({ tripId: rawTripId }) {
         <header style={s.topBar}>
           <Link href="/trips" style={s.backLink}>
             <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
-            Geziler
+            Planlar
           </Link>
         </header>
 
@@ -340,9 +346,47 @@ export default function TripHubClient({ tripId: rawTripId }) {
                 embedded={false}
                 planName={titleDraft}
                 completedModules={completedModules}
+                bookedServices={bookedServices}
+                paidServices={paidServices}
+                onBookService={(id) =>
+                  setBookedServices((prev) => new Set([...prev, id]))
+                }
+                onUnbookService={(id) => {
+                  setBookedServices((prev) => {
+                    const n = new Set(prev);
+                    n.delete(id);
+                    return n;
+                  });
+                  setPaidServices((prev) => {
+                    const n = new Set(prev);
+                    n.delete(id);
+                    return n;
+                  });
+                }}
+                onPayService={(id) =>
+                  setPaidServices((prev) => new Set([...prev, id]))
+                }
+                onUnpayService={(id) =>
+                  setPaidServices((prev) => {
+                    const n = new Set(prev);
+                    n.delete(id);
+                    return n;
+                  })
+                }
                 budget={budget}
                 selectedListings={selectedListings}
                 onDeselect={handleListingDeselect}
+                onServiceClick={(svcId) => {
+                  const route = {
+                    lodging: '/stay',
+                    flight: '/flights',
+                    bus: '/bus',
+                    car: '/cars',
+                    activity: '/aktiviteler',
+                  }[svcId];
+                  if (!route) return;
+                  router.push(`${route}?planId=${encodeURIComponent(tripId)}`);
+                }}
                 bottomSlot={
                   sohbeteBaslaMeta.show ? (
                     <Link
@@ -388,10 +432,10 @@ export default function TripHubClient({ tripId: rawTripId }) {
                   parts.push('\nNe önerirsin? Eksik kalanları birlikte tamamlayalım.');
                   startChatWithText(parts.join('\n'));
                 }}
-                aria-label="Atlas'a bu geziyi sor"
+                aria-label="Atlas'a bu planı sor"
               >
                 <Sparkles size={14} strokeWidth={2.4} color="var(--ta-accent)" aria-hidden />
-                Atlas'a bu geziyi sor
+                Atlas'a bu planı sor
               </button>
             </div>
 
@@ -449,14 +493,7 @@ export default function TripHubClient({ tripId: rawTripId }) {
             <div style={s.chatList}>
               {chatMetas.length === 0 ? (
                 <p style={s.chatEmpty}>
-                  Bu geziyle henüz sohbet yok. Yukarıdan bir soru yazarak başlayın veya{' '}
-                  <Link
-                    href={`/chat?newChat=1&trip=${encodeURIComponent(tripId)}`}
-                    style={s.tripEmptyChatLink}
-                  >
-                    boş sohbet oluşturun
-                  </Link>
-                  .
+                  Bu planla ilgili henüz sohbet başlatmadınız.
                 </p>
               ) : (
                 chatMetas.map((c) => (

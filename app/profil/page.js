@@ -33,7 +33,7 @@ function handleFromEmail(email) {
 }
 
 const TABS = [
-  { id: 'trips', label: 'Geziler', icon: Briefcase, count: 0 },
+  { id: 'trips', label: 'Planlar', icon: Briefcase, count: 0 },
   { id: 'collections', label: 'Koleksiyonlar', icon: Heart, count: 0 },
   { id: 'reviews', label: 'Değerlendirmeler', icon: Star, count: 0 },
   { id: 'guides', label: 'Rehberler', icon: ListOrdered, count: 0 },

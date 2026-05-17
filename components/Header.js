@@ -647,7 +647,7 @@ export default function Header({
                   {planMinimalPanel === 'trips' ? (
                     <>
                       <div style={s.planMinimalTripsHeaderRow}>
-                        <span style={s.planMinimalTripsTitle}>Gezilerim</span>
+                        <span style={s.planMinimalTripsTitle}>Planlarım</span>
                         <button
                           type="button"
                           style={s.dropMenuCloseBtnCompact}
@@ -663,7 +663,7 @@ export default function Header({
                         onKeyDown={(e) => e.stopPropagation()}
                       >
                         {trips.length === 0 ? (
-                          <p style={s.planMinimalTripsEmpty}>Henüz kayıtlı gezi yok.</p>
+                          <p style={s.planMinimalTripsEmpty}>Henüz kayıtlı plan yok.</p>
                         ) : (
                           trips.map((trip) => {
                             const sel = String(activePlanId) === String(trip.id);
@@ -748,8 +748,8 @@ export default function Header({
                             openNewTrip();
                           }}
                         >
-                          <Sparkles size={14} strokeWidth={2.1} color="#fff" aria-hidden />
-                          Gezi Oluştur
+                          <Plus size={15} strokeWidth={2.4} color="#fff" aria-hidden />
+                          Plan Oluştur
                         </button>
                       </div>
                     </>
@@ -765,7 +765,7 @@ export default function Header({
                         }}
                       >
                         <ChevronLeft size={16} strokeWidth={2.2} color="var(--ta-accent-deep)" aria-hidden />
-                        Gezilerime Dön
+                        Planlarıma Dön
                       </button>
                       <div style={s.planMinimalTopRow}>
                         {typeof onPlanNameChange === 'function' ? (
@@ -951,7 +951,7 @@ export default function Header({
                     }}
                   >
                     <Plus size={16} color="var(--ta-accent-deep)" strokeWidth={2.2} />
-                    Yeni Gezi Oluştur
+                    Yeni Plan Oluştur
                   </button>
                 </div>
               </>

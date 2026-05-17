@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Sparkles,
+  Plus,
   Luggage,
   Link2,
   Share2,
@@ -57,16 +57,16 @@ export default function TripsPage() {
       <main style={{ ...lay.content, position: 'relative' }}>
         {/* Header */}
         <div style={lay.header}>
-          <div style={lay.eyebrow}>Atlas · Gezi Arşivi</div>
+          <div style={lay.eyebrow}>Atlas · Plan Arşivi</div>
           <div style={lay.headerTop}>
-            <h1 style={lay.title}>Gezileriniz</h1>
+            <h1 style={lay.title}>Planlarınız</h1>
             <button
               type="button"
               style={{ ...lay.newTripBtn, font: 'inherit' }}
               onClick={() => openNewTrip()}
             >
-              <Sparkles size={14} strokeWidth={2.2} color="#fff" aria-hidden />
-              Yeni Gezi
+              <Plus size={15} strokeWidth={2.4} color="#fff" aria-hidden />
+              Yeni Plan
             </button>
           </div>
           <div style={lay.headerSub}>
@@ -95,10 +95,10 @@ export default function TripsPage() {
         {filtered.length === 0 ? (
           bookedOnly ? (
             <div style={lay.emptyBookedOnly}>
-              <p style={lay.emptyBookedTitle}>Rezervasyonlu gezi yok</p>
+              <p style={lay.emptyBookedTitle}>Rezervasyonlu plan yok</p>
               <p style={lay.emptyBookedSub}>
-                Gezi kartından &quot;Rezerveli&quot; seçtiğiniz planlar burada görünür. Filtreyi kapatınca tüm
-                gezilerinize dönersiniz.
+                Plan kartından &quot;Rezerveli&quot; seçtikleriniz burada görünür. Filtreyi kapatınca tüm
+                planlarınıza dönersiniz.
               </p>
               <div style={lay.emptyBookedActions}>
                 <button
@@ -106,15 +106,15 @@ export default function TripsPage() {
                   style={{ ...lay.emptyBtn, font: 'inherit', marginTop: 0 }}
                   onClick={() => openNewTrip()}
                 >
-                  <Sparkles size={16} strokeWidth={2.2} aria-hidden />
-                  Yeni Gezi Oluştur
+                  <Plus size={17} strokeWidth={2.4} aria-hidden />
+                  Yeni Plan Oluştur
                 </button>
                 <button
                   type="button"
                   style={lay.emptyBookedSecondary}
                   onClick={() => setBookedOnly(false)}
                 >
-                  Tüm gezileri göster
+                  Tüm planları göster
                 </button>
               </div>
             </div>
@@ -123,8 +123,8 @@ export default function TripsPage() {
               <span style={lay.emptyIcon} aria-hidden>
                 <Luggage size={52} strokeWidth={1.4} color="var(--ta-accent-deep)" />
               </span>
-              <p style={lay.emptyTitle}>Henüz geziniz yok</p>
-              <p style={lay.emptySub}>Yeni bir seyahat planı oluşturarak başlayın.</p>
+              <p style={lay.emptyTitle}>Henüz planınız yok</p>
+              <p style={lay.emptySub}>Bir uçuş, otel veya aktivite seçerek ilk planınızı oluşturun.</p>
             </div>
           )
         ) : (
@@ -184,34 +184,44 @@ function TripCard({ trip, menuOpen, onMenuToggle, onMenuClose, onDelete, onToggl
       <Link
         href={`/trips/${encodeURIComponent(String(trip.id))}`}
         style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
-        aria-label={`${trip.name} gezisini aç`}
+        aria-label={`${trip.name} planını aç`}
         onClick={(e) => {
           if (menuOpen) e.preventDefault();
         }}
       >
-      <div style={tc.imgWrap}>
-        {imgSrc && (
-          <img src={imgSrc} alt={trip.name} style={{ ...tc.img, opacity: imgOk ? 1 : 0 }}
-            loading="lazy" onLoad={() => setImgOk(true)} onError={() => setImgOk(false)} />
-        )}
-        {!imgOk && <div style={tc.shimmer} />}
+        <div style={tc.imgWrap}>
+          {imgSrc && (
+            <img src={imgSrc} alt={trip.name} style={{ ...tc.img, opacity: imgOk ? 1 : 0 }}
+              loading="lazy" onLoad={() => setImgOk(true)} onError={() => setImgOk(false)} />
+          )}
+          {!imgOk && <div style={tc.shimmer} />}
 
-        <div style={tc.gradient} />
+          <div style={tc.gradient} />
 
-        <button type="button" style={tc.menuBtn} onClick={e => { e.stopPropagation(); onMenuToggle(); }} aria-label="Menü">
-          <MoreHorizontal size={17} strokeWidth={2} aria-hidden />
-        </button>
+          <div style={tc.bottomText}>
+            <h3 style={tc.tripName}>{trip.name}</h3>
+            <p style={tc.tripSub}>
+              {trip.destination} · {trip.days} gün{trip.month ? ` · ${trip.month}` : ''}
+            </p>
+          </div>
 
-        <div style={tc.bottomText}>
-          <h3 style={tc.tripName}>{trip.name}</h3>
-          <p style={tc.tripSub}>
-            {trip.destination} · {trip.days} gün{trip.month ? ` · ${trip.month}` : ''}
-          </p>
+          {trip.booked && <span style={tc.bookedBadge}>Rezerveli</span>}
         </div>
-
-        {trip.booked && <span style={tc.bookedBadge}>Rezerveli</span>}
-      </div>
       </Link>
+
+      {/* Menü butonu Link DIŞINDA — Next anchor click'ten etkilenmez */}
+      <button
+        type="button"
+        style={tc.menuBtn}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onMenuToggle();
+        }}
+        aria-label="Menü"
+      >
+        <MoreHorizontal size={17} strokeWidth={2} aria-hidden />
+      </button>
 
       {menuOpen ? (
         <div style={tc.menu} role="menu" onClick={(e) => e.stopPropagation()}>
@@ -219,7 +229,7 @@ function TripCard({ trip, menuOpen, onMenuToggle, onMenuClose, onDelete, onToggl
             <Link2 size={14} strokeWidth={2} aria-hidden /> Ortak Gezgin Davet Et
           </button>
           <button type="button" style={tc.menuItem} onClick={onMenuClose}>
-            <Share2 size={14} strokeWidth={2} aria-hidden /> Gezini paylaş
+            <Share2 size={14} strokeWidth={2} aria-hidden /> Planı paylaş
           </button>
           <button type="button" style={tc.menuItem} onClick={onMenuClose}>
             <ImageIcon size={14} strokeWidth={2} aria-hidden /> Fotoğrafı Değiştir
@@ -230,7 +240,7 @@ function TripCard({ trip, menuOpen, onMenuToggle, onMenuClose, onDelete, onToggl
           </button>
           <div style={tc.menuDivider} />
           <button type="button" style={{ ...tc.menuItem, ...tc.menuItemDanger }} onClick={onDelete}>
-            <Trash2 size={14} strokeWidth={2} aria-hidden /> Geziyi Sil
+            <Trash2 size={14} strokeWidth={2} aria-hidden /> Planı Sil
           </button>
         </div>
       ) : null}

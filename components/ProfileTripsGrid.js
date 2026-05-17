@@ -41,11 +41,11 @@ export default function ProfileTripsGrid() {
     return (
       <EmptyState
         icon={MapPinned}
-        title="Henüz gezi yok"
-        description="İlk seyahat planını oluştur; tamamlandıkça anılarını günlüğüne ekle, geçmişin burada toplansın."
+        title="Henüz planınız yok"
+        description="İlk planını oluştur; tamamlandıkça anılarını günlüğüne ekle, geçmişin burada toplansın."
         action={
           <Link href="/trips" style={s.primaryBtn}>
-            Geziler sayfasına git
+            Planlar sayfasına git
           </Link>
         }
       />

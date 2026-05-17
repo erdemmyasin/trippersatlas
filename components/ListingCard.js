@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Check, MapPin, Star } from 'lucide-react';
 import { ListingTypeGlyph } from '@/components/AtlasGlyph';
+import SaveToCollectionButton from '@/components/SaveToCollectionButton';
 import { buildAffiliateUrl } from '@/services/affiliate';
 import { trackEvent } from '@/lib/analytics';
 import { listingImageKeywordSuffix } from '@/lib/taRegion';
@@ -272,18 +273,23 @@ export default function ListingCard({
         {/* Badge */}
         {badge && <span style={sg.badge}>{badge}</span>}
 
-        {/* Kaydet butonu */}
-        <button
-          style={sg.saveBtn}
-          onClick={() => {
-            const next = !saved;
-            setSaved(next);
-            trackEvent(next ? 'listing.save' : 'listing.unsave', { name, type });
-          }}
-          title={saved ? 'Kaydedildi' : 'Kaydet'}
-        >
-          <BookmarkIcon filled={saved} />
-        </button>
+        {/* Koleksiyona Kaydet */}
+        <div style={sg.saveSlot}>
+          <SaveToCollectionButton
+            place={{
+              id: `chat-${type || 'listing'}-${name}`,
+              name,
+              category:
+                type === 'hotel' || type === 'villa'
+                  ? 'stay'
+                  : type === 'restaurant'
+                    ? 'restaurant'
+                    : 'attraction',
+              city: location || '',
+              imageUrl: imageUrl || '',
+            }}
+          />
+        </div>
       </div>
 
       {/* ── İçerik ── */}
@@ -429,6 +435,12 @@ const sg = {
     whiteSpace: 'nowrap',
     zIndex: 'var(--z-raised)',
     fontFamily: 'var(--font-sans)',
+  },
+  saveSlot: {
+    position: 'absolute',
+    top: 'var(--space-3)',
+    right: 'var(--space-3)',
+    zIndex: 'var(--z-raised)',
   },
   saveBtn: {
     position: 'absolute',

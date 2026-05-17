@@ -40,6 +40,10 @@ import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import SkeletonList from '@/components/SkeletonList';
 import TripifyButton from '@/components/TripifyButton';
+import SaveToCollectionButton from '@/components/SaveToCollectionButton';
+import ActivePlanBanner from '@/components/ActivePlanBanner';
+import { useSearchParams } from 'next/navigation';
+import StayDiscoveryPanel from '@/components/StayDiscoveryPanel';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
@@ -284,6 +288,8 @@ export default function StaySearchScreen({
   const isCompact = useIsCompactSearchLayout();
   const splitWide = useSearchMapSplitWide(1100);
   const [city, setCity] = useState(() => defaultStayCity());
+  const searchParams = useSearchParams();
+  const activePlanId = searchParams?.get('planId') || null;
   const [checkIn, setCheckIn] = useState(() => new Date().toISOString().slice(0, 10));
   const [checkOut, setCheckOut] = useState(() => {
     const d = new Date();
@@ -580,7 +586,9 @@ export default function StaySearchScreen({
       const hotels = placesToStayHotels(places, cityStr, center);
       applyHotelList(hotels);
     } catch (e) {
-      console.error('Places search failed:', e);
+      // Sessize alındı — Places empty/timeout durumlarında otomatik mock'a düşüyoruz.
+      // Gerçek bir runtime hatası değil, beklenen fallback. console.debug log kirliliğini önler.
+      console.debug('Places search fell back to mock:', e?.message || e);
       setSearchError('Sonuç bulunamadı veya bağlantı hatası. Örnek veriler gösteriliyor.');
       const seed = typeof seedOpt === 'number' ? seedOpt : Date.now();
       const data = getMockHotels({ city: cityStr, seed });
@@ -1078,11 +1086,7 @@ export default function StaySearchScreen({
           ) : null}
 
           {!hasSearched ? (
-            <EmptyState
-              icon={Hotel}
-              title="Konaklama"
-              description="Otel ve diğer konaklama seçeneklerini filtreleyin, fiyatları karşılaştırın."
-            />
+            <StayDiscoveryPanel onPickCity={setCity} />
           ) : loading ? (
             <StaySkeleton narrow={isPhone} />
           ) : filtered.length === 0 ? (
@@ -1266,8 +1270,7 @@ export default function StaySearchScreen({
                             }}
                             destination={city}
                             autoBook={false}
-                            label="Geziye dönüştür"
-                            successLabel="Geziye eklendi"
+                            preferTripId={activePlanId}
                           />
                         </div>
                       </div>
@@ -1293,27 +1296,15 @@ export default function StaySearchScreen({
                             strokeWidth={2.2}
                           />
                         </button>
-                        <button
-                          type="button"
-                          style={fp.cardIconBtn}
-                          onClick={() =>
-                            setSaved((prev) => {
-                              const n = new Set(prev);
-                              if (n.has(h.id)) n.delete(h.id);
-                              else n.add(h.id);
-                              return n;
-                            })
-                          }
-                          aria-label={saved.has(h.id) ? 'Kaydı kaldır' : 'Kaydet'}
-                          title="Kaydet"
-                        >
-                          <Bookmark
-                            size={17}
-                            color={saved.has(h.id) ? 'var(--ta-accent-deep)' : 'var(--ta-ink-muted)'}
-                            fill={saved.has(h.id) ? 'rgba(31,77,92,.2)' : 'transparent'}
-                            strokeWidth={2.2}
-                          />
-                        </button>
+                        <SaveToCollectionButton
+                          place={{
+                            id: `stay-${h.id}`,
+                            name: h.name,
+                            category: 'stay',
+                            city: h.location || h.city || city || '',
+                            imageUrl: h.imageUrl || h.photo || '',
+                          }}
+                        />
                         <button
                           type="button"
                           style={fp.cardIconBtn}

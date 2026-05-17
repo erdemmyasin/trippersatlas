@@ -1,18 +1,36 @@
 'use client';
 
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AppSidebar from '@/components/AppSidebar';
 import ActivitySearchScreen from '@/components/ActivitySearchScreen';
+import ActivePlanBanner from '@/components/ActivePlanBanner';
 
-export default function AktivitelerPage() {
+function AktivitelerPageInner() {
+  const sp = useSearchParams();
+  const planId = sp?.get('planId') || null;
   return (
     <div style={lay.shell}>
       <AppSidebar activeId="quickPlan" />
       <main style={lay.main}>
+        {planId ? (
+          <div style={lay.bannerWrap}>
+            <ActivePlanBanner tripId={planId} />
+          </div>
+        ) : null}
         <div style={lay.fill}>
           <ActivitySearchScreen />
         </div>
       </main>
     </div>
+  );
+}
+
+export default function AktivitelerPage() {
+  return (
+    <Suspense fallback={null}>
+      <AktivitelerPageInner />
+    </Suspense>
   );
 }
 
@@ -38,5 +56,9 @@ const lay = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
+  },
+  bannerWrap: {
+    flexShrink: 0,
+    padding: '12px clamp(16px, 3vw, 32px) 0',
   },
 };

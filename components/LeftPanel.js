@@ -13,8 +13,7 @@ const SERVICES = [
   { id: 'lodging',  label: 'Konaklama',     listingTypes: ['hotel', 'villa', 'clinic'] },
   { id: 'flight',   label: 'Uçuş',          listingTypes: ['flight'] },
   { id: 'bus',      label: 'Otobüs',        listingTypes: ['bus'] },
-  { id: 'car',      label: 'Araç kiralama', listingTypes: ['car'] },
-  { id: 'transfer', label: 'Transfer',      listingTypes: ['transfer'] },
+  { id: 'car',      label: 'Araç kiralama', listingTypes: ['car', 'transfer'] },
   { id: 'activity', label: 'Aktivite',      listingTypes: ['tour', 'boat', 'activity'] },
   { id: 'extras',   label: 'Ekstra',        listingTypes: ['restaurant', 'extra'] },
 ];
@@ -31,8 +30,11 @@ export default function LeftPanel({
   onPlanNameChange,
   completedModules = new Set(),
   bookedServices = new Set(),
+  paidServices = new Set(),
   onBookService,
   onUnbookService,
+  onPayService,
+  onUnpayService,
   budget = {},
   selectedListings = {},
   onDeselect,
@@ -46,6 +48,8 @@ export default function LeftPanel({
   hideSmartSuggestion = false,
   /** Seyahat modülleri bölümünün altına özel CTA (ör. Sohbete Başla) */
   bottomSlot = null,
+  /** Servis satırı tıklanınca ilgili hızlı plana git (planId context'i ile) */
+  onServiceClick,
 }) {
   const [activeModule,  setActiveModule]  = useState(null);
   const [editingName,   setEditingName]   = useState(false);
@@ -111,25 +115,10 @@ export default function LeftPanel({
       </div>
       ) : null}
 
-      {/* ── Editorial künye ── */}
-      <div style={s.editorialEyebrow}>
-        <span style={s.eyebrowDot} aria-hidden>✦</span>
-        {bookedServices.size > 0
-          ? `ISSUE 01 · ${bookedServices.size} REZERVE`
-          : completedModules.size > 0
-            ? `TASLAK · ${completedModules.size} SERVİS`
-            : 'TASLAK · ATLAS EDITION'}
-      </div>
-
       {/* ── Servisler ── */}
       <section style={s.editorialSection}>
         <header style={s.editorialHead}>
           <h3 style={s.editorialTitle}>Servisler</h3>
-          <span style={s.editorialMeta}>
-            {bookedServices.size > 0
-              ? `${bookedServices.size} ✓ · ${completedModules.size} / ${SERVICES.length}`
-              : `${completedModules.size} / ${SERVICES.length}`}
-          </span>
         </header>
         <div style={s.hairline} aria-hidden />
 
@@ -137,45 +126,86 @@ export default function LeftPanel({
           {SERVICES.map((svc) => {
             const isPicked = completedModules.has(svc.id);
             const isBooked = bookedServices.has(svc.id);
+            const isPaid = paidServices.has(svc.id);
             const svcCount = Object.values(selectedListings).filter((l) => {
               const t = String(l?.type || '').toLowerCase();
               return svc.listingTypes.includes(t);
             }).length;
+            const clickable = typeof onServiceClick === 'function';
+
+            // Toggle: Rezerve ↔ Ödendi (booked olduğunda)
+            function handleStatusToggle(e) {
+              e.stopPropagation();
+              if (isPaid) onUnpayService?.(svc.id);
+              else onPayService?.(svc.id);
+            }
+            function handleBookAction(e) {
+              e.stopPropagation();
+              onBookService?.(svc.id);
+            }
+
             return (
-              <div key={svc.id} style={s.moduleRowItem}>
+              <div
+                key={svc.id}
+                role={clickable ? 'button' : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? () => onServiceClick(svc.id) : undefined}
+                onKeyDown={
+                  clickable
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onServiceClick(svc.id);
+                        }
+                      }
+                    : undefined
+                }
+                title={clickable ? `${svc.label} ekle` : undefined}
+                style={{
+                  ...s.moduleRowItem,
+                  ...(clickable ? s.moduleRowItemClickable : {}),
+                }}
+              >
                 <span
                   style={{
                     ...s.statusRing,
-                    ...(isBooked ? s.statusRingBooked : isPicked ? s.statusRingDone : {}),
+                    ...(isPaid
+                      ? s.statusRingPaid
+                      : isBooked
+                        ? s.statusRingBooked
+                        : isPicked
+                          ? s.statusRingDone
+                          : {}),
                   }}
                   aria-hidden
                 >
-                  {isBooked ? (
-                    <Check size={11} strokeWidth={3} color="#fff" />
-                  ) : isPicked ? (
+                  {isPaid || isBooked || isPicked ? (
                     <Check size={11} strokeWidth={3} color="#fff" />
                   ) : null}
                 </span>
                 <span style={s.moduleRowLabel}>{svc.label}</span>
                 {isBooked ? (
                   <>
-                    <span style={s.moduleRowBookedTag}>Rezerve</span>
+                    <span style={isPaid ? s.moduleRowCountPaid : s.moduleRowCountBooked}>
+                      {svcCount || 1}
+                    </span>
                     <button
                       type="button"
-                      style={s.moduleRowAction}
-                      onClick={() => onUnbookService?.(svc.id)}
-                      aria-label={`${svc.label} rezervasyonunu geri al`}
+                      style={isPaid ? s.moduleRowStatusPaid : s.moduleRowStatusBooked}
+                      onClick={handleStatusToggle}
+                      aria-label={isPaid ? `${svc.label} ödemesini geri al` : `${svc.label} ödemesini işaretle`}
+                      title={isPaid ? 'Tıkla: Rezerve\'ye geri al' : 'Tıkla: Ödendi olarak işaretle'}
                     >
-                      Geri al
+                      {isPaid ? 'Ödendi' : 'Rezerve'}
                     </button>
                   </>
                 ) : isPicked ? (
                   <>
-                    <span style={s.moduleRowMetaDone}>{svcCount || 1} öğe</span>
+                    <span style={s.moduleRowMetaDone}>{svcCount || 1}</span>
                     <button
                       type="button"
                       style={s.moduleRowActionPrimary}
-                      onClick={() => onBookService?.(svc.id)}
+                      onClick={handleBookAction}
                       aria-label={`${svc.label} için rezervasyon işaretle`}
                     >
                       Rezerve ettim
@@ -224,9 +254,6 @@ function BudgetSection({ budget, selectedListings = {} }) {
     <section style={s.editorialSection}>
       <header style={s.editorialHead}>
         <h3 style={s.editorialTitle}>Bütçe</h3>
-        {total > 0 ? (
-          <span style={s.editorialMeta}>{filledCats.length} kategori</span>
-        ) : null}
       </header>
       <div style={s.hairline} aria-hidden />
 
@@ -244,11 +271,9 @@ function BudgetSection({ budget, selectedListings = {} }) {
         )}
       </div>
 
-      <p style={s.budgetSubtitle}>
-        {total === 0
-          ? 'Sohbette bir öneri seçince burada birikir.'
-          : `${itemCount} öğe seçildi · ${filledCats.length} modülde`}
-      </p>
+      {total === 0 ? (
+        <p style={s.budgetSubtitle}>Sohbette bir öneri seçince burada birikir.</p>
+      ) : null}
 
       {total > 0 ? (
         <>
@@ -271,9 +296,6 @@ function BudgetSection({ budget, selectedListings = {} }) {
                   <span style={s.budgetCatBullet} aria-hidden>✦</span>
                   <div style={s.budgetCatMain}>
                     <span style={s.budgetCatName}>{cat.label}</span>
-                    {itemsInCat > 0 ? (
-                      <span style={s.budgetCatHint}>{itemsInCat} öğe</span>
-                    ) : null}
                   </div>
                   <span style={s.budgetCatPct}>%{pct}</span>
                   <span style={s.budgetCatAmt}>₺{val.toLocaleString('tr-TR')}</span>
@@ -295,9 +317,6 @@ function PlanSection({ selectedListings, onDeselect }) {
     <section style={s.editorialSection}>
       <header style={s.editorialHead}>
         <h3 style={s.editorialTitle}>Seyahat Planı</h3>
-        {items.length > 0 ? (
-          <span style={s.editorialMeta}>{items.length} öğe</span>
-        ) : null}
       </header>
       <div style={s.hairline} aria-hidden />
 
@@ -462,7 +481,12 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: 'var(--space-3)',
-    padding: '6px 0',
+    padding: '6px 4px',
+    borderRadius: 'var(--radius-xs)',
+  },
+  moduleRowItemClickable: {
+    cursor: 'pointer',
+    transition: 'background var(--duration-fast) var(--ease-out)',
   },
   statusRing: {
     width: 20,
@@ -487,6 +511,12 @@ const s = {
     background: 'var(--ta-ink)',
     borderColor: 'var(--ta-ink)',
     boxShadow: '0 0 0 3px rgba(15,23,32,0.14)',
+  },
+  statusRingPaid: {
+    /* Ödendi: ek vurgu — yumuşak altın halka (içi ink kalır) */
+    background: 'var(--ta-ink)',
+    borderColor: 'var(--ta-ink)',
+    boxShadow: '0 0 0 3px rgba(201,168,106,0.45)',
   },
   moduleRowLabel: {
     flex: 1,
@@ -521,6 +551,57 @@ const s = {
     borderWidth: 'var(--border-thin)',
     borderStyle: 'solid',
     borderColor: 'rgba(15,23,32,0.18)',
+  },
+  /* Booked → tıklanabilir "Rezerve" pill */
+  moduleRowCountBooked: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    color: 'var(--ta-ink)',
+    fontWeight: 'var(--fw-bold)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  moduleRowCountPaid: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--text-sm)',
+    color: '#9C7E3F',
+    fontWeight: 'var(--fw-bold)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  moduleRowStatusBooked: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: 'var(--ta-ink)',
+    padding: '3px 9px',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(15,23,32,0.06)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(15,23,32,0.22)',
+    cursor: 'pointer',
+    marginLeft: 6,
+    whiteSpace: 'nowrap',
+    transition: 'background var(--duration-fast) var(--ease-out)',
+  },
+  moduleRowStatusPaid: {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 10,
+    fontWeight: 'var(--fw-bold)',
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: '#9C7E3F',
+    padding: '3px 9px',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(201,168,106,0.12)',
+    borderWidth: 'var(--border-thin)',
+    borderStyle: 'solid',
+    borderColor: 'rgba(201,168,106,0.42)',
+    cursor: 'pointer',
+    marginLeft: 6,
+    whiteSpace: 'nowrap',
+    transition: 'background var(--duration-fast) var(--ease-out)',
   },
   moduleRowAction: {
     fontFamily: 'var(--font-sans)',

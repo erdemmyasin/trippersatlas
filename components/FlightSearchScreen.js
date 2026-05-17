@@ -43,6 +43,8 @@ import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import SkeletonList from '@/components/SkeletonList';
 import TripifyButton from '@/components/TripifyButton';
+import SaveToCollectionButton from '@/components/SaveToCollectionButton';
+import { useSearchParams } from 'next/navigation';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 
@@ -147,6 +149,8 @@ export default function FlightSearchScreen({
   const effectiveTripType = hideTripTypeToggle ? 'round' : tripType;
   const [origin, setOrigin] = useState('AYT');
   const [destination, setDestination] = useState('IST');
+  const searchParams = useSearchParams();
+  const activePlanId = searchParams?.get('planId') || null;
   const [dateOut, setDateOut] = useState(() => new Date().toISOString().slice(0, 10));
   const [dateIn, setDateIn] = useState(() => {
     const d = new Date();
@@ -801,8 +805,7 @@ export default function FlightSearchScreen({
                     }}
                     destination={destination}
                     autoBook={false}
-                    label="Geziye dönüştür"
-                    successLabel="Geziye eklendi"
+                    preferTripId={activePlanId}
                   />
                 </div>
                 <div style={{ ...st.cardActions, justifyContent: isPhone ? 'flex-start' : 'flex-end' }}>
@@ -819,26 +822,14 @@ export default function FlightSearchScreen({
                     <Share2 size={16} color="var(--ta-ink-subtle)" />
                     Paylaş
                   </button>
-                  <button
-                    type="button"
-                    style={st.iconAct}
-                    onClick={() =>
-                      setSavedIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(f.id)) next.delete(f.id);
-                        else next.add(f.id);
-                        return next;
-                      })
-                    }
-                    aria-label="Kaydet"
-                  >
-                    <Bookmark
-                      size={16}
-                      color={savedIds.has(f.id) ? 'var(--ta-accent-deep)' : 'var(--ta-ink-subtle)'}
-                      fill={savedIds.has(f.id) ? 'var(--ta-accent-deep)' : 'transparent'}
-                    />
-                    Kaydet
-                  </button>
+                  <SaveToCollectionButton
+                    place={{
+                      id: `flight-${f.id}`,
+                      name: `${f.airline} ${f.departureCode}→${f.arrivalCode}`,
+                      category: 'location',
+                      city: destination || '',
+                    }}
+                  />
                   <button
                     type="button"
                     style={st.iconAct}

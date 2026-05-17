@@ -34,6 +34,8 @@ import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import SkeletonList from '@/components/SkeletonList';
 import TripifyButton from '@/components/TripifyButton';
+import SaveToCollectionButton from '@/components/SaveToCollectionButton';
+import { useSearchParams } from 'next/navigation';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
@@ -182,6 +184,8 @@ export default function BusSearchScreen() {
   const [filterDrawer, setFilterDrawer] = useState(false);
   const [savedIds, setSavedIds] = useState(() => new Set());
   const [likedIds, setLikedIds] = useState(() => new Set());
+  const searchParams = useSearchParams();
+  const activePlanId = searchParams?.get('planId') || null;
   const [busMapMarkers, setBusMapMarkers] = useState([]);
 
   const busBarRef = useRef(null);
@@ -562,8 +566,7 @@ export default function BusSearchScreen() {
                     }}
                     destination={trip.arrStation || ''}
                     autoBook={false}
-                    label="Geziye dönüştür"
-                    successLabel="Geziye eklendi"
+                    preferTripId={activePlanId}
                   />
                 </div>
                 <div style={{ ...st.cardActions, justifyContent: isPhone ? 'flex-start' : 'flex-end' }}>
@@ -580,26 +583,14 @@ export default function BusSearchScreen() {
                     <Share2 size={16} color="var(--ta-ink-subtle)" />
                     Paylaş
                   </button>
-                  <button
-                    type="button"
-                    style={st.iconAct}
-                    onClick={() =>
-                      setSavedIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(trip.id)) next.delete(trip.id);
-                        else next.add(trip.id);
-                        return next;
-                      })
-                    }
-                    aria-label="Kaydet"
-                  >
-                    <Bookmark
-                      size={16}
-                      color={savedIds.has(trip.id) ? 'var(--ta-accent-deep)' : 'var(--ta-ink-subtle)'}
-                      fill={savedIds.has(trip.id) ? 'var(--ta-accent-deep)' : 'transparent'}
-                    />
-                    Kaydet
-                  </button>
+                  <SaveToCollectionButton
+                    place={{
+                      id: `bus-${trip.id}`,
+                      name: `${trip.company} ${trip.dep} → ${trip.arr}`,
+                      category: 'location',
+                      city: trip.arrStation || '',
+                    }}
+                  />
                   <button
                     type="button"
                     style={st.iconAct}

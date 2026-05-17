@@ -95,7 +95,7 @@ function ChatOverflowToolbar({ onShare, onCreateTrip, onArchive, onDelete }) {
       {open ? (
         <div role="menu" style={ov.menu}>
           {item('Sohbeti Paylaş', onShare)}
-          {item('Sohbete Gezi Oluştur', onCreateTrip)}
+          {item('Sohbete Plan Oluştur', onCreateTrip)}
           {item('Sohbeti Arşivle', onArchive)}
           {item('Sohbeti Sil', onDelete, true)}
         </div>
@@ -327,7 +327,7 @@ const ChatArea = forwardRef(function ChatArea(
           <a href={`/trips/${encodeURIComponent(boundTrip.id)}`} style={s.boundTripBanner}>
             <span style={s.boundTripDot} aria-hidden>✦</span>
             <span style={s.boundTripText}>
-              Bu sohbet <strong>{boundTrip.name || 'gezisine'}</strong> bağlı —
+              Bu sohbet <strong>{boundTrip.name || 'planınıza'}</strong> bağlı —
               seçimlerin doğrudan planına eklenir.
             </span>
             <span style={s.boundTripArrow} aria-hidden>›</span>

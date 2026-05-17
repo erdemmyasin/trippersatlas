@@ -41,6 +41,8 @@ import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import SkeletonList from '@/components/SkeletonList';
 import TripifyButton from '@/components/TripifyButton';
+import SaveToCollectionButton from '@/components/SaveToCollectionButton';
+import { useSearchParams } from 'next/navigation';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { popoverCoords, datePanelCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
@@ -216,6 +218,8 @@ export default function CarSearchScreen() {
   const [hasSearched, setHasSearched] = useState(false);
   const [raw, setRaw] = useState([]);
   const [savedIds, setSavedIds] = useState(() => new Set());
+  const searchParams = useSearchParams();
+  const activePlanId = searchParams?.get('planId') || null;
   const [likedIds, setLikedIds] = useState(() => new Set());
   const [hoverMap, setHoverMap] = useState(null);
   const [mapTip, setMapTip] = useState(null);
@@ -808,27 +812,14 @@ export default function CarSearchScreen() {
                 <button type="button" style={cp.iconBtn} onClick={() => shareCar(c)} aria-label="Paylaş" title="Paylaş">
                   <Share2 size={17} color="var(--ta-ink-muted)" strokeWidth={2} />
                 </button>
-                <button
-                  type="button"
-                  style={cp.iconBtn}
-                  onClick={() =>
-                    setSavedIds((prev) => {
-                      const n = new Set(prev);
-                      if (n.has(c.id)) n.delete(c.id);
-                      else n.add(c.id);
-                      return n;
-                    })
-                  }
-                  aria-label="Kaydet"
-                  title="Kaydet"
-                >
-                  <Bookmark
-                    size={17}
-                    color={savedIds.has(c.id) ? 'var(--ta-accent-deep)' : 'var(--ta-ink-muted)'}
-                    fill={savedIds.has(c.id) ? 'var(--ta-accent-deep)' : 'transparent'}
-                    strokeWidth={2}
-                  />
-                </button>
+                <SaveToCollectionButton
+                  place={{
+                    id: `car-${c.id}`,
+                    name: `${c.company || 'Araç'} · ${c.model || c.title || 'Kiralama'}`,
+                    category: 'location',
+                    city: c.pickupCity || c.city || pickupLocation || '',
+                  }}
+                />
                 <button
                   type="button"
                   style={cp.iconBtn}
@@ -951,14 +942,13 @@ export default function CarSearchScreen() {
                     serviceType="car"
                     listing={{
                       name: `${c.company || 'Araç'} · ${c.model || c.title || 'Kiralama'}`,
-                      location: c.pickupCity || c.city || '',
+                      location: c.pickupCity || c.city || pickupLocation || '',
                       price: Number(c.totalPrice) || Number(c.dailyPrice) || 0,
                       type: 'car',
                     }}
-                    destination={c.pickupCity || c.city || ''}
+                    destination={c.pickupCity || c.city || pickupLocation || ''}
                     autoBook={false}
-                    label="Geziye dönüştür"
-                    successLabel="Geziye eklendi"
+                    preferTripId={activePlanId}
                   />
                 </div>
               </div>

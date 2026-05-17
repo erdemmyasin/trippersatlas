@@ -1,18 +1,36 @@
 'use client';
 
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AppSidebar from '@/components/AppSidebar';
 import FlightSearchScreen from '@/components/FlightSearchScreen';
+import ActivePlanBanner from '@/components/ActivePlanBanner';
 
-export default function TurlarPage() {
+function TurlarPageInner() {
+  const sp = useSearchParams();
+  const planId = sp?.get('planId') || null;
   return (
     <div style={lay.shell}>
       <AppSidebar activeId="quickPlan" />
       <main style={lay.main}>
+        {planId ? (
+          <div style={lay.bannerWrap}>
+            <ActivePlanBanner tripId={planId} />
+          </div>
+        ) : null}
         <div style={lay.fill}>
           <FlightSearchScreen title="Turlar" hideTripTypeToggle lodgingTourResults />
         </div>
       </main>
     </div>
+  );
+}
+
+export default function TurlarPage() {
+  return (
+    <Suspense fallback={null}>
+      <TurlarPageInner />
+    </Suspense>
   );
 }
 
@@ -38,5 +56,9 @@ const lay = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
+  },
+  bannerWrap: {
+    flexShrink: 0,
+    padding: '12px clamp(16px, 3vw, 32px) 0',
   },
 };

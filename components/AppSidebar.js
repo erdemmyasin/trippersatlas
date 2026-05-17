@@ -92,7 +92,7 @@ function QuickPlanNavIcon({ size = 20, color = ta.inkMuted, strokeWidth = 2 }) {
 
 const NAV_ITEMS = [
   { id: 'chats',   Icon: MessageCircle, label: 'Sohbetler',     href: '/chat',    hasPanel: true },
-  { id: 'trips',   Icon: Briefcase,     label: 'Geziler',       href: '/trips',   hasPanel: false },
+  { id: 'trips',   Icon: Briefcase,     label: 'Planlar',       href: '/trips',   hasPanel: false },
   { id: 'quickPlan', Icon: QuickPlanNavIcon, label: 'Hızlı Plan', href: '/chat', hasPanel: true },
   { id: 'saved',   Icon: Bookmark,      label: 'Kaydedilenler', href: '/saved',   hasPanel: false },
   { id: 'likes',   Icon: ThumbsUp,      label: 'Beğeniler',     href: '/likes',   hasPanel: false },
@@ -341,7 +341,7 @@ export default function AppSidebar({
   }
   function openDeleteTripModal(trip) {
     setCtxMenu(null);
-    setTripDeleteModal({ id: trip.id, name: trip.name || 'Gezi' });
+    setTripDeleteModal({ id: trip.id, name: trip.name || 'Plan' });
   }
   function confirmDeleteTrip() {
     if (!tripDeleteModal) return;
@@ -625,13 +625,13 @@ export default function AppSidebar({
                 }}
               >
                 <Map size={16} strokeWidth={2} color={ta.ink} />
-                <span style={st.pActLabel}>Yeni Gezi</span>
+                <span style={st.pActLabel}>Yeni Plan</span>
               </button>
 
               {/* Trips */}
               {filteredTrips.length > 0 && (
                 <>
-                  <div style={st.pSection}>Geziler</div>
+                  <div style={st.pSection}>Planlar</div>
                   {filteredTrips.map(trip => (
                     <PanelRow key={trip.id} type="trip" item={trip}
                       isActive={uiMode === 'trip' && highlightTripId != null && String(highlightTripId) === String(trip.id)}
@@ -779,7 +779,7 @@ export default function AppSidebar({
             onClick={(e) => e.stopPropagation()}
           >
             <p id="trip-del-title" style={st.modalText}>
-              Bu geziyi silmek istediğinize emin misiniz?
+              Bu planı silmek istediğinize emin misiniz?
             </p>
             <div style={st.modalActions}>
               <button type="button" style={st.modalBtnCancel} onClick={() => setTripDeleteModal(null)}>
@@ -929,7 +929,7 @@ function PanelRow({
             }}
           >
             <Pencil size={14} strokeWidth={2} color={ta.ink} />
-            <span>{isChat ? 'Sohbeti Yeniden Adlandır' : 'Geziyi Yeniden Adlandır'}</span>
+            <span>{isChat ? 'Sohbeti Yeniden Adlandır' : 'Planı Yeniden Adlandır'}</span>
           </button>
           <div style={st.ctxDivider} />
           <button
@@ -941,7 +941,7 @@ function PanelRow({
             }}
           >
             <Trash2 size={14} strokeWidth={2} color={ta.danger} />
-            <span>{isChat ? 'Sohbeti Sil' : 'Geziyi Sil'}</span>
+            <span>{isChat ? 'Sohbeti Sil' : 'Planı Sil'}</span>
           </button>
         </div>
       )}

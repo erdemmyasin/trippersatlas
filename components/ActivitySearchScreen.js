@@ -26,6 +26,7 @@ import { qp } from '@/lib/quickPlanFilterStyles';
 import FilterField from '@/components/FilterField';
 import EmptyState from '@/components/EmptyState';
 import TripifyButton from '@/components/TripifyButton';
+import { useSearchParams } from 'next/navigation';
 import { useExclusivePopover } from '@/hooks/useExclusivePopover';
 import { datePanelCoords, popoverCoords } from '@/lib/popoverCoords';
 import { useQuickPlanBarDismiss } from '@/hooks/useQuickPlanBarDismiss';
@@ -191,6 +192,8 @@ export default function ActivitySearchScreen() {
 
   /** Arama/mock için şehir adı */
   const [destinationDraft, setDestinationDraft] = useState('İstanbul');
+  const searchParams = useSearchParams();
+  const activePlanId = searchParams?.get('planId') || null;
   /** Kutuda gösterilen tam satır */
   const [destinationLine, setDestinationLine] = useState('İstanbul (ve çevresi), İstanbul, Türkiye');
   /** Çift tarih — aktivite gününde yaygın (başlangıç / bitiş) */
@@ -836,15 +839,14 @@ export default function ActivitySearchScreen() {
                                   serviceType="activity"
                                   listing={{
                                     name: a.title || a.name || 'Aktivite',
-                                    location: a.city || a.location || '',
+                                    location: a.city || a.location || destinationDraft || '',
                                     price: Number(a.price) || 0,
                                     type: 'activity',
                                     imageUrl: a.imageUrl || a.photo || null,
                                   }}
-                                  destination={a.city || a.location || ''}
+                                  destination={a.city || a.location || destinationDraft || ''}
                                   autoBook={false}
-                                  label="Geziye dönüştür"
-                                  successLabel="Geziye eklendi"
+                                  preferTripId={activePlanId}
                                 />
                               </div>
                             </div>
